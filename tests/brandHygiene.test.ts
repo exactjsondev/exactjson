@@ -98,7 +98,7 @@ describe("ExactJSON clean-slate brand hygiene and MCP contract parity", () => {
     expect(mcpPkg.version).toBe("1.0.0");
     expect(mcpPkg.mcpName).toBe("io.github.exactjsondev/exactjson");
     expect(mcpPkg.homepage).toBe("https://exactjson.com");
-    expect(mcpPkg.bin["exactjson-mcp"]).toBe("./index.mjs");
+    expect(mcpPkg.bin["exactjson-mcp"]).toBe("index.mjs");
 
     const serverJson = JSON.parse(readFileSync(resolve(ROOT, "mcp/server.json"), "utf8")) as {
       name: string;
