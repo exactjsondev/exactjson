@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.exactjsondev/exactjson",
   "title": "ExactJSON — Live, deterministic x402 APIs for AI agents",
-  "description": "11 pay-per-call token safety, execution slippage, perps, prediction-market arb, options surface & US macro endpoints on Base USDC via x402 V2.",
+  "description": "Live, deterministic x402 APIs for AI agents: 11 Base USDC market, safety, arb & macro tools.",
   "websiteUrl": "https://exactjson.com",
   "repository": {
     "url": "https://github.com/exactjsondev/exactjson",
