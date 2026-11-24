@@ -1,5 +1,7 @@
 # ExactJSON — Live, deterministic x402 APIs for AI agents
 
+[![ExactJSON MCP server](https://glama.ai/mcp/servers/exactjsondev/exactjson/badge)](https://glama.ai/mcp/servers/exactjsondev/exactjson)
+
 **Website & Docs:** https://exactjson.com · **MCP:** `npx -y exactjson-mcp` · **Contact:** hello@exactjson.com
 
 **ExactJSON** serves pre-computed, strict-schema, token-optimized JSON endpoints for AI agents via **x402 V2** micro-payments on **Base Mainnet (`eip155:8453`, USDC)** — `$0.005–$0.02/call`, zero API keys, zero subscriptions, strict **Pay-Only-On-Success** settlement (`HTTP 200` only).

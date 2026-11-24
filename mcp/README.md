@@ -1,5 +1,7 @@
 # exactjson-mcp
 
+[![ExactJSON MCP server](https://glama.ai/mcp/servers/exactjsondev/exactjson/badge)](https://glama.ai/mcp/servers/exactjsondev/exactjson)
+
 **ExactJSON — Live, deterministic x402 APIs for AI agents** (Model Context Protocol server).
 
 Exposes 12 tools (`exactjson_health` free + 11 Base USDC pay-per-call endpoints) with client-side spend caps (`MAX_PAYMENT_USD`) and Pay-Only-On-Success guarantees.
