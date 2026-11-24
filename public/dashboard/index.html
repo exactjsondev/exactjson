@@ -1,0 +1,1010 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <title>ExactJSON — Operator Dashboard</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b0f17;
+      --surface: #121826;
+      --surface-alt: #182132;
+      --border: #263147;
+      --text: #e6edf7;
+      --muted: #93a4bd;
+      --accent: #38bdf8;
+      --green: #22c55e;
+      --green-bg: rgba(34, 197, 94, 0.14);
+      --amber: #f59e0b;
+      --amber-bg: rgba(245, 158, 11, 0.16);
+      --red: #ef4444;
+      --red-bg: rgba(239, 68, 68, 0.16);
+      --blue-bg: rgba(56, 189, 248, 0.14);
+      --scrollbar-track: #121826;
+      --scrollbar-thumb: #3b4a66;
+      accent-color: var(--accent);
+      scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+    }
+
+    @supports not (scrollbar-color: auto) {
+      * {
+        scrollbar-width: auto;
+      }
+      ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--scrollbar-thumb);
+        border-radius: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--scrollbar-track);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+    }
+
+    .container {
+      max-width: 1280px;
+      margin: 0 auto;
+      padding: 1.5rem 1.25rem 3rem;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1.5rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .brand h1 {
+      margin: 0;
+      font-size: 1.35rem;
+      letter-spacing: -0.02em;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 0.25rem 0.65rem;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface-alt);
+      color: var(--muted);
+    }
+
+    .pill.live {
+      background: var(--green-bg);
+      color: #86efac;
+      border-color: rgba(34, 197, 94, 0.35);
+    }
+
+    .pill.paused {
+      background: var(--red-bg);
+      color: #fca5a5;
+      border-color: rgba(239, 68, 68, 0.35);
+    }
+
+    .pill.net {
+      background: var(--blue-bg);
+      color: #7dd3fc;
+      border-color: rgba(56, 189, 248, 0.35);
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.1rem 1.25rem;
+    }
+
+    .auth-panel {
+      max-width: 480px;
+      margin: 3rem auto;
+    }
+
+    .auth-panel h2 {
+      margin: 0 0 0.5rem;
+      font-size: 1.15rem;
+    }
+
+    .auth-panel p {
+      margin: 0 0 1rem;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 0.6rem;
+      flex-wrap: wrap;
+    }
+
+    input[type="password"],
+    select {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.55rem 0.75rem;
+      font-size: 0.9rem;
+    }
+
+    input[type="password"] {
+      flex: 1 1 240px;
+    }
+
+    button {
+      cursor: pointer;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.55rem 0.95rem;
+      font-size: 0.88rem;
+      font-weight: 600;
+      background: var(--surface-alt);
+      color: var(--text);
+    }
+
+    button:hover:not(:disabled) {
+      border-color: var(--accent);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    button.primary {
+      background: var(--accent);
+      color: #06131f;
+      border-color: var(--accent);
+    }
+
+    button.btn-start {
+      background: var(--green-bg);
+      color: #86efac;
+      border-color: rgba(34, 197, 94, 0.45);
+    }
+
+    button.btn-stop {
+      background: var(--red-bg);
+      color: #fca5a5;
+      border-color: rgba(239, 68, 68, 0.45);
+    }
+
+    .control-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .control-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .control-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(185px, 1fr));
+      gap: 0.9rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .kpi-label {
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .kpi-value {
+      font-size: 1.55rem;
+      font-weight: 700;
+      margin-top: 0.3rem;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .kpi-sub {
+      font-size: 0.8rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+    }
+
+    .section-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 0.85rem;
+    }
+
+    .section-header h2 {
+      margin: 0;
+      font-size: 1rem;
+    }
+
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .stack {
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+
+    .table-wrapper {
+      overflow: auto;
+      max-inline-size: 100%;
+      max-block-size: min(560px, 72vh);
+      container-type: inline-size;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: var(--bg);
+    }
+
+    .table-wrapper:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      font-size: 0.84rem;
+    }
+
+    caption {
+      text-align: left;
+      padding: 0.65rem 0.85rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+
+    thead {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 1;
+      background: var(--surface-alt);
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 0.6rem 0.75rem;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    tbody tr:hover {
+      background: rgba(56, 189, 248, 0.05);
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 0.8rem;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 6px;
+      font-size: 0.74rem;
+      font-weight: 600;
+    }
+
+    .badge.SETTLED {
+      background: var(--green-bg);
+      color: #86efac;
+    }
+
+    .badge.CHALLENGED_402 {
+      background: var(--blue-bg);
+      color: #7dd3fc;
+    }
+
+    .badge.VERIFY_FAILED {
+      background: var(--amber-bg);
+      color: #fcd34d;
+    }
+
+    .badge.UNSETTLED_ERROR {
+      background: var(--red-bg);
+      color: #fca5a5;
+    }
+
+    a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    a:hover {
+      text-decoration: underline;
+    }
+
+    .error-msg {
+      color: #fca5a5;
+      font-size: 0.86rem;
+      margin-top: 0.6rem;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .requests-table {
+      --label-1: "Time";
+      --label-2: "Endpoint";
+      --label-3: "Target";
+      --label-4: "Status";
+      --label-5: "Outcome";
+      --label-6: "Price";
+      --label-7: "Payer";
+      --label-8: "Tx Hash";
+      --label-9: "Cache";
+      --label-10: "Upstream / Error";
+      --label-11: "Extension Responses";
+      --label-12: "Latency";
+    }
+
+    @container (width < 680px) {
+      .requests-table,
+      .requests-table thead,
+      .requests-table tbody,
+      .requests-table tr,
+      .requests-table th,
+      .requests-table td {
+        display: block;
+      }
+
+      .requests-table thead {
+        display: none;
+      }
+
+      .requests-table tr {
+        margin: 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--surface);
+      }
+
+      .requests-table tbody th {
+        position: sticky;
+        inset-block-start: 0;
+        z-index: 2;
+        background: var(--surface-alt);
+        color: var(--text);
+        border-radius: 8px 8px 0 0;
+      }
+
+      .requests-table td {
+        white-space: normal;
+        display: flex;
+        justify-content: space-between;
+        gap: 0.75rem;
+      }
+
+      .requests-table td::before {
+        color: var(--muted);
+        font-weight: 600;
+        font-size: 0.75rem;
+      }
+
+      .requests-table td:nth-child(2)::before { content: var(--label-2) ": "; }
+      .requests-table td:nth-child(3)::before { content: var(--label-3) ": "; }
+      .requests-table td:nth-child(4)::before { content: var(--label-4) ": "; }
+      .requests-table td:nth-child(5)::before { content: var(--label-5) ": "; }
+      .requests-table td:nth-child(6)::before { content: var(--label-6) ": "; }
+      .requests-table td:nth-child(7)::before { content: var(--label-7) ": "; }
+      .requests-table td:nth-child(8)::before { content: var(--label-8) ": "; }
+      .requests-table td:nth-child(9)::before { content: var(--label-9) ": "; }
+      .requests-table td:nth-child(10)::before { content: var(--label-10) ": "; }
+      .requests-table td:nth-child(11)::before { content: var(--label-11) ": "; }
+      .requests-table td:nth-child(12)::before { content: var(--label-12) ": "; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">
+        <h1>ExactJSON</h1>
+        <span class="pill" id="version-pill">1.0.0</span>
+        <span class="pill net hidden" id="network-pill"></span>
+        <span class="pill hidden" id="status-pill"><span class="dot"></span><span id="status-pill-text"></span></span>
+      </div>
+      <div class="control-actions hidden" id="header-actions">
+        <a class="mono" id="wallet-link" target="_blank" rel="noopener noreferrer" title="View live USDC payouts on BaseScan"></a>
+        <button type="button" id="copy-wallet-btn" title="Copy receiving wallet address">Copy</button>
+        <span class="muted mono" id="last-updated" style="font-size: 0.76rem;"></span>
+        <button type="button" id="refresh-btn">Refresh</button>
+        <button type="button" id="signout-btn">Sign Out</button>
+      </div>
+    </header>
+
+    <section class="card auth-panel" id="auth-section">
+      <h2>Operator Authentication</h2>
+      <p>Enter your <code>DASHBOARD_TOKEN</code> to access ExactJSON telemetry and Start/Stop controls. Stored only in this browser tab's sessionStorage.</p>
+      <form id="auth-form" class="form-row">
+        <input id="token-input" type="password" autocomplete="current-password" placeholder="Paste DASHBOARD_TOKEN..." required>
+        <button type="submit" class="primary">Unlock</button>
+      </form>
+      <div id="auth-error" class="error-msg hidden" role="alert"></div>
+    </section>
+
+    <main id="dashboard-main" class="stack hidden">
+      <section class="card control-bar" aria-label="Paid API Service Control">
+        <div class="control-meta">
+          <div>
+            <strong>Paid API Gate (<code>/v1/*</code>)</strong>
+            <div class="muted" id="control-updated" style="font-size: 0.8rem;">Loading state...</div>
+          </div>
+        </div>
+        <div class="control-actions">
+          <button type="button" id="start-api-btn" class="btn-start">Start API (Live)</button>
+          <button type="button" id="stop-api-btn" class="btn-stop">Stop API (Pause 503)</button>
+        </div>
+      </section>
+
+      <section class="kpi-grid" aria-label="Key Metrics">
+        <div class="card">
+          <div class="kpi-label">Settled Revenue (All)</div>
+          <div class="kpi-value" id="kpi-rev-all">$0.0000</div>
+          <div class="kpi-sub" id="kpi-rev-24h">24h: $0.0000</div>
+        </div>
+        <div class="card">
+          <div class="kpi-label">Settled Requests</div>
+          <div class="kpi-value" id="kpi-settled">0</div>
+          <div class="kpi-sub" id="kpi-settled-24h">24h: 0</div>
+        </div>
+        <div class="card">
+          <div class="kpi-label">402 Challenges</div>
+          <div class="kpi-value" id="kpi-challenged">0</div>
+          <div class="kpi-sub" id="kpi-challenged-24h">24h: 0</div>
+        </div>
+        <div class="card">
+          <div class="kpi-label">Verify Failed / Errors</div>
+          <div class="kpi-value" id="kpi-errors">0 / 0</div>
+          <div class="kpi-sub" id="kpi-errors-24h">24h: 0 / 0</div>
+        </div>
+        <div class="card">
+          <div class="kpi-label">Avg Latency</div>
+          <div class="kpi-value" id="kpi-latency">0 ms</div>
+          <div class="kpi-sub" id="kpi-total">Total /v1/* logged: 0</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-header">
+          <h2 id="endpoints-table-heading">Per-Endpoint Breakdown</h2>
+        </div>
+        <div tabindex="0" role="region" aria-labelledby="endpoints-table-heading" class="table-wrapper">
+          <table>
+            <caption>Settled revenue and request breakdown by paid endpoint</caption>
+            <thead>
+              <tr>
+                <th>Endpoint</th>
+                <th>Total</th>
+                <th>Settled</th>
+                <th>Revenue (USD)</th>
+                <th>402 Challenges</th>
+                <th>Unsettled Errors</th>
+                <th>Avg Latency</th>
+              </tr>
+            </thead>
+            <tbody id="endpoints-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="section-header">
+          <h2 id="requests-table-heading">Recent Paid API Requests</h2>
+          <div class="filters">
+            <select id="filter-endpoint" aria-label="Filter by endpoint">
+              <option value="">All Endpoints</option>
+              <option value="/v1/perps/screener">/v1/perps/screener</option>
+              <option value="/v1/perps/funding-arb">/v1/perps/funding-arb</option>
+              <option value="/v1/perps/snapshot">/v1/perps/snapshot</option>
+              <option value="/v1/predictions/scanner">/v1/predictions/scanner</option>
+              <option value="/v1/options/surface">/v1/options/surface</option>
+              <option value="/v1/macro/liquidity">/v1/macro/liquidity</option>
+              <option value="/v1/solana/trending">/v1/solana/trending</option>
+              <option value="/v1/solana/safety">/v1/solana/safety</option>
+              <option value="/v1/evm/safety">/v1/evm/safety</option>
+              <option value="/v1/predictions/arb">/v1/predictions/arb</option>
+              <option value="/v1/execution/quote-check">/v1/execution/quote-check</option>
+            </select>
+            <select id="filter-outcome" aria-label="Filter by outcome">
+              <option value="">All Outcomes</option>
+              <option value="SETTLED">SETTLED</option>
+              <option value="CHALLENGED_402">CHALLENGED_402</option>
+              <option value="VERIFY_FAILED">VERIFY_FAILED</option>
+              <option value="UNSETTLED_ERROR">UNSETTLED_ERROR</option>
+            </select>
+            <select id="filter-network" aria-label="Filter by network">
+              <option value="">All Networks</option>
+              <option value="eip155:8453">Base Mainnet (eip155:8453)</option>
+              <option value="eip155:84532">Base Sepolia (eip155:84532)</option>
+            </select>
+            <select id="filter-limit" aria-label="Row limit">
+              <option value="25">25 rows</option>
+              <option value="50" selected>50 rows</option>
+              <option value="100">100 rows</option>
+            </select>
+          </div>
+        </div>
+        <div id="dash-error" class="error-msg hidden" role="alert"></div>
+        <div tabindex="0" role="region" aria-labelledby="requests-table-heading" class="table-wrapper">
+          <table class="requests-table">
+            <caption>Recent /v1/* telemetry rows from Cloudflare D1</caption>
+            <thead>
+              <tr>
+                <th>Time (UTC)</th>
+                <th>Endpoint</th>
+                <th>Target</th>
+                <th>Status</th>
+                <th>Outcome</th>
+                <th>Price</th>
+                <th>Payer</th>
+                <th>Tx Hash</th>
+                <th>Cache</th>
+                <th>Upstream / Error</th>
+                <th>Extension Responses</th>
+                <th>Latency</th>
+              </tr>
+            </thead>
+            <tbody id="requests-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const TOKEN_KEY = "exactjson_dashboard_token";
+    let refreshTimer = null;
+
+    const el = (id) => document.getElementById(id);
+
+    function getToken() {
+      return sessionStorage.getItem(TOKEN_KEY) || "";
+    }
+
+    function setToken(tok) {
+      sessionStorage.setItem(TOKEN_KEY, tok);
+    }
+
+    function clearToken() {
+      sessionStorage.removeItem(TOKEN_KEY);
+    }
+
+    function shortAddr(val) {
+      if (!val || val.length < 12) return val || "-";
+      return `${val.slice(0, 6)}...${val.slice(-4)}`;
+    }
+
+    function fmtUsd(n) {
+      const num = Number(n || 0);
+      return `$${num.toFixed(4)}`;
+    }
+
+    function explorerUrl(network, txHash) {
+      if (!txHash) return null;
+      if (network === "eip155:8453") {
+        return `https://basescan.org/tx/${encodeURIComponent(txHash)}`;
+      }
+      return `https://sepolia.basescan.org/tx/${encodeURIComponent(txHash)}`;
+    }
+
+    async function apiFetch(path, options = {}) {
+      const token = getToken();
+      const headers = new Headers(options.headers || {});
+      headers.set("Authorization", `Bearer ${token}`);
+      if (options.body && !headers.has("Content-Type")) {
+        headers.set("Content-Type", "application/json");
+      }
+      const res = await fetch(path, { ...options, headers });
+      if (res.status === 401) {
+        clearToken();
+        showAuth("Invalid or expired DASHBOARD_TOKEN.");
+        throw new Error("Unauthorized");
+      }
+      if (!res.ok) {
+        let detail = `Request failed (${res.status})`;
+        try {
+          const errJson = await res.json();
+          if (errJson && typeof errJson.message === "string" && errJson.message.trim()) {
+            detail = `${errJson.message} (${res.status})`;
+          }
+        } catch {
+          // ignore non-JSON error body
+        }
+        throw new Error(detail);
+      }
+      return res.json();
+    }
+
+    function showAuth(errorMessage) {
+      if (refreshTimer) {
+        clearInterval(refreshTimer);
+        refreshTimer = null;
+      }
+      el("dashboard-main").classList.add("hidden");
+      el("header-actions").classList.add("hidden");
+      el("network-pill").classList.add("hidden");
+      el("status-pill").classList.add("hidden");
+      el("auth-section").classList.remove("hidden");
+      if (errorMessage) {
+        el("auth-error").textContent = errorMessage;
+        el("auth-error").classList.remove("hidden");
+      } else {
+        el("auth-error").classList.add("hidden");
+      }
+    }
+
+    function showDashboard() {
+      el("auth-section").classList.add("hidden");
+      el("auth-error").classList.add("hidden");
+      el("dashboard-main").classList.remove("hidden");
+      el("header-actions").classList.remove("hidden");
+      el("network-pill").classList.remove("hidden");
+      el("status-pill").classList.remove("hidden");
+    }
+
+    function renderControlState(control) {
+      const paused = Boolean(control && control.paused);
+      const pill = el("status-pill");
+      pill.classList.remove("live", "paused");
+      pill.classList.add(paused ? "paused" : "live");
+      el("status-pill-text").textContent = paused ? "PAUSED (503)" : "LIVE";
+      el("start-api-btn").disabled = !paused;
+      el("stop-api-btn").disabled = paused;
+      el("control-updated").textContent = paused
+        ? `Paused — /v1/* returns 503 uncharged (updated: ${control.updated_at || "now"})`
+        : `Active — /v1/* accepting x402 V2 payments (updated: ${control.updated_at || "default"})`;
+    }
+
+    let currentPayTo = "";
+
+    function walletExplorerUrl(network, addr) {
+      if (!addr) return "#";
+      const host = network === "eip155:8453" ? "basescan.org" : "sepolia.basescan.org";
+      return `https://${host}/address/${encodeURIComponent(addr)}#tokentxns`;
+    }
+
+    function renderOverview(data) {
+      el("version-pill").textContent = data.version || "v1";
+      el("network-pill").textContent = `${data.env || "testnet"} · ${data.network || ""}`;
+      currentPayTo = data.pay_to || "";
+      const walletLink = el("wallet-link");
+      if (currentPayTo) {
+        walletLink.textContent = `PayTo: ${shortAddr(currentPayTo)}`;
+        walletLink.href = walletExplorerUrl(data.network, currentPayTo);
+        walletLink.title = `${currentPayTo} (open BaseScan token transfers)`;
+      } else {
+        walletLink.textContent = "";
+        walletLink.removeAttribute("href");
+      }
+      el("last-updated").textContent = `Updated ${new Date().toISOString().slice(11, 19)}Z`;
+
+      renderControlState(data.control || { paused: false, updated_at: null });
+
+      const all = data.all_time || {};
+      const d24 = data.last_24h || {};
+
+      el("kpi-rev-all").textContent = fmtUsd(all.revenue_usd);
+      el("kpi-rev-24h").textContent = `24h: ${fmtUsd(d24.revenue_usd)}`;
+      el("kpi-settled").textContent = String(all.settled_count || 0);
+      el("kpi-settled-24h").textContent = `24h: ${d24.settled_count || 0}`;
+      el("kpi-challenged").textContent = String(all.challenged_count || 0);
+      el("kpi-challenged-24h").textContent = `24h: ${d24.challenged_count || 0}`;
+      el("kpi-errors").textContent = `${all.verify_failed_count || 0} / ${all.error_count || 0}`;
+      el("kpi-errors-24h").textContent = `24h: ${d24.verify_failed_count || 0} / ${d24.error_count || 0}`;
+      el("kpi-latency").textContent = `${all.avg_latency_ms || 0} ms`;
+      el("kpi-total").textContent = `Total /v1/* logged: ${all.total_requests || 0}`;
+
+      const tbody = el("endpoints-tbody");
+      tbody.replaceChildren();
+      const rows = Array.isArray(data.by_endpoint) ? data.by_endpoint : [];
+      if (rows.length === 0) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 7;
+        td.className = "muted";
+        td.textContent = "No paid endpoint traffic logged yet.";
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        return;
+      }
+
+      for (const row of rows) {
+        const tr = document.createElement("tr");
+        const cells = [
+          { text: row.endpoint, cls: "mono" },
+          { text: String(row.total_requests || 0) },
+          { text: String(row.settled_count || 0) },
+          { text: fmtUsd(row.revenue_usd), cls: "mono" },
+          { text: String(row.challenged_count || 0) },
+          { text: String(row.error_count || 0) },
+          { text: `${row.avg_latency_ms || 0} ms` },
+        ];
+        for (const cell of cells) {
+          const td = document.createElement("td");
+          if (cell.cls) td.className = cell.cls;
+          td.textContent = cell.text;
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+    }
+
+    function renderRequests(data) {
+      const tbody = el("requests-tbody");
+      tbody.replaceChildren();
+      const rows = Array.isArray(data.requests) ? data.requests : [];
+
+      if (rows.length === 0) {
+        const tr = document.createElement("tr");
+        const td = document.createElement("td");
+        td.colSpan = 12;
+        td.className = "muted";
+        td.textContent = "No requests match the selected filters.";
+        tr.appendChild(td);
+        tbody.appendChild(tr);
+        return;
+      }
+
+      for (const r of rows) {
+        const tr = document.createElement("tr");
+
+        const thTime = document.createElement("th");
+        thTime.scope = "row";
+        thTime.className = "mono";
+        thTime.textContent = (r.created_at || "").replace("T", " ").replace(/\.\d+Z$/, "Z");
+        tr.appendChild(thTime);
+
+        const tdEndpoint = document.createElement("td");
+        tdEndpoint.className = "mono";
+        tdEndpoint.textContent = r.endpoint || "-";
+        tr.appendChild(tdEndpoint);
+
+        const tdTarget = document.createElement("td");
+        tdTarget.className = "mono";
+        tdTarget.textContent = r.query_target ? shortAddr(r.query_target) : "-";
+        if (r.query_target) tdTarget.title = r.query_target;
+        tr.appendChild(tdTarget);
+
+        const tdStatus = document.createElement("td");
+        tdStatus.className = "mono";
+        tdStatus.textContent = String(r.http_status ?? "-");
+        tr.appendChild(tdStatus);
+
+        const tdOutcome = document.createElement("td");
+        const badge = document.createElement("span");
+        badge.className = `badge ${r.outcome || ""}`;
+        badge.textContent = r.outcome || "-";
+        tdOutcome.appendChild(badge);
+        tr.appendChild(tdOutcome);
+
+        const tdPrice = document.createElement("td");
+        tdPrice.className = "mono";
+        tdPrice.textContent = r.price_usd ? fmtUsd(r.price_usd) : "-";
+        tr.appendChild(tdPrice);
+
+        const tdPayer = document.createElement("td");
+        tdPayer.className = "mono";
+        tdPayer.textContent = shortAddr(r.payer_address);
+        if (r.payer_address) tdPayer.title = r.payer_address;
+        tr.appendChild(tdPayer);
+
+        const tdTx = document.createElement("td");
+        tdTx.className = "mono";
+        if (r.tx_hash) {
+          const link = document.createElement("a");
+          link.href = explorerUrl(r.network, r.tx_hash);
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = shortAddr(r.tx_hash);
+          link.title = r.tx_hash;
+          tdTx.appendChild(link);
+        } else {
+          tdTx.textContent = "-";
+        }
+        tr.appendChild(tdTx);
+
+        const tdCache = document.createElement("td");
+        tdCache.textContent = r.cache_status || "-";
+        tr.appendChild(tdCache);
+
+        const tdUp = document.createElement("td");
+        tdUp.className = "mono";
+        tdUp.textContent = r.upstream_error || r.upstream_source || "-";
+        tr.appendChild(tdUp);
+
+        const tdExt = document.createElement("td");
+        tdExt.className = r.extension_responses ? "mono" : "muted";
+        tdExt.textContent = r.extension_responses
+          ? `${r.extension_responses.slice(0, 28)}...`
+          : "Not emitted";
+        if (r.extension_responses) tdExt.title = r.extension_responses;
+        tr.appendChild(tdExt);
+
+        const tdLat = document.createElement("td");
+        tdLat.className = "mono";
+        tdLat.textContent = `${r.latency_ms ?? 0} ms`;
+        tr.appendChild(tdLat);
+
+        tbody.appendChild(tr);
+      }
+    }
+
+    async function loadDashboard(forceRefresh = false) {
+      const endpoint = el("filter-endpoint").value;
+      const outcome = el("filter-outcome").value;
+      const network = el("filter-network").value;
+      const limit = el("filter-limit").value;
+      const params = new URLSearchParams({ limit });
+      if (endpoint) params.set("endpoint", endpoint);
+      if (outcome) params.set("outcome", outcome);
+      if (network) params.set("network", network);
+      if (forceRefresh) params.set("refresh", "1");
+
+      const overviewParams = new URLSearchParams();
+      if (network) overviewParams.set("network", network);
+      if (forceRefresh) overviewParams.set("refresh", "1");
+      const overviewQs = overviewParams.toString();
+      const overviewPath = overviewQs
+        ? `/dashboard/api/overview?${overviewQs}`
+        : "/dashboard/api/overview";
+
+      try {
+        const [overview, requests] = await Promise.all([
+          apiFetch(overviewPath),
+          apiFetch(`/dashboard/api/requests?${params.toString()}`),
+        ]);
+        showDashboard();
+        el("dash-error").classList.add("hidden");
+        el("auth-error").classList.add("hidden");
+        renderOverview(overview);
+        renderRequests(requests);
+      } catch (err) {
+        if (err && err.message !== "Unauthorized") {
+          const msg = err.message || "Failed to load dashboard data.";
+          if (el("dashboard-main").classList.contains("hidden")) {
+            el("auth-error").textContent = msg;
+            el("auth-error").classList.remove("hidden");
+          } else {
+            el("dash-error").textContent = msg;
+            el("dash-error").classList.remove("hidden");
+          }
+        }
+      }
+    }
+
+
+    async function toggleService(paused) {
+      el("start-api-btn").disabled = true;
+      el("stop-api-btn").disabled = true;
+      try {
+        const state = await apiFetch("/dashboard/api/control", {
+          method: "POST",
+          body: JSON.stringify({ paused }),
+        });
+        renderControlState(state);
+        await loadDashboard(true);
+      } catch (err) {
+        if (err && err.message !== "Unauthorized") {
+          el("dash-error").textContent = err.message || "Failed to update service control.";
+          el("dash-error").classList.remove("hidden");
+        }
+      }
+    }
+
+    el("auth-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const val = el("token-input").value.trim();
+      if (!val) return;
+      setToken(val);
+      el("token-input").value = "";
+      await loadDashboard(false);
+    });
+
+    el("signout-btn").addEventListener("click", () => {
+      clearToken();
+      showAuth();
+    });
+
+    el("copy-wallet-btn").addEventListener("click", async () => {
+      if (!currentPayTo) return;
+      try {
+        await navigator.clipboard.writeText(currentPayTo);
+        const btn = el("copy-wallet-btn");
+        btn.textContent = "Copied";
+        setTimeout(() => { btn.textContent = "Copy"; }, 1500);
+      } catch {
+        // clipboard unavailable
+      }
+    });
+
+    el("refresh-btn").addEventListener("click", () => void loadDashboard(true));
+    el("start-api-btn").addEventListener("click", () => toggleService(false));
+    el("stop-api-btn").addEventListener("click", () => toggleService(true));
+    el("filter-endpoint").addEventListener("change", () => void loadDashboard(false));
+    el("filter-outcome").addEventListener("change", () => void loadDashboard(false));
+    el("filter-network").addEventListener("change", () => void loadDashboard(false));
+    el("filter-limit").addEventListener("change", () => void loadDashboard(false));
+
+    if (getToken()) {
+      void loadDashboard(false);
+    } else {
+      showAuth();
+    }
+  </script>
+</body>
+</html>

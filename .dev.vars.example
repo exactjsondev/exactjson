@@ -1,0 +1,4 @@
+# Copy to .dev.vars for local wrangler dev (NEVER commit .dev.vars)
+CDP_API_KEY_ID=your-cdp-api-key-id
+CDP_API_KEY_SECRET=your-cdp-ed25519-api-key-secret
+DASHBOARD_TOKEN=replace-with-32-plus-char-random-secret

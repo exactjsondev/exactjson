@@ -1,0 +1,45 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "exactjson",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "vars": {
+    "APP_ENV": "mainnet",
+    "X402_NETWORK": "eip155:8453",
+    "X402_PAY_TO": "0x289e67a574a504f06e0C1145007DC469Caf8Bcaf",
+    "PUBLIC_BASE_URL": "https://exactjson.com"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "exactjson-db",
+      "database_id": "143c79c8-4e01-49c6-87c6-9c7ba4ee769d",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "routes": [
+    {
+      "pattern": "exactjson.com",
+      "custom_domain": true
+    }
+  ],
+  "triggers": {
+    "crons": ["0 3 * * *"]
+  },
+  "assets": {
+    "directory": "./public",
+    "not_found_handling": "none",
+    "run_worker_first": [
+      "/",
+      "/health",
+      "/robots.txt",
+      "/sitemap.xml",
+      "/llms.txt",
+      "/openapi.json",
+      "/.well-known/*",
+      "/v1/*",
+      "/dashboard/api/*"
+    ]
+  }
+}

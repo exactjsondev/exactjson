@@ -1,0 +1,43 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.exactjsondev/exactjson",
+  "title": "ExactJSON — Live, deterministic x402 APIs for AI agents",
+  "description": "11 pay-per-call token safety, execution slippage, perps, prediction-market arb, options surface & US macro endpoints on Base USDC via x402 V2.",
+  "websiteUrl": "https://exactjson.com",
+  "repository": {
+    "url": "https://github.com/exactjsondev/exactjson",
+    "source": "github",
+    "subfolder": "mcp"
+  },
+  "version": "1.0.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "exactjson-mcp",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "BUYER_PRIVATE_KEY",
+          "description": "Dedicated low-balance Base EVM wallet private key (0x...) holding USDC for paid x402 calls.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "MAX_PAYMENT_USD",
+          "description": "Maximum USDC spend per call enforced client-side (default $0.05).",
+          "isRequired": false,
+          "isSecret": false
+        },
+        {
+          "name": "EXACTJSON_BASE_URL",
+          "description": "Optional base URL override when self-hosting ExactJSON.",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}

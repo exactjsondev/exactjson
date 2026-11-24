@@ -1,0 +1,50 @@
+{
+  "name": "exactjson-mcp",
+  "version": "1.0.0",
+  "mcpName": "io.github.exactjsondev/exactjson",
+  "description": "ExactJSON — Live, deterministic x402 APIs for AI agents: 11 pay-per-call token safety, pre-trade slippage, perps funding/screener, prediction-market scanner & arb, options surface, and US macro endpoints on Base USDC.",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "index.mjs",
+    "README.md"
+  ],
+  "keywords": [
+    "exactjson",
+    "mcp",
+    "mcp-server",
+    "x402",
+    "ai-agents",
+    "base",
+    "usdc",
+    "hyperliquid",
+    "polymarket",
+    "kalshi",
+    "arbitrage",
+    "deribit",
+    "macro",
+    "solana",
+    "evm",
+    "kyberswap",
+    "slippage"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/exactjsondev/exactjson.git",
+    "directory": "mcp"
+  },
+  "homepage": "https://exactjson.com",
+  "bin": {
+    "exactjson-mcp": "./index.mjs"
+  },
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.0",
+    "@x402/evm": "^2.32.0",
+    "@x402/fetch": "^2.32.0",
+    "viem": "^2.58.4",
+    "zod": "^3.25.0"
+  }
+}

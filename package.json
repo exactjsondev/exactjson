@@ -1,0 +1,35 @@
+{
+  "name": "exactjson",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ExactJSON — Live, deterministic x402 APIs for AI agents: token safety, pre-trade execution slippage, perps funding/screener, prediction-market scanner & arb, Deribit options surface, and US macro liquidity on Cloudflare Workers + D1.",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "db:migrate:local": "wrangler d1 migrations apply exactjson-db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply exactjson-db --remote",
+    "test:payment": "tsx scripts/test-payment.ts"
+  },
+  "dependencies": {
+    "@coinbase/x402": "^2.1.0",
+    "@x402/core": "^2.32.0",
+    "@x402/evm": "^2.32.0",
+    "@x402/extensions": "^2.32.0",
+    "@x402/hono": "^2.32.0",
+    "hono": "^4.13.19",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261121.1",
+    "@x402/fetch": "^2.32.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "viem": "^2.58.4",
+    "vitest": "^5.1.1",
+    "wrangler": "^4.166.0"
+  }
+}
