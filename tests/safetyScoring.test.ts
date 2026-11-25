@@ -217,6 +217,36 @@ describe("solanaSafetyHandler", () => {
     expect(res.status).toBe(502);
     const body = (await res.json()) as { upstream_error: string };
     expect(body.upstream_error).toBe("RUGCHECK_429");
+
+    // RugCheck HTTP 200 error envelope or empty {} must fail closed with 502 (never score LOW)
+    const error200App = buildApp(async (input) => {
+      if (String(input).includes("rugcheck")) {
+        return new Response(JSON.stringify({ error: "rate limit exceeded" }), { status: 200 });
+      }
+      return new Response(
+        JSON.stringify([
+          {
+            chainId: "solana",
+            dexId: "raydium",
+            baseToken: { address: SOL_MINT, symbol: "SOL", name: "SOL" },
+            liquidity: { usd: 500_000 },
+            volume: { h24: 1_000_000 },
+          },
+        ]),
+        { status: 200 }
+      );
+    });
+    const res200Err = await error200App.request(`/v1/solana/safety?mint=${SOL_MINT}`);
+    expect(res200Err.status).toBe(502);
+    expect(((await res200Err.json()) as { upstream_error: string }).upstream_error).toBe("RUGCHECK_429");
+
+    const empty200App = buildApp(async (input) => {
+      if (String(input).includes("rugcheck")) {
+        return new Response(JSON.stringify({}), { status: 200 });
+      }
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    expect((await empty200App.request(`/v1/solana/safety?mint=${SOL_MINT}`)).status).toBe(502);
   });
 
   it("returns 502 RUGCHECK_NOT_FOUND when RugCheck 404s but DEX Screener has pairs", async () => {
@@ -370,5 +400,35 @@ describe("solanaSafetyHandler", () => {
     expect(res.status).toBe(502);
     const body = (await res.json()) as { upstream_error: string };
     expect(body.upstream_error).toBe("DEXSCREENER_429");
+
+    // DEX Screener 503 outage falls back directly to GeckoTerminal
+    const dex503App = buildApp(async (input) => {
+      const url = String(input);
+      if (url.includes("rugcheck")) {
+        return new Response(JSON.stringify({ score: 10, score_normalised: 2, lpLockedPct: 90, risks: [] }), { status: 200 });
+      }
+      if (url.includes("dexscreener")) {
+        return new Response("upstream down", { status: 503 });
+      }
+      return new Response(
+        JSON.stringify({
+          data: { attributes: { symbol: "SOL", name: "Wrapped SOL", price_usd: "180.0" } },
+          included: [
+            {
+              type: "pool",
+              attributes: { address: "pool1", reserve_in_usd: "5000000", volume_usd: { h24: "10000000" } },
+              relationships: { dex: { data: { id: "orca" } } },
+            },
+          ],
+        }),
+        { status: 200 }
+      );
+    });
+    const r503Fallback = await dex503App.request(`/v1/solana/safety?mint=${SOL_MINT}`);
+    expect(r503Fallback.status).toBe(200);
+    expect(((await r503Fallback.json()) as { metadata: { sources: string[] } }).metadata.sources).toEqual([
+      "rugcheck",
+      "geckoterminal",
+    ]);
   });
 });

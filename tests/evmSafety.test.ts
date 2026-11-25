@@ -108,6 +108,11 @@ describe("EVM validation helpers", () => {
 
     const bad = parseEvmChain("solana");
     expect(bad.ok).toBe(false);
+
+    // Prototype keys must never resolve on EVM_CHAIN_ALIASES
+    expect(parseEvmChain("constructor").ok).toBe(false);
+    expect(parseEvmChain("toString").ok).toBe(false);
+    expect(parseEvmChain("valueOf").ok).toBe(false);
   });
 });
 
@@ -228,12 +233,25 @@ describe("EVM provider parsers", () => {
     expect(agg.priceUsd).toBe(1.0001);
     expect(agg.earliestPairCreatedAt).toBe(new Date(1_710_000_000_000).toISOString());
 
-    // GeckoTerminal fallback preserves sub-1e-8 micro-cap prices without truncating to 0
+    // GeckoTerminal fallback preserves sub-1e-8 micro-cap prices without truncating to 0 and rejects negative prices
     const microGecko = parseGeckoTerminalToken({
-      data: { attributes: { symbol: "MICRO", name: "Micro", price_usd: "0.0000000042" } },
+      data: { attributes: { symbol: "MICRO", name: "Micro", price_usd: "0.0000000042", fdv_usd: "-100" } },
       included: [],
     });
     expect(microGecko.priceUsd).toBeCloseTo(4.2e-9, 12);
+    expect(microGecko.fdvUsd).toBeNull();
+
+    // Transfer tax trap (0% buy/sell, 99% transfer tax) scores EXTREME_TAX
+    const transferTrap = computeEvmSafety(
+      BASE_WETH_CHECKSUM,
+      EVM_CHAINS.base,
+      CLEAN_GOPLUS,
+      { ...CLEAN_HONEYPOT, transferTaxPct: 99 },
+      HEALTHY_EVM_DEX,
+      { fetchedAtIso: "2026-11-22T00:00:00.000Z" }
+    );
+    expect(transferTrap.flags).toContain("EXTREME_TAX");
+    expect(transferTrap.risk_score).toBeGreaterThanOrEqual(45);
   });
 });
 
@@ -372,6 +390,10 @@ describe("evmSafetyHandler", () => {
     const badChain = await app.request(`/v1/evm/safety?address=${BASE_WETH_CHECKSUM}&chain=fantom`);
     expect(badChain.status).toBe(400);
     expect(((await badChain.json()) as { error: string }).error).toBe("INVALID_CHAIN");
+
+    const protoChain = await app.request(`/v1/evm/safety?address=${BASE_WETH_CHECKSUM}&chain=constructor`);
+    expect(protoChain.status).toBe(400);
+    expect(((await protoChain.json()) as { error: string }).error).toBe("INVALID_CHAIN");
   });
 
   it("fails closed with 502 when both GoPlus and Honeypot.is fail on Base", async () => {

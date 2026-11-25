@@ -142,7 +142,9 @@ export function parseEvmChain(raw: string | undefined): ValidationResult<EvmChai
     };
   }
   const normalized = raw.trim().toLowerCase();
-  const key = EVM_CHAIN_ALIASES[normalized];
+  const key = Object.prototype.hasOwnProperty.call(EVM_CHAIN_ALIASES, normalized)
+    ? EVM_CHAIN_ALIASES[normalized]
+    : undefined;
   if (!key) {
     return {
       ok: false,

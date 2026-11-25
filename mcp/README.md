@@ -7,11 +7,17 @@
 Exposes 12 tools (`exactjson_health` free + 11 Base USDC pay-per-call endpoints) with client-side spend caps (`MAX_PAYMENT_USD`) and Pay-Only-On-Success guarantees.
 
 - **Website & Docs:** https://exactjson.com
+- **Remote Streamable HTTP MCP:** `https://exactjson.com/mcp`
 - **Official MCP Registry:** `io.github.exactjsondev/exactjson`
 - **Repository:** https://github.com/exactjsondev/exactjson
 - **Contact:** hello@exactjson.com
 
-## Quickstart (Claude Desktop / Cursor / OpenClaw)
+## Quickstart (Remote Streamable HTTP or Stdio)
+
+For x402-native MCP clients, connect directly to the stateless Remote Streamable HTTP endpoint:
+`https://exactjson.com/mcp`
+
+For local desktop hosts (Claude Desktop / Cursor / OpenClaw):
 
 ```json
 {

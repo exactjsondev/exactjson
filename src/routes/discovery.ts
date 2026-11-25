@@ -7,6 +7,7 @@ import {
   getEndpointById,
 } from "../config/catalog";
 import { prefersHtml } from "../lib/contentNegotiation";
+import { buildMcpTools } from "../lib/mcpTools";
 import { getServiceControlState } from "../middleware/serviceControl";
 import type { AppBindings } from "../types";
 import { renderLandingHtml } from "./landingHtml";
@@ -67,12 +68,15 @@ export async function indexHandler(c: Context<AppBindings>) {
       package: MCP_PACKAGE,
       registry_name: MCP_REGISTRY_NAME,
       command: `npx -y ${MCP_PACKAGE}`,
+      remote_url: `${baseUrl}/mcp`,
+      transport: "streamable-http",
       server_card: `${baseUrl}/.well-known/mcp/server-card.json`,
     },
     discovery: {
       x402: `${baseUrl}/.well-known/x402`,
       x402_json: `${baseUrl}/.well-known/x402.json`,
       api_catalog: `${baseUrl}/.well-known/api-catalog`,
+      mcp: `${baseUrl}/mcp`,
       mcp_server_card: `${baseUrl}/.well-known/mcp/server-card.json`,
       agent_card: `${baseUrl}/.well-known/agent-card.json`,
       openapi: `${baseUrl}/openapi.json`,
@@ -214,7 +218,7 @@ export function openApiHandler(c: Context<AppBindings>) {
       version: SERVICE_VERSION,
       description: `${BRAND_HEADLINE}. Pre-computed, compact JSON endpoints for token safety, pre-trade slippage, perpetuals, prediction markets, options volatility, and US macro liquidity. ${DISCLAIMER}`,
       "x-guidance":
-        `Pay per request via x402 V2 (exact EVM USDC in PAYMENT-SIGNATURE header) or via MCP (\`npx -y ${MCP_PACKAGE}\`). Unpaid probes return HTTP 402 with PAYMENT-REQUIRED terms. Only HTTP 200 settles; 400/404/502/503 never settle. Recommended chains: call /v1/evm/safety (${p("evm_safety")}) + /v1/execution/quote-check?mode=evm (${p("execution_quote_check")}) before swapping unfamiliar EVM tokens; verify settlement rules when /v1/predictions/arb (${p("predictions_arb")}) returns resolution_risk_warning=true. Scanners & Arb: /v1/perps/screener (${p("perps_screener")}), /v1/perps/funding-arb (${p("perps_funding_arb")}, HL/dYdX/Kraken), /v1/predictions/scanner (${p("predictions_scanner")}, Polymarket+Kalshi), /v1/predictions/arb (${p("predictions_arb")}, Polymarket vs Kalshi net arb), /v1/solana/trending (${p("solana_trending")}, RugCheck-scored). Deep Dives, Safety & Execution: /v1/evm/safety?address=<0x>&chain=base (${p("evm_safety")}, GoPlus+Honeypot.is), /v1/execution/quote-check?mode=perps&coin=BTC (${p("execution_quote_check")}, multi-tier EVM/Perps slippage), /v1/options/surface?currency=BTC (${p("options_surface")}, Deribit IV/skew/max-pain), /v1/macro/liquidity (${p("macro_liquidity")}, US Treasury & NY Fed), /v1/perps/snapshot?coin=BTC (${p("perps_snapshot")}), /v1/solana/safety?mint=<MINT> (${p("solana_safety")}). ${DISCLAIMER}`,
+        `Pay per request via x402 V2 (exact EVM USDC in PAYMENT-SIGNATURE header), Remote Streamable HTTP MCP (${baseUrl}/mcp), or stdio MCP (\`npx -y ${MCP_PACKAGE}\`). Unpaid probes return HTTP 402 with PAYMENT-REQUIRED terms. Only HTTP 200 settles; 400/404/502/503 never settle. Recommended chains: call /v1/evm/safety (${p("evm_safety")}) + /v1/execution/quote-check?mode=evm (${p("execution_quote_check")}) before swapping unfamiliar EVM tokens; verify settlement rules when /v1/predictions/arb (${p("predictions_arb")}) returns resolution_risk_warning=true. Scanners & Arb: /v1/perps/screener (${p("perps_screener")}), /v1/perps/funding-arb (${p("perps_funding_arb")}, HL/dYdX/Kraken), /v1/predictions/scanner (${p("predictions_scanner")}, Polymarket+Kalshi), /v1/predictions/arb (${p("predictions_arb")}, Polymarket vs Kalshi net arb), /v1/solana/trending (${p("solana_trending")}, RugCheck-scored). Deep Dives, Safety & Execution: /v1/evm/safety?address=<0x>&chain=base (${p("evm_safety")}, GoPlus+Honeypot.is), /v1/execution/quote-check?mode=perps&coin=BTC (${p("execution_quote_check")}, multi-tier EVM/Perps slippage), /v1/options/surface?currency=BTC (${p("options_surface")}, Deribit IV/skew/max-pain), /v1/macro/liquidity (${p("macro_liquidity")}, US Treasury & NY Fed), /v1/perps/snapshot?coin=BTC (${p("perps_snapshot")}), /v1/solana/safety?mint=<MINT> (${p("solana_safety")}). ${DISCLAIMER}`,
       contact: {
         name: `${SERVICE_NAME} Support`,
         url: baseUrl,
@@ -238,7 +242,8 @@ export function llmsTxtHandler(c: Context<AppBindings>) {
     `> ${BRAND_HEADLINE}. ${CATALOG.length} pay-per-call x402 V2 endpoints delivering compact, deterministic JSON: Hyperliquid screener & L2 slippage, 3-venue funding arb (Hyperliquid/dYdX v4/Kraken), Polymarket + Kalshi prediction-market scanner & cross-venue arbitrage detector, Deribit BTC/ETH options volatility surface & max pain, official US Treasury & NY Fed macro liquidity pulse, multi-chain EVM & Solana token safety, and multi-tier EVM/Perps execution quote checks. ${DISCLAIMER}`,
     "",
     "## Quickstart for AI Agents",
-    `- Native MCP Server (Claude Desktop / Cursor / OpenClaw): \`npx -y ${MCP_PACKAGE}\` (set \`BUYER_PRIVATE_KEY\` and \`MAX_PAYMENT_USD=$0.05\`)`,
+    `- Remote Streamable HTTP MCP (x402 V2 native clients): \`${baseUrl}/mcp\``,
+    `- Local Stdio MCP (Claude Desktop / Cursor / OpenClaw): \`npx -y ${MCP_PACKAGE}\` (set \`BUYER_PRIVATE_KEY\` and \`MAX_PAYMENT_USD=$0.05\`)`,
     `- Free Health Check: \`GET ${baseUrl}/health\``,
     `- Paid HTTP Protocol: x402 V2 (\`exact\` EVM scheme, USDC on \`${network}\`). Send payment via \`PAYMENT-SIGNATURE\`; inspect \`PAYMENT-REQUIRED\` on \`402\` and \`PAYMENT-RESPONSE\` on \`200\`.`,
     "- Pay-Only-On-Success: `400`, `404`, `502`, and `503` responses are never settled.",
@@ -262,6 +267,7 @@ export function llmsTxtHandler(c: Context<AppBindings>) {
     ),
     "",
     "## Discovery & Metadata",
+    `- Remote Streamable HTTP MCP: ${baseUrl}/mcp`,
     `- x402 Manifest: ${baseUrl}/.well-known/x402`,
     `- x402 Manifest (JSON alias): ${baseUrl}/.well-known/x402.json`,
     `- RFC 9727 API Catalog: ${baseUrl}/.well-known/api-catalog`,
@@ -324,6 +330,7 @@ export function agentCardHandler(c: Context<AppBindings>) {
       x402: `${baseUrl}/.well-known/x402`,
       x402_json: `${baseUrl}/.well-known/x402.json`,
       api_catalog: `${baseUrl}/.well-known/api-catalog`,
+      mcp: `${baseUrl}/mcp`,
       mcp_server_card: `${baseUrl}/.well-known/mcp/server-card.json`,
       openapi: `${baseUrl}/openapi.json`,
       llms: `${baseUrl}/llms.txt`,
@@ -388,46 +395,6 @@ export function apiCatalogHandler(c: Context<AppBindings>) {
   });
 }
 
-const MCP_INTEGER_PARAMS = new Set([
-  "limit",
-  "max_risk_score",
-  "lookback_obs",
-  "token_in_decimals",
-]);
-
-const MCP_NUMBER_PARAMS = new Set([
-  "min_oi_usd",
-  "min_spread_bps",
-  "min_liquidity_usd",
-  "min_volume_24h_usd",
-]);
-
-function toMcpToolInputSchema(
-  inputSchema: (typeof CATALOG)[number]["inputSchema"]
-): Record<string, unknown> {
-  const properties: Record<string, Record<string, unknown>> = {};
-  for (const [paramName, rawProp] of Object.entries(inputSchema.properties)) {
-    const nextProp: Record<string, unknown> = { ...rawProp };
-    if (MCP_INTEGER_PARAMS.has(paramName)) {
-      nextProp.type = "integer";
-      if (typeof nextProp.example === "string" && Number.isFinite(Number(nextProp.example))) {
-        nextProp.example = Number.parseInt(nextProp.example, 10);
-      }
-    } else if (MCP_NUMBER_PARAMS.has(paramName)) {
-      nextProp.type = "number";
-      if (typeof nextProp.example === "string" && Number.isFinite(Number(nextProp.example))) {
-        nextProp.example = Number(nextProp.example);
-      }
-    }
-    properties[paramName] = nextProp;
-  }
-  return {
-    type: inputSchema.type,
-    properties,
-    required: inputSchema.required ?? [],
-  };
-}
-
 export function mcpServerCardHandler(c: Context<AppBindings>) {
   const baseUrl = resolveBaseUrl(c);
   const network = c.env.X402_NETWORK || "eip155:8453";
@@ -448,10 +415,15 @@ export function mcpServerCardHandler(c: Context<AppBindings>) {
       subfolder: "mcp",
     },
     transport: {
-      type: "stdio",
-      command: "npx",
-      args: ["-y", MCP_PACKAGE],
+      type: "streamable-http",
+      endpoint: `${baseUrl}/mcp`,
     },
+    remotes: [
+      {
+        type: "streamable-http",
+        url: `${baseUrl}/mcp`,
+      },
+    ],
     packages: [
       {
         registryType: "npm",
@@ -470,20 +442,9 @@ export function mcpServerCardHandler(c: Context<AppBindings>) {
       resources: false,
       prompts: false,
     },
-    tools: [
-      {
-        name: "exactjson_health",
-        description:
-          "Free: Check ExactJSON API availability, version, network (Base eip155:8453), and paused status before running paid workflows.",
-        inputSchema: { type: "object", properties: {}, required: [] },
-      },
-      ...CATALOG.map((entry) => ({
-        name: `exactjson_${entry.id}`,
-        description: `Paid (${entry.priceFormatted} USDC): ${entry.description}`,
-        inputSchema: toMcpToolInputSchema(entry.inputSchema),
-      })),
-    ],
+    tools: buildMcpTools(),
     links: {
+      mcp: `${baseUrl}/mcp`,
       x402: `${baseUrl}/.well-known/x402`,
       x402_json: `${baseUrl}/.well-known/x402.json`,
       api_catalog: `${baseUrl}/.well-known/api-catalog`,

@@ -313,6 +313,17 @@ export function parseKyberSwapResponse(
 
   const summary = payload.data?.routeSummary;
   if (code !== null && code !== 0) {
+    const isRateLimit = code === 429 || /rate\s*limit|too\s*many/i.test(message);
+    const isServerErr =
+      (code >= 500 && code < 600) ||
+      code >= 5000 ||
+      /internal\s*server|service\s*unavailable|timed?\s*out|bad\s*gateway/i.test(message);
+    if (isRateLimit) {
+      throw new UpstreamError("KYBERSWAP", "KYBERSWAP_429", `KyberSwap rate limited: ${message}`, 429);
+    }
+    if (isServerErr) {
+      throw new UpstreamError("KYBERSWAP", "KYBERSWAP_5XX", `KyberSwap error (${code}): ${message}`, 502);
+    }
     return { status: "no_route", reason: message };
   }
   if (!summary || !isPositiveIntegerString(summary.amountOut)) {

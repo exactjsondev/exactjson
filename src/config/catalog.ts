@@ -1,6 +1,6 @@
 export const SERVICE_NAME = "ExactJSON" as const;
-export const SERVICE_VERSION = "1.0.0" as const;
-export const USER_AGENT = "ExactJSON/1.0" as const;
+export const SERVICE_VERSION = "1.1.0" as const;
+export const USER_AGENT = "ExactJSON/1.1" as const;
 export const DISCLAIMER =
   "Informational market/security data only; not financial advice." as const;
 

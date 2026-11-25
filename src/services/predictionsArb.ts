@@ -179,6 +179,29 @@ const NEGATION_TOKENS = new Set([
 const NEGATIVE_CONTRACTION_RE =
   /\b(?:won|don|doesn|didn|isn|aren|wasn|weren|can|couldn|wouldn|shouldn|haven|hasn|hadn)['’]t\b/g;
 
+function resolveTokenAlias(token: string): string {
+  return Object.prototype.hasOwnProperty.call(TOKEN_ALIASES, token)
+    ? TOKEN_ALIASES[token]!
+    : token;
+}
+
+const ORDINAL_DAY_RE = /^([1-9]|[12]\d|3[01])(?:st|nd|rd|th)$/;
+
+function stripAdjacentOrdinalDay(parts: string[]): string[] {
+  const canonical = parts.map((p) => resolveTokenAlias(p));
+  return parts.map((part, i) => {
+    const match = ORDINAL_DAY_RE.exec(part);
+    if (!match) return part;
+    const prev = i > 0 ? canonical[i - 1]! : "";
+    const next = i + 1 < canonical.length ? canonical[i + 1]! : "";
+    const next2 = i + 2 < canonical.length ? canonical[i + 2]! : "";
+    if (MONTHS.has(prev) || MONTHS.has(next) || (next === "of" && MONTHS.has(next2))) {
+      return match[1]!;
+    }
+    return part;
+  });
+}
+
 function round(val: number, decimals: number): number {
   const factor = 10 ** decimals;
   return Math.round(val * factor) / factor;
@@ -276,10 +299,12 @@ export function normalizeMarketTitle(title: string): NormalizedTitle {
   // Remove leading/trailing dots not surrounded by digits
   cleaned = cleaned.replace(/(^|\s)\.+|\.+(\s|$)/g, " ");
 
-  const rawParts = cleaned
-    .split(/\s+/)
-    .map((p) => p.trim())
-    .filter((p) => p.length > 0);
+  const rawParts = stripAdjacentOrdinalDay(
+    cleaned
+      .split(/\s+/)
+      .map((p) => p.trim())
+      .filter((p) => p.length > 0)
+  );
 
   interface TaggedToken {
     token: string;
@@ -303,7 +328,7 @@ export function normalizeMarketTitle(title: string): NormalizedTitle {
     }
     if (!working) continue;
 
-    let canonical = TOKEN_ALIASES[working] ?? working;
+    let canonical = resolveTokenAlias(working);
     if (NEGATION_TOKENS.has(canonical)) {
       negationCount += 1;
     }
@@ -501,10 +526,18 @@ interface IndexedMarket {
   buyNo: LegQuote | null;
 }
 
-function matchesQuery(raw: RawPredictionMarket, queryTokens: string[]): boolean {
+function matchesQuery(
+  raw: RawPredictionMarket,
+  normalized: NormalizedTitle,
+  queryTokens: string[]
+): boolean {
   if (queryTokens.length === 0) return true;
   const haystack = `${raw.title} ${raw.id} ${raw.category ?? ""}`.toLowerCase();
-  return queryTokens.every((tok) => haystack.includes(tok));
+  return queryTokens.every((tok) => {
+    if (haystack.includes(tok)) return true;
+    const alias = resolveTokenAlias(tok);
+    return normalized.tokens.has(alias);
+  });
 }
 
 function prepareVenueMarkets(
@@ -521,8 +554,6 @@ function prepareVenueMarkets(
     const expiryMs = Date.parse(raw.expiresAt);
     if (!Number.isFinite(expiryMs) || expiryMs <= nowMs) continue;
 
-    if (!matchesQuery(raw, queryTokens)) continue;
-
     const liq = effectiveLiquidityUsd(raw);
     if (minLiquidityUsd > 0 && liq < minLiquidityUsd) continue;
 
@@ -530,12 +561,15 @@ function prepareVenueMarkets(
     const buyNo = resolveBuyNoQuote(raw);
     if (!buyYes && !buyNo) continue;
 
+    const normalized = normalizeMarketTitle(raw.title);
+    if (!matchesQuery(raw, normalized, queryTokens)) continue;
+
     eligible.push({
       raw,
       expiryMs,
       expiresAtIso: raw.expiresAt,
       liquidityUsd: liq,
-      normalized: normalizeMarketTitle(raw.title),
+      normalized,
       buyYes,
       buyNo,
     });

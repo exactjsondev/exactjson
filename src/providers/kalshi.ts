@@ -66,7 +66,11 @@ function parseKalshiProb(dollarsVal: unknown, legacyVal: unknown): number | null
   if (fromLegacy > 1 && fromLegacy <= 100) {
     return fromLegacy / 100;
   }
-  if (typeof legacyVal === "number" && Number.isInteger(fromLegacy) && fromLegacy === 1) {
+  if (
+    fromLegacy === 1 &&
+    ((typeof legacyVal === "number" && Number.isInteger(fromLegacy)) ||
+      (typeof legacyVal === "string" && /^\s*1\s*$/.test(legacyVal)))
+  ) {
     return 0.01;
   }
   if (fromLegacy > 0 && fromLegacy <= 1) {

@@ -38,6 +38,7 @@
       "/llms.txt",
       "/openapi.json",
       "/.well-known/*",
+      "/mcp",
       "/v1/*",
       "/dashboard/api/*"
     ]

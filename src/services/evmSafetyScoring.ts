@@ -105,11 +105,11 @@ export function computeEvmSafety(
     flags.push("CANNOT_BUY");
   }
 
-  // 2. Effective tax evaluation (conservative max across engines)
+  // 2. Effective tax evaluation (conservative max across engines, including transfer tax traps)
   const buyTaxPct = maxNullable(goplus?.buyTaxPct, honeypot?.buyTaxPct);
   const sellTaxPct = maxNullable(goplus?.sellTaxPct, honeypot?.sellTaxPct);
   const transferTaxPct = honeypot?.transferTaxPct ?? null;
-  const maxTaxPct = maxNullable(buyTaxPct, sellTaxPct);
+  const maxTaxPct = maxNullable(maxNullable(buyTaxPct, sellTaxPct), transferTaxPct);
 
   if (maxTaxPct !== null) {
     if (maxTaxPct >= 50) {

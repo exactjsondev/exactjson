@@ -1,10 +1,11 @@
-# HANDOFF.md — ExactJSON v1.0.0 Baseline
+# HANDOFF.md — ExactJSON v1.1.0 Baseline
 
 ## Overview
 - **Brand:** ExactJSON — Live, deterministic x402 APIs for AI agents
 - **Canonical URL:** `https://exactjson.com` (Dashboard: `/dashboard`, manual refresh only)
 - **Repo:** `https://github.com/exactjsondev/exactjson`
-- **MCP Package:** `exactjson-mcp@1.0.0` (`npx -y exactjson-mcp`) · Official MCP Registry: `io.github.exactjsondev/exactjson`
+- **Remote MCP:** `https://exactjson.com/mcp` (Stateless Streamable HTTP)
+- **Stdio MCP Package:** `exactjson-mcp@1.1.0` (`npx -y exactjson-mcp`) · Official MCP Registry: `io.github.exactjsondev/exactjson`
 - **Stack:** TypeScript (strict), Hono, Zod, `@x402/*@2.32.0`, `@coinbase/x402@2.1.0`, Cloudflare Workers (`nodejs_compat`) + D1 (`exactjson-db`), Vitest
 - **Network:** Base Mainnet (`eip155:8453`, USDC)
 

@@ -116,9 +116,15 @@ export function createFundingArbHandler(deps: FundingArbDeps = {}) {
     c.set("cache_status", cacheStatus);
     c.set("upstream_source", activeSources.join(","));
 
+    // Resolve lowercase/uppercase Hyperliquid scaled tickers (e.g. kpepe -> kPEPE) without breaking real K* assets (KAS/KSM)
+    const resolvedCoinKey =
+      coinLookupKey && hlRes.status === "fulfilled"
+        ? (hlRes.value.map.get(coinLookupKey.toLowerCase())?.canonicalName ?? coinLookupKey)
+        : coinLookupKey;
+
     const payload = computeFundingArb(
       { hyperliquid: hlVenue, dydx: dydxVenue, kraken: krakenVenue },
-      { minOiUsd, limit, coinLookupKey }
+      { minOiUsd, limit, coinLookupKey: resolvedCoinKey }
     );
 
     if (coinLookupKey && payload.opportunities.length === 0) {

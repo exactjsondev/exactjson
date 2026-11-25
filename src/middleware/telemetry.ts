@@ -5,6 +5,7 @@ import {
   extractPaymentResponse,
   hasPaymentSignatureHeader,
 } from "../lib/headers";
+import { detectRequestTransport } from "../lib/transport";
 import type { AppBindings, RequestOutcome } from "../types";
 
 export function classifyOutcome(
@@ -68,6 +69,7 @@ export const telemetryMiddleware: MiddlewareHandler<AppBindings> = async (c, nex
   }
 
   const startMs = Date.now();
+  const transport = detectRequestTransport(c.req.raw);
   const hadPaymentHeader = hasPaymentSignatureHeader(c.req.raw.headers);
   const rawTarget = truncate(c.req.query(endpoint.queryParamName), 128);
 
@@ -102,8 +104,8 @@ export const telemetryMiddleware: MiddlewareHandler<AppBindings> = async (c, nex
           `INSERT INTO api_requests (
             id, created_at, endpoint, query_target, http_status, outcome,
             price_usd, network, payer_address, tx_hash, cache_status,
-            upstream_source, upstream_error, extension_responses, latency_ms
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+            upstream_source, upstream_error, extension_responses, latency_ms, transport
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
           generateRequestId(),
@@ -120,7 +122,8 @@ export const telemetryMiddleware: MiddlewareHandler<AppBindings> = async (c, nex
           upstreamSource,
           upstreamError,
           extensionResponses,
-          latencyMs
+          latencyMs,
+          transport
         )
         .run();
     } catch {

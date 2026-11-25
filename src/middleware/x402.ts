@@ -1,7 +1,8 @@
 import type { MiddlewareHandler } from "hono";
-import type { Network } from "@x402/core/types";
-import type { RoutesConfig, x402ResourceServer } from "@x402/core/server";
+import type { Network, PaymentRequired } from "@x402/core/types";
+import type { PaywallProvider, RoutesConfig, x402ResourceServer } from "@x402/core/server";
 import { CATALOG, SERVICE_NAME, getEndpointByPath } from "../config/catalog";
+import { renderPaywallHtml } from "../routes/landingHtml";
 import type { AppBindings } from "../types";
 
 interface MemoizedX402Instance {
@@ -17,6 +18,7 @@ const isolateCreationPromises = new Map<string, Promise<MemoizedX402Instance>>()
 async function buildX402Instance(
   network: Network,
   payTo: string,
+  baseUrl: string,
   cdpApiKeyId: string | undefined,
   cdpApiKeySecret: string | undefined
 ): Promise<MemoizedX402Instance> {
@@ -55,6 +57,22 @@ async function buildX402Instance(
       mimeType: "application/json",
       serviceName: SERVICE_NAME,
       tags: [...entry.tags],
+      unpaidResponseBody: () => ({
+        contentType: "application/json",
+        body: {
+          error: "Payment required",
+          protocol: "x402-v2",
+          endpoint: entry.path,
+          price_usd: entry.priceAmount,
+          network,
+          asset: "USDC",
+          pay_only_on_success: true,
+          how_to_pay:
+            "Inspect the base64 PAYMENT-REQUIRED header (curl -i) and retry with PAYMENT-SIGNATURE via @x402/fetch, or connect via MCP: npx -y exactjson-mcp",
+          docs: `${baseUrl}/#quickstart`,
+          openapi: `${baseUrl}/openapi.json`,
+        },
+      }),
       extensions: {
         ...declareDiscoveryExtension({
           input: entry.exampleQueryParams,
@@ -68,8 +86,22 @@ async function buildX402Instance(
     };
   }
 
+  const paywallProvider: PaywallProvider = {
+    generateHtml(paymentRequired: PaymentRequired): string {
+      const requestedUrl = paymentRequired.resource?.url || baseUrl;
+      let pathname = "/";
+      try {
+        pathname = new URL(requestedUrl).pathname;
+      } catch {
+        pathname = "/";
+      }
+      const matched = getEndpointByPath(pathname) ?? CATALOG[0]!;
+      return renderPaywallHtml(matched, baseUrl, network, requestedUrl);
+    },
+  };
+
   // Explicitly pass syncFacilitatorOnStart = false (5th arg) and manage initialize() safely below
-  const middleware = paymentMiddleware(routes, resourceServer, undefined, undefined, false);
+  const middleware = paymentMiddleware(routes, resourceServer, undefined, paywallProvider, false);
 
   return {
     resourceServer,
@@ -82,10 +114,11 @@ async function buildX402Instance(
 async function getOrCreateInstance(
   network: Network,
   payTo: string,
+  baseUrl: string,
   cdpApiKeyId: string | undefined,
   cdpApiKeySecret: string | undefined
 ): Promise<MemoizedX402Instance> {
-  const cacheKey = `${network}:${payTo}`;
+  const cacheKey = `${network}:${payTo}:${baseUrl}`;
   const existing = isolateInstances.get(cacheKey);
   if (existing) {
     return existing;
@@ -93,7 +126,7 @@ async function getOrCreateInstance(
 
   let creating = isolateCreationPromises.get(cacheKey);
   if (!creating) {
-    creating = buildX402Instance(network, payTo, cdpApiKeyId, cdpApiKeySecret)
+    creating = buildX402Instance(network, payTo, baseUrl, cdpApiKeyId, cdpApiKeySecret)
       .then((instance) => {
         isolateInstances.set(cacheKey, instance);
         isolateCreationPromises.delete(cacheKey);
@@ -156,11 +189,18 @@ export const x402PaywallMiddleware: MiddlewareHandler<AppBindings> = async (c, n
     );
   }
 
+  const configuredBaseUrl = c.env.PUBLIC_BASE_URL?.trim();
+  const baseUrl =
+    configuredBaseUrl && configuredBaseUrl.length > 0
+      ? configuredBaseUrl.replace(/\/+$/, "")
+      : new URL(c.req.url).origin;
+
   let instance: MemoizedX402Instance;
   try {
     instance = await getOrCreateInstance(
       network,
       payTo,
+      baseUrl,
       c.env.CDP_API_KEY_ID,
       c.env.CDP_API_KEY_SECRET
     );
@@ -178,5 +218,17 @@ export const x402PaywallMiddleware: MiddlewareHandler<AppBindings> = async (c, n
     );
   }
 
-  return await instance.middleware(c, next);
+  const response = await instance.middleware(c, next);
+  const targetRes = response instanceof Response ? response : c.res;
+  const contentType = targetRes.headers.get("content-type") || "";
+  if (targetRes.status === 402 && contentType.includes("text/html")) {
+    targetRes.headers.set("X-Content-Type-Options", "nosniff");
+    targetRes.headers.set("X-Frame-Options", "DENY");
+    targetRes.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    targetRes.headers.set(
+      "Content-Security-Policy",
+      "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+    );
+  }
+  return response;
 };

@@ -1,15 +1,18 @@
 ---
 name: exactjson
-description: ExactJSON — Live, deterministic x402 APIs for AI agents. Query 11 pay-per-call token safety, pre-trade execution slippage, perps funding/screener, prediction-market scanner & arb, Deribit options surface, and US macro liquidity endpoints via x402 V2 on Base Mainnet (USDC) or native MCP (`npx -y exactjson-mcp`).
+description: ExactJSON — Live, deterministic x402 APIs for AI agents. Query 11 pay-per-call token safety, pre-trade execution slippage, perps funding/screener, prediction-market scanner & arb, Deribit options surface, and US macro liquidity endpoints via x402 V2 on Base Mainnet (USDC), Remote Streamable HTTP MCP (`https://exactjson.com/mcp`), or stdio MCP (`npx -y exactjson-mcp`).
 ---
 
-# ExactJSON (`v1.0.0`) — Live, Deterministic x402 APIs for AI Agents
+# ExactJSON (`v1.1.0`) — Live, Deterministic x402 APIs for AI Agents
 
 Use **ExactJSON** (`https://exactjson.com`) whenever an autonomous agent needs compact, deterministic, pre-computed JSON for pre-trade token safety checks, multi-tier execution slippage quotes, cross-venue arbitrage scanners, derivatives volatility briefs, or official US macro liquidity data via **x402 V2 on Base Mainnet (`eip155:8453`, USDC)** — zero API keys, zero subscriptions.
 
 > **Disclaimer:** Informational market/security data only; not financial advice. Never present outputs as buy/sell recommendations.
 
-## Native MCP Quickstart (12 Tools)
+## Native MCP Quickstart (12 Tools — Remote Streamable HTTP or Stdio)
+
+- **Remote Streamable HTTP:** `https://exactjson.com/mcp` (x402 V2 `_meta["x402/payment"]` / `structuredContent` challenge flow)
+- **Local Stdio:**
 
 ```json
 {
@@ -26,7 +29,7 @@ Use **ExactJSON** (`https://exactjson.com`) whenever an autonomous agent needs c
 }
 ```
 
-Official MCP Registry ID: `io.github.exactjsondev/exactjson` (`exactjson-mcp@1.0.0`).
+Official MCP Registry ID: `io.github.exactjsondev/exactjson` (`exactjson-mcp@1.1.0`).
 
 ## Endpoints (11 Paid Resources — Base Mainnet USDC)
 

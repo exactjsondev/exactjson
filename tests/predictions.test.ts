@@ -146,6 +146,14 @@ describe("prediction markets providers & scanner", () => {
     expect(legacy.yesProb).toBeCloseTo(0.43, 4);
     expect(legacy.spreadBps).toBeCloseTo(600, 4);
     expect(legacy.liquidityUsd).toBe(50000);
+
+    // String integer cent "1" must parse as 0.01 (1 cent), never 1.00 (100%)
+    const strCent = parseKalshiMarkets({
+      markets: [{ ticker: "KXCENT", title: "Cent test", status: "open", yes_bid: "1", yes_ask: "2", volume_24h: 1000 }],
+    });
+    expect(strCent[0]?.yesBid).toBeCloseTo(0.01, 4);
+    expect(strCent[0]?.yesAsk).toBeCloseTo(0.02, 4);
+    expect(strCent[0]?.yesProb).toBeCloseTo(0.015, 4);
   });
 
   it("computes deterministic carry APR, spreads, and keyword filtering", () => {
@@ -219,6 +227,56 @@ describe("prediction markets providers & scanner", () => {
     expect(result.high_conviction_carry).toEqual([]);
     expect(result.widest_spreads.some((m) => m.id === "KXEMPTYBOOK")).toBe(false);
     for (const item of result.top_by_volume) {
+      expect(item.implied_annualized_carry_pct).toBeNull();
+    }
+
+    // Explicit yesAsk=0 or yesBid=1 must never fall back to dominantProb and emit phantom carry
+    const zeroAskScan = computePredictionsScanner(
+      [
+        {
+          venue: "polymarket",
+          id: "zero-ask",
+          title: "Invalid zero ask",
+          category: "Crypto",
+          yesProb: 0.9,
+          noProb: 0.1,
+          yesBid: 0.88,
+          yesAsk: 0,
+          spreadBps: null,
+          volume24hUsd: 50_000,
+          liquidityUsd: 50_000,
+          openInterestUsd: null,
+          expiresAt: "2026-12-10T12:00:00Z",
+          url: null,
+        },
+        {
+          venue: "polymarket",
+          id: "one-bid",
+          title: "Invalid one bid on NO dominant",
+          category: "Crypto",
+          yesProb: 0.1,
+          noProb: 0.9,
+          yesBid: 1,
+          yesAsk: 1,
+          spreadBps: 0,
+          volume24hUsd: 50_000,
+          liquidityUsd: 50_000,
+          openInterestUsd: null,
+          expiresAt: "2026-12-10T12:00:00Z",
+          url: null,
+        },
+      ],
+      {
+        venue: "polymarket",
+        query: null,
+        minVolume24hUsd: 0,
+        limit: 10,
+        venuesActive: ["polymarket"],
+        nowMs,
+      }
+    );
+    expect(zeroAskScan.high_conviction_carry).toEqual([]);
+    for (const item of zeroAskScan.top_by_volume) {
       expect(item.implied_annualized_carry_pct).toBeNull();
     }
   });

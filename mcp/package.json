@@ -1,6 +1,6 @@
 {
   "name": "exactjson-mcp",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "mcpName": "io.github.exactjsondev/exactjson",
   "description": "ExactJSON — Live, deterministic x402 APIs for AI agents: 11 pay-per-call token safety, pre-trade slippage, perps funding/screener, prediction-market scanner & arb, options surface, and US macro endpoints on Base USDC.",
   "license": "MIT",

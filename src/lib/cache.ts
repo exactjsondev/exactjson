@@ -104,7 +104,8 @@ export class BoundedTtlCache {
 
 export const isolateCache = new BoundedTtlCache(CACHE_MAX_ENTRIES);
 
-const EDGE_CACHE_ORIGIN = "https://edge-cache.exactjson.internal";
+// Must use an active Cloudflare zone hostname so caches.default persists entries in production PoPs
+const EDGE_CACHE_ORIGIN = "https://exactjson.com/__edge_cache";
 
 function getDefaultEdgeCache(): Cache | null {
   try {

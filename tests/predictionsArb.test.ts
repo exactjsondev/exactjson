@@ -50,6 +50,21 @@ describe("prediction markets arbitrage engine & route", () => {
     const fedSim = computeTitleSimilarity(polyFed, kalshiFed);
     expect(fedSim.confidence).toBe("HIGH");
     expect(fedSim.score).toBe(1);
+
+    // Prototype keys like "constructor" (e.g. F1 Constructor Championship) must stay plain strings
+    const f1 = normalizeMarketTitle("Will McLaren win the F1 Constructor Championship?");
+    expect(f1.tokens.has("constructor")).toBe(true);
+    for (const tok of f1.tokens) {
+      expect(typeof tok).toBe("string");
+    }
+
+    // Ordinal calendar dates ("December 31st" vs "Dec 31") normalize cleanly
+    const ordSim = computeTitleSimilarity(
+      normalizeMarketTitle("Will BTC trade above $100k before Dec 31?"),
+      normalizeMarketTitle("Bitcoin above $100,000 by December 31st?")
+    );
+    expect(ordSim.confidence).toBe("HIGH");
+    expect(ordSim.score).toBe(1);
   });
 
   it("rejects false positives: mismatched strikes, opposite comparators, antonyms, and range contracts", () => {
@@ -487,9 +502,15 @@ describe("prediction markets arbitrage engine & route", () => {
     expect(body1.opportunities[0]!.resolution_risk_warning).toBe(true);
     expect(fetchCount).toBe(2);
 
-    // Second call -> served from cache (zero new upstream fetches)
+    // Second call -> served from cache (zero new upstream fetches), including alias query=bitcoin matching "BTC"
     const r2 = await app.request("http://localhost/v1/predictions/arb?query=btc");
     expect(r2.status).toBe(200);
+    expect(fetchCount).toBe(2);
+
+    const rAlias = await app.request("http://localhost/v1/predictions/arb?query=bitcoin");
+    expect(rAlias.status).toBe(200);
+    const aliasBody = (await rAlias.json()) as { summary: { matched_pairs_count: number } };
+    expect(aliasBody.summary.matched_pairs_count).toBe(1);
     expect(fetchCount).toBe(2);
 
     // Non-matching query -> 404 unsettled

@@ -622,6 +622,40 @@ describe("execution quote-check engine & route", () => {
       ).status
     ).toBe(502);
 
+    // 8b. KyberSwap HTTP 200 with code 429 rate-limit -> fail closed 502 (never treat as ILLIQUID no_route)
+    const kyber200RlApp = new Hono<AppBindings>();
+    kyber200RlApp.get(
+      "/v1/execution/quote-check",
+      createExecutionQuoteCheckHandler({
+        cache: new BoundedTtlCache(),
+        fetchImpl: async (input) => {
+          if (String(input).includes("kyberswap")) {
+            return new Response(JSON.stringify({ code: 429, message: "Too Many Requests" }), { status: 200 });
+          }
+          return new Response(
+            JSON.stringify([
+              {
+                chainId: "base",
+                dexId: "uniswap-v3",
+                baseToken: { address: SAMPLE_TOKEN, symbol: "SMP" },
+                priceUsd: "2.0",
+                liquidity: { usd: 500_000 },
+                volume: { h24: 100_000 },
+              },
+            ]),
+            { status: 200 }
+          );
+        },
+      })
+    );
+    expect(
+      (
+        await kyber200RlApp.request(
+          `http://localhost/v1/execution/quote-check?mode=evm&token_out=${SAMPLE_TOKEN}&sizes_usd=1000`
+        )
+      ).status
+    ).toBe(502);
+
     // 9. Micro-cap sub-1e-8 spot price preserves precision (never truncates effective_price_usd to 0)
     const microRes = computeEvmQuoteCheck(
       [

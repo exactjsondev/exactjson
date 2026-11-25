@@ -54,11 +54,12 @@ function enrichMarket(raw: RawPredictionMarket, nowMs: number): PredictionMarket
     hoursToExpiry <= 2160
   ) {
     let entryPrice: number | null = dominantProb;
-    if (dominantSide === "YES" && raw.yesAsk !== null && raw.yesAsk > 0 && raw.yesAsk <= 1) {
-      entryPrice = raw.yesAsk;
-    } else if (dominantSide === "NO" && raw.yesBid !== null && raw.yesBid >= 0 && raw.yesBid < 1) {
-      // Buying NO costs roughly (1 - yesBid); yesBid=0 -> entryPrice=1.00 (0% carry, rejected below)
-      entryPrice = 1 - raw.yesBid;
+    if (dominantSide === "YES" && raw.yesAsk !== null) {
+      // Never fall back to mid/prob when an explicit book ask is invalid (<= 0 or > 1)
+      entryPrice = raw.yesAsk > 0 && raw.yesAsk <= 1 ? raw.yesAsk : null;
+    } else if (dominantSide === "NO" && raw.yesBid !== null) {
+      // Buying NO costs roughly (1 - yesBid); reject invalid yesBid (< 0 or >= 1) without mid fallback
+      entryPrice = raw.yesBid >= 0 && raw.yesBid < 1 ? 1 - raw.yesBid : null;
     }
     if (entryPrice !== null && entryPrice >= 0.8 && entryPrice <= 0.985) {
       const simpleReturn = (1 - entryPrice) / entryPrice;

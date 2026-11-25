@@ -83,7 +83,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
       service: "ExactJSON",
       env: "testnet",
       network: "eip155:84532",
-      version: "1.0.0",
+      version: "1.1.0",
       paused: false,
     });
 
@@ -132,7 +132,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     };
     expect(oa.openapi).toBe("3.1.0");
     expect(oa.info.title).toContain("ExactJSON");
-    expect(oa.info.version).toBe("1.0.0");
+    expect(oa.info.version).toBe("1.1.0");
     expect(oa.info.contact.email).toBe("hello@exactjson.com");
     expect(oa.info.description).toContain(DISCLAIMER);
     expect(oa.info["x-guidance"]).toContain("x402 V2");
@@ -174,7 +174,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
       authentication: { schemes: string[] };
     };
     expect(card.name).toBe("ExactJSON");
-    expect(card.version).toBe("1.0.0");
+    expect(card.version).toBe("1.1.0");
     expect(card.description).toContain("prediction scanner ($0.01)");
     expect(card.description).not.toContain("prediction scanner ($0.015)");
     expect(card.skills.length).toBe(11);
@@ -202,10 +202,18 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(mcpCardRes.status).toBe(200);
     const mcpCard = (await mcpCardRes.json()) as {
       serverInfo: { name: string; version: string };
+      transport: { type: string; endpoint?: string };
+      remotes: Array<{ type: string; url: string }>;
       tools: Array<{ name: string; inputSchema: { properties: Record<string, { type?: string }> } }>;
     };
     expect(mcpCard.serverInfo.name).toBe("io.github.exactjsondev/exactjson");
-    expect(mcpCard.serverInfo.version).toBe("1.0.0");
+    expect(mcpCard.serverInfo.version).toBe("1.1.0");
+    expect(mcpCard.transport.type).toBe("streamable-http");
+    expect(mcpCard.transport.endpoint).toBe("http://localhost:8787/mcp");
+    expect(mcpCard.remotes[0]).toEqual({
+      type: "streamable-http",
+      url: "http://localhost:8787/mcp",
+    });
     expect(mcpCard.tools.length).toBe(12);
     expect(mcpCard.tools[0]?.name).toBe("exactjson_health");
     expect(mcpCard.tools[1]?.name).toBe("exactjson_solana_safety");
@@ -253,12 +261,13 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     const jsonBody = (await jsonDefault.json()) as {
       service: string;
       version: string;
-      mcp: { package: string; registry_name: string };
+      mcp: { package: string; registry_name: string; remote_url: string };
     };
     expect(jsonBody.service).toBe("ExactJSON");
-    expect(jsonBody.version).toBe("1.0.0");
+    expect(jsonBody.version).toBe("1.1.0");
     expect(jsonBody.mcp.package).toBe("exactjson-mcp");
     expect(jsonBody.mcp.registry_name).toBe("io.github.exactjsondev/exactjson");
+    expect(jsonBody.mcp.remote_url).toBe("http://localhost:8787/mcp");
 
     // Wildcard */* -> JSON (curl, x402scan, AgentCash)
     const jsonStar = await app.request(
@@ -313,6 +322,65 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(html).toContain("npx -y exactjson-mcp");
     expect(html).toContain("hello@exactjson.com");
     expect(html).toContain(DISCLAIMER);
+    expect(html).toContain("<main id=\"main-content\">");
+    expect(html).toContain("class=\"skip-link visually-hidden\"");
+    expect(html).toContain("id=\"quickstart\"");
+    expect(html).toContain("id=\"discovery\"");
+    expect(html).toContain("@x402/fetch");
+    expect(html).toContain("<details class=\"sample-details\">");
+    expect(html).toContain("og-image.jpg");
+    expect(html).toContain("minmax(0,");
+    expect(html).toContain("Base Sepolia (eip155:84532)");
+
+    // CORS on / (JSON), /health, and /llms-full.txt alias
+    expect(jsonDefault.headers.get("access-control-allow-origin")).toBe("*");
+    const healthCors = await app.request("http://localhost:8787/health", {}, env);
+    expect(healthCors.headers.get("access-control-allow-origin")).toBe("*");
+    const llmsFull = await app.request("http://localhost:8787/llms-full.txt", {}, env);
+    expect(llmsFull.status).toBe(200);
+    expect(llmsFull.headers.get("access-control-allow-origin")).toBe("*");
+    expect(await llmsFull.text()).toContain("## Paid Endpoints");
+  });
+
+  it("returns 405 Method Not Allowed on wrong HTTP method for known /v1/* routes and branded 404s for unknown paths", async () => {
+    const { db } = createMockDb(false);
+    const env = makeEnv(db);
+
+    const postRes = await app.request(
+      "http://localhost:8787/v1/perps/snapshot?coin=BTC",
+      { method: "POST" },
+      env
+    );
+    expect(postRes.status).toBe(405);
+    expect(postRes.headers.get("allow")).toBe("GET, HEAD, OPTIONS");
+    const postBody = (await postRes.json()) as { error: string; endpoint: string };
+    expect(postBody.error).toBe("METHOD_NOT_ALLOWED");
+    expect(postBody.endpoint).toBe("/v1/perps/snapshot");
+
+    // Browser unknown path -> branded HTML 404 with strict CSP
+    const html404 = await app.request(
+      "http://localhost:8787/docs",
+      { headers: { Accept: "text/html,application/xhtml+xml,*/*;q=0.8" } },
+      env
+    );
+    expect(html404.status).toBe(404);
+    expect(html404.headers.get("content-type")).toContain("text/html");
+    expect(html404.headers.get("content-security-policy")).toContain("default-src 'none'");
+    const html404Body = await html404.text();
+    expect(html404Body).toContain("Page not found");
+    expect(html404Body).toContain("Go to ExactJSON Docs");
+
+    // API/agent unknown path -> structured JSON 404 with discovery links
+    const json404 = await app.request("http://localhost:8787/v1/does-not-exist", {}, env);
+    expect(json404.status).toBe(404);
+    expect(json404.headers.get("content-type")).toContain("application/json");
+    const json404Body = (await json404.json()) as {
+      error: string;
+      discovery: { openapi: string; x402: string };
+    };
+    expect(json404Body.error).toBe("NOT_FOUND");
+    expect(json404Body.discovery.openapi).toBe("http://localhost:8787/openapi.json");
+    expect(json404Body.discovery.x402).toBe("http://localhost:8787/.well-known/x402");
   });
 
   it("escapes XML special characters in /sitemap.xml and rejects zero burn-address X402_PAY_TO", async () => {
@@ -348,6 +416,8 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     const files = [
       resolve(process.cwd(), "src/routes/discovery.ts"),
       resolve(process.cwd(), "src/routes/landingHtml.ts"),
+      resolve(process.cwd(), "src/routes/mcp.ts"),
+      resolve(process.cwd(), "src/lib/mcpTools.ts"),
       resolve(process.cwd(), "src/lib/contentNegotiation.ts"),
     ];
     for (const file of files) {
@@ -420,6 +490,12 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     const healthPaused = await app.request("http://localhost:8787/health", {}, env);
     expect(healthPaused.status).toBe(200);
     expect(((await healthPaused.json()) as { paused: boolean }).paused).toBe(true);
+
+    // Trailing slash matches Hono route cleanly (strict: false parity with x402 & getEndpointByPath)
+    const healthSlash = await app.request("http://localhost:8787/health/", {}, env);
+    expect(healthSlash.status).toBe(200);
+    const pausedSlash = await app.request("http://localhost:8787/v1/perps/snapshot/?coin=BTC", {}, env);
+    expect(pausedSlash.status).toBe(503);
   });
 
   it("classifies telemetry outcomes deterministically", () => {

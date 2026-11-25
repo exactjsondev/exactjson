@@ -22,6 +22,8 @@ const ALLOWED_NETWORKS = new Set([
   "eip155:84532",
 ]);
 
+const ALLOWED_TRANSPORTS = new Set(["http", "mcp"]);
+
 const OVERVIEW_CACHE_PREFIX = "dashboard:overview:";
 
 interface EndpointAggregateRow {
@@ -40,6 +42,10 @@ interface EndpointAggregateRow {
   challenged_count_24h: number;
   verify_failed_count_24h: number;
   error_count_24h: number;
+  mcp_requests: number;
+  mcp_settled: number;
+  mcp_requests_24h: number;
+  mcp_settled_24h: number;
 }
 
 function isD1QuotaError(err: unknown): boolean {
@@ -103,12 +109,25 @@ export async function dashboardOverviewHandler(c: Context<AppBindings>) {
         COALESCE(SUM(CASE WHEN created_at >= ? AND outcome = 'SETTLED' THEN price_usd ELSE 0 END), 0) AS revenue_usd_24h,
         COALESCE(SUM(CASE WHEN created_at >= ? AND outcome = 'CHALLENGED_402' THEN 1 ELSE 0 END), 0) AS challenged_count_24h,
         COALESCE(SUM(CASE WHEN created_at >= ? AND outcome = 'VERIFY_FAILED' THEN 1 ELSE 0 END), 0) AS verify_failed_count_24h,
-        COALESCE(SUM(CASE WHEN created_at >= ? AND outcome = 'UNSETTLED_ERROR' THEN 1 ELSE 0 END), 0) AS error_count_24h
+        COALESCE(SUM(CASE WHEN created_at >= ? AND outcome = 'UNSETTLED_ERROR' THEN 1 ELSE 0 END), 0) AS error_count_24h,
+        COALESCE(SUM(CASE WHEN transport = 'mcp' THEN 1 ELSE 0 END), 0) AS mcp_requests,
+        COALESCE(SUM(CASE WHEN transport = 'mcp' AND outcome = 'SETTLED' THEN 1 ELSE 0 END), 0) AS mcp_settled,
+        COALESCE(SUM(CASE WHEN created_at >= ? AND transport = 'mcp' THEN 1 ELSE 0 END), 0) AS mcp_requests_24h,
+        COALESCE(SUM(CASE WHEN created_at >= ? AND transport = 'mcp' AND outcome = 'SETTLED' THEN 1 ELSE 0 END), 0) AS mcp_settled_24h
       FROM api_requests${validNetwork ? " WHERE network = ?" : ""}
       GROUP BY endpoint
       ORDER BY endpoint ASC`;
 
-    const bindParams: unknown[] = [since24h, since24h, since24h, since24h, since24h, since24h];
+    const bindParams: unknown[] = [
+      since24h,
+      since24h,
+      since24h,
+      since24h,
+      since24h,
+      since24h,
+      since24h,
+      since24h,
+    ];
     if (validNetwork) {
       bindParams.push(validNetwork);
     }
@@ -135,6 +154,11 @@ export async function dashboardOverviewHandler(c: Context<AppBindings>) {
     let verifyFailedCount24h = 0;
     let errorCount24h = 0;
 
+    let mcpRequests = 0;
+    let mcpSettled = 0;
+    let mcpRequests24h = 0;
+    let mcpSettled24h = 0;
+
     const byEndpoint = rows.map((row) => {
       const rTotal = Number(row.total_requests || 0);
       const rSettled = Number(row.settled_count || 0);
@@ -157,6 +181,11 @@ export async function dashboardOverviewHandler(c: Context<AppBindings>) {
       challengedCount24h += Number(row.challenged_count_24h || 0);
       verifyFailedCount24h += Number(row.verify_failed_count_24h || 0);
       errorCount24h += Number(row.error_count_24h || 0);
+
+      mcpRequests += Number(row.mcp_requests || 0);
+      mcpSettled += Number(row.mcp_settled || 0);
+      mcpRequests24h += Number(row.mcp_requests_24h || 0);
+      mcpSettled24h += Number(row.mcp_settled_24h || 0);
 
       return {
         endpoint: row.endpoint,
@@ -194,6 +223,20 @@ export async function dashboardOverviewHandler(c: Context<AppBindings>) {
         verify_failed_count: verifyFailedCount24h,
         error_count: errorCount24h,
       },
+      by_transport: {
+        http: {
+          total_requests: Math.max(0, totalRequests - mcpRequests),
+          settled_count: Math.max(0, settledCount - mcpSettled),
+          total_requests_24h: Math.max(0, totalRequests24h - mcpRequests24h),
+          settled_count_24h: Math.max(0, settledCount24h - mcpSettled24h),
+        },
+        mcp: {
+          total_requests: mcpRequests,
+          settled_count: mcpSettled,
+          total_requests_24h: mcpRequests24h,
+          settled_count_24h: mcpSettled24h,
+        },
+      },
       by_endpoint: byEndpoint,
     };
 
@@ -210,13 +253,16 @@ export async function dashboardRequestsHandler(c: Context<AppBindings>) {
   const outcomeFilter = c.req.query("outcome")?.trim();
   const endpointFilter = c.req.query("endpoint")?.trim();
   const networkFilter = c.req.query("network")?.trim();
+  const transportFilter = c.req.query("transport")?.trim();
   const forceRefresh = c.req.query("refresh") === "1";
 
   const validOutcome = outcomeFilter && ALLOWED_OUTCOMES.has(outcomeFilter) ? outcomeFilter : null;
   const validEndpoint = endpointFilter && ALLOWED_ENDPOINTS.has(endpointFilter) ? endpointFilter : null;
   const validNetwork = networkFilter && ALLOWED_NETWORKS.has(networkFilter) ? networkFilter : null;
+  const validTransport =
+    transportFilter && ALLOWED_TRANSPORTS.has(transportFilter) ? transportFilter : null;
 
-  const cacheKey = `dashboard:requests:${limit}:${validOutcome ?? "all"}:${validEndpoint ?? "all"}:${validNetwork ?? "all"}`;
+  const cacheKey = `dashboard:requests:${limit}:${validOutcome ?? "all"}:${validEndpoint ?? "all"}:${validNetwork ?? "all"}:${validTransport ?? "all"}`;
   if (!forceRefresh) {
     const cached = isolateCache.get<Record<string, unknown>>(cacheKey);
     if (cached.hit) {
@@ -239,12 +285,16 @@ export async function dashboardRequestsHandler(c: Context<AppBindings>) {
     clauses.push("network = ?");
     params.push(validNetwork);
   }
+  if (validTransport) {
+    clauses.push("transport = ?");
+    params.push(validTransport);
+  }
 
   const whereSql = clauses.length > 0 ? `WHERE ${clauses.join(" AND ")}` : "";
   params.push(limit);
 
   const sql = `SELECT
-      id, created_at, endpoint, query_target, http_status, outcome,
+      id, created_at, endpoint, transport, query_target, http_status, outcome,
       price_usd, network, payer_address, tx_hash, cache_status,
       upstream_source, upstream_error, extension_responses, latency_ms
     FROM api_requests

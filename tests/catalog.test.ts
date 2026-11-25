@@ -44,10 +44,10 @@ describe("catalog and dependency guardrails", () => {
     }
   });
 
-  it("uses exact root-app full paths, ExactJSON branding, and 1.0.0 service version", () => {
+  it("uses exact root-app full paths, ExactJSON branding, and 1.1.0 service version", () => {
     expect(SERVICE_NAME).toBe("ExactJSON");
-    expect(SERVICE_VERSION).toBe("1.0.0");
-    expect(USER_AGENT).toBe("ExactJSON/1.0");
+    expect(SERVICE_VERSION).toBe("1.1.0");
+    expect(USER_AGENT).toBe("ExactJSON/1.1");
     expect(CATALOG.map((e) => e.routeKey)).toEqual([
       "GET /v1/solana/safety",
       "GET /v1/solana/trending",

@@ -5,7 +5,7 @@ import {
   readEdgeCache,
   writeEdgeCache,
 } from "../lib/cache";
-import { fetchJsonWithTimeout } from "../lib/http";
+import { UpstreamError, fetchJsonWithTimeout } from "../lib/http";
 import type { RugCheckRiskItem, RugCheckSummary } from "../types";
 
 const RUGCHECK_BASE_URL = "https://api.rugcheck.xyz/v1/tokens";
@@ -135,7 +135,29 @@ export async function fetchRugCheckSummary(
     return { status: "not_found", cacheHit: false };
   }
 
-  const parsed = parseRugCheckSummary(mint, result.data);
+  if (result.data === null || typeof result.data !== "object" || Array.isArray(result.data)) {
+    throw new UpstreamError("RUGCHECK", "RUGCHECK_BAD_PAYLOAD", "RugCheck returned unexpected payload");
+  }
+
+  const rawObj = result.data as Record<string, unknown>;
+  if (typeof rawObj.error === "string" && rawObj.error.trim().length > 0) {
+    const errText = rawObj.error.trim();
+    if (/not\s*found/i.test(errText)) {
+      return { status: "not_found", cacheHit: false };
+    }
+    const errCode = /rate\s*limit|too\s*many/i.test(errText) ? "RUGCHECK_429" : "RUGCHECK_API_ERROR";
+    throw new UpstreamError("RUGCHECK", errCode, `RugCheck error: ${errText}`);
+  }
+
+  const parsed = parseRugCheckSummary(mint, rawObj);
+  if (parsed.rawScore === null && parsed.scoreNormalised === null && !Array.isArray(rawObj.risks)) {
+    throw new UpstreamError(
+      "RUGCHECK",
+      "RUGCHECK_BAD_PAYLOAD",
+      "RugCheck response missing score and risks"
+    );
+  }
+
   cache.set(cacheKey, parsed, TTL_MS.RUGCHECK_SUMMARY);
   if (useEdgeCache) {
     await writeEdgeCache(cacheKey, parsed, TTL_MS.RUGCHECK_SUMMARY);

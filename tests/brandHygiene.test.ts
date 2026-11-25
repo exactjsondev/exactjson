@@ -37,6 +37,7 @@ describe("ExactJSON clean-slate brand hygiene and MCP contract parity", () => {
     const requiredFiles = [
       "LICENSE",
       "migrations/0001_init.sql",
+      "migrations/0002_transport.sql",
       "package.json",
       "wrangler.jsonc",
       "README.md",
@@ -81,7 +82,7 @@ describe("ExactJSON clean-slate brand hygiene and MCP contract parity", () => {
     expect(mcpSource).toContain("EXACTJSON_BASE_URL");
     expect(mcpSource).toContain("process.env.EXACTJSON_BASE_URL?.trim()");
     expect(mcpSource).toContain("https://exactjson.com");
-    expect(mcpSource).toContain('version: "1.0.0"');
+    expect(mcpSource).toContain('version: "1.1.0"');
     expect(mcpSource).toContain("AbortSignal.timeout(");
     expect(mcpSource).toContain("/^0x/i.test(rawKey)");
     expect(mcpSource).toContain("Paid ($0.01 USDC): Scan live Polymarket & Kalshi");
@@ -95,22 +96,29 @@ describe("ExactJSON clean-slate brand hygiene and MCP contract parity", () => {
       bin: Record<string, string>;
     };
     expect(mcpPkg.name).toBe("exactjson-mcp");
-    expect(mcpPkg.version).toBe("1.0.0");
+    expect(mcpPkg.version).toBe("1.1.0");
     expect(mcpPkg.mcpName).toBe("io.github.exactjsondev/exactjson");
     expect(mcpPkg.homepage).toBe("https://exactjson.com");
     expect(mcpPkg.bin["exactjson-mcp"]).toBe("index.mjs");
 
     const serverJson = JSON.parse(readFileSync(resolve(ROOT, "mcp/server.json"), "utf8")) as {
       name: string;
+      description: string;
       version: string;
       websiteUrl: string;
+      remotes: Array<{ type: string; url: string }>;
       packages: Array<{ identifier: string; version: string }>;
     };
     expect(serverJson.name).toBe("io.github.exactjsondev/exactjson");
-    expect(serverJson.version).toBe("1.0.0");
+    expect(serverJson.description.length).toBeLessThanOrEqual(100);
+    expect(serverJson.version).toBe("1.1.0");
     expect(serverJson.websiteUrl).toBe("https://exactjson.com");
+    expect(serverJson.remotes[0]).toEqual({
+      type: "streamable-http",
+      url: "https://exactjson.com/mcp",
+    });
     expect(serverJson.packages[0]?.identifier).toBe("exactjson-mcp");
-    expect(serverJson.packages[0]?.version).toBe("1.0.0");
+    expect(serverJson.packages[0]?.version).toBe("1.1.0");
 
     const paymentScript = readFileSync(resolve(ROOT, "scripts/test-payment.ts"), "utf8");
     expect(paymentScript).toContain("Predictions Scanner ($0.01)");

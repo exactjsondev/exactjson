@@ -213,14 +213,16 @@ function aggregateDexScreenerPairsForChain(
 
   // DEX Screener priceUsd/priceChange/fdv always reflect baseToken; avoid attributing another token's price
   const safePriceAttrs = tokenIsBase || !tokenIsQuote;
+  const rawPriceUsd = safePriceAttrs ? toFiniteNumber(primaryPair.priceUsd) : null;
+  const rawFdvUsd = safePriceAttrs ? toFiniteNumber(primaryPair.fdv) : null;
 
   return {
     pairCount: chainPairs.length,
     totalLiquidityUsd: roundTo(totalLiquidityUsd, 2),
     volume24hUsd: roundTo(volume24hUsd, 2),
-    priceUsd: safePriceAttrs ? toFiniteNumber(primaryPair.priceUsd) : null,
+    priceUsd: rawPriceUsd !== null && rawPriceUsd >= 0 ? rawPriceUsd : null,
     priceChange24hPct: safePriceAttrs ? toFiniteNumber(primaryPair.priceChange?.h24) : null,
-    fdvUsd: safePriceAttrs ? toFiniteNumber(primaryPair.fdv) : null,
+    fdvUsd: rawFdvUsd !== null && rawFdvUsd >= 0 ? rawFdvUsd : null,
     primaryDex: typeof primaryPair.dexId === "string" ? primaryPair.dexId : null,
     primaryPairAddress:
       typeof primaryPair.pairAddress === "string" ? primaryPair.pairAddress : null,
@@ -287,11 +289,11 @@ export function parseGeckoTerminalToken(raw: unknown): DexScreenerAggregated {
     pairCount: pools.length,
     totalLiquidityUsd: roundTo(totalLiquidityUsd, 2),
     volume24hUsd: roundTo(effectiveVol, 2),
-    priceUsd: priceUsd !== null ? roundPriceUsd(priceUsd, 8) : null,
+    priceUsd: priceUsd !== null && priceUsd >= 0 ? roundPriceUsd(priceUsd, 8) : null,
     priceChange24hPct: toFiniteNumber(primaryPool?.attributes?.price_change_percentage?.h24),
     fdvUsd: (() => {
       const fdv = toFiniteNumber(attrs?.fdv_usd);
-      return fdv !== null ? roundTo(fdv, 2) : null;
+      return fdv !== null && fdv >= 0 ? roundTo(fdv, 2) : null;
     })(),
     primaryDex:
       typeof primaryPool?.relationships?.dex?.data?.id === "string"
@@ -323,6 +325,15 @@ function isRateLimitOrBlocked(err: unknown): boolean {
   return (
     err instanceof UpstreamError &&
     (err.httpStatus === 429 || err.httpStatus === 403)
+  );
+}
+
+function isTransientServerOrTimeout(err: unknown): boolean {
+  if (!(err instanceof UpstreamError)) return false;
+  return (
+    (err.httpStatus !== null && err.httpStatus >= 500) ||
+    err.code.endsWith("_TIMEOUT") ||
+    err.code.endsWith("_NETWORK_ERROR")
   );
 }
 
@@ -377,6 +388,33 @@ async function fetchDexScreenerWithFallback(params: {
     return { data: entry.data, source: entry.source, cacheHit: false };
   };
 
+  const fetchGeckoFallback = async (primaryErr: unknown): Promise<DexScreenerProviderResult> => {
+    try {
+      const gecko = await fetchJsonWithTimeout<unknown>(
+        `${GECKOTERMINAL_NETWORKS_BASE}/${encodeURIComponent(geckoTerminalNetwork)}/tokens/${encodedAddr}?include=top_pools`,
+        {
+          provider: "GECKOTERMINAL",
+          method: "GET",
+          allow404: true,
+          fetchImpl,
+        }
+      );
+      const aggregated =
+        gecko.status === "not_found"
+          ? aggregateDexScreenerPairsForChain(
+              tokenAddress,
+              [],
+              dexScreenerChainId,
+              caseInsensitive
+            )
+          : parseGeckoTerminalToken(gecko.data);
+
+      return storeResult({ data: aggregated, source: "geckoterminal" });
+    } catch {
+      throw primaryErr;
+    }
+  };
+
   try {
     const primary = await fetchJsonWithTimeout<unknown>(
       `${DEXSCREENER_V1_BASE}/${encodeURIComponent(dexScreenerChainId)}/${encodedAddr}`,
@@ -399,63 +437,41 @@ async function fetchDexScreenerWithFallback(params: {
 
     return storeResult({ data: aggregated, source: "dexscreener" });
   } catch (primaryErr) {
-    if (!isRateLimitOrBlocked(primaryErr)) {
-      throw primaryErr;
-    }
-
-    // Fallback 1: DEX Screener /latest/dex/tokens/{addr} (separate rate-limit bucket)
-    try {
-      const secondary = await fetchJsonWithTimeout<unknown>(
-        `${DEXSCREENER_LATEST_URL}/${encodedAddr}`,
-        {
-          provider: "DEXSCREENER",
-          method: "GET",
-          allow404: true,
-          fetchImpl,
-        }
-      );
-      const aggregated =
-        secondary.status === "not_found"
-          ? aggregateDexScreenerPairsForChain(tokenAddress, [], dexScreenerChainId, caseInsensitive)
-          : aggregateDexScreenerPairsForChain(
-              tokenAddress,
-              secondary.data,
-              dexScreenerChainId,
-              caseInsensitive
-            );
-
-      return storeResult({ data: aggregated, source: "dexscreener" });
-    } catch (secondaryErr) {
-      if (!isRateLimitOrBlocked(secondaryErr)) {
-        throw primaryErr;
-      }
-
-      // Fallback 2: GeckoTerminal keyless token+pools API (resilient on shared CF Workers IPs)
+    if (isRateLimitOrBlocked(primaryErr)) {
+      // Fallback 1: DEX Screener /latest/dex/tokens/{addr} (separate rate-limit bucket)
       try {
-        const gecko = await fetchJsonWithTimeout<unknown>(
-          `${GECKOTERMINAL_NETWORKS_BASE}/${encodeURIComponent(geckoTerminalNetwork)}/tokens/${encodedAddr}?include=top_pools`,
+        const secondary = await fetchJsonWithTimeout<unknown>(
+          `${DEXSCREENER_LATEST_URL}/${encodedAddr}`,
           {
-            provider: "GECKOTERMINAL",
+            provider: "DEXSCREENER",
             method: "GET",
             allow404: true,
             fetchImpl,
           }
         );
         const aggregated =
-          gecko.status === "not_found"
-            ? aggregateDexScreenerPairsForChain(
+          secondary.status === "not_found"
+            ? aggregateDexScreenerPairsForChain(tokenAddress, [], dexScreenerChainId, caseInsensitive)
+            : aggregateDexScreenerPairsForChain(
                 tokenAddress,
-                [],
+                secondary.data,
                 dexScreenerChainId,
                 caseInsensitive
-              )
-            : parseGeckoTerminalToken(gecko.data);
+              );
 
-        return storeResult({ data: aggregated, source: "geckoterminal" });
+        return storeResult({ data: aggregated, source: "dexscreener" });
       } catch {
-        throw primaryErr;
+        // Fallback 2: GeckoTerminal keyless token+pools API (resilient on shared CF Workers IPs)
+        return fetchGeckoFallback(primaryErr);
       }
     }
+
+    if (isTransientServerOrTimeout(primaryErr)) {
+      // DEX Screener 5xx/timeout: skip second DEX Screener host call and fall back directly to GeckoTerminal
+      return fetchGeckoFallback(primaryErr);
+    }
+
+    throw primaryErr;
   }
 }
 

@@ -20,10 +20,15 @@ function getPaidFetch() {
   const rawKey = process.env.BUYER_PRIVATE_KEY?.trim();
   if (!rawKey) {
     throw new Error(
-      "BUYER_PRIVATE_KEY environment variable is required to call paid ExactJSON endpoints (Base USDC)."
+      "BUYER_PRIVATE_KEY environment variable is required to call paid ExactJSON endpoints (Base Mainnet USDC). Set BUYER_PRIVATE_KEY to a dedicated low-balance Base wallet key (and MAX_PAYMENT_USD, e.g. $0.05) — or call exactjson_health for free. Docs: https://exactjson.com/#quickstart"
     );
   }
   const normalizedKey = /^0x/i.test(rawKey) ? `0x${rawKey.slice(2)}` : `0x${rawKey}`;
+  if (!/^0x[0-9a-fA-F]{64}$/.test(normalizedKey)) {
+    throw new Error(
+      "Invalid BUYER_PRIVATE_KEY format: expected a 64-character hex EVM private key (with or without 0x prefix) for a low-balance Base Mainnet USDC wallet. Replace any placeholder value in your MCP config. Docs: https://exactjson.com/#quickstart"
+    );
+  }
   const account = privateKeyToAccount(normalizedKey);
   const client = new x402Client().setSpendControls({ maxAmountPerPayment: MAX_PAYMENT });
   registerExactEvmScheme(client, { signer: account });
@@ -79,11 +84,11 @@ async function callPaidEndpoint(path, params = {}) {
 const server = new McpServer(
   {
     name: "exactjson",
-    version: "1.0.0",
+    version: "1.1.0",
   },
   {
     instructions: [
-      "ExactJSON provides live, deterministic x402 V2 APIs for AI agents paid per call in Base USDC ($0.005-$0.02/call; exactjson_health is free).",
+      "ExactJSON provides live, deterministic x402 V2 APIs for AI agents paid per call in Base USDC ($0.005-$0.02/call; exactjson_health is free) via stdio (npx -y exactjson-mcp) or Remote Streamable HTTP (https://exactjson.com/mcp).",
       "Pay-only-on-success: HTTP 400/404/502/503 responses are never settled. Do not blindly retry invalid inputs or 502 upstream errors.",
       "Recommended workflows: (1) Before swapping an unfamiliar EVM/Base token, call exactjson_evm_safety ($0.01) and exactjson_execution_quote_check with mode='evm' ($0.01). (2) Before buying a Solana SPL token, call exactjson_solana_safety ($0.01). (3) For Hyperliquid perps, use exactjson_perps_snapshot ($0.005) for a fast check or exactjson_execution_quote_check with mode='perps' ($0.01) for multi-tier slippage. (4) When using exactjson_predictions_arb ($0.02), always verify Polymarket vs Kalshi settlement rules whenever resolution_risk_warning is true.",
       "Informational market/security data only; not financial advice.",

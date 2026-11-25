@@ -4,7 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
+  <meta name="robots" content="noindex, nofollow">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="32x32">
   <title>ExactJSON — Operator Dashboard</title>
   <style>
     :root {
@@ -374,6 +376,16 @@
       color: #fca5a5;
     }
 
+    .badge.transport-http {
+      background: rgba(148, 163, 184, 0.14);
+      color: #cbd5e1;
+    }
+
+    .badge.transport-mcp {
+      background: var(--blue-bg);
+      color: #7dd3fc;
+    }
+
     a {
       color: var(--accent);
       text-decoration: none;
@@ -389,6 +401,26 @@
       margin-top: 0.6rem;
     }
 
+    .visually-hidden:where(:not(:focus-within, :active)) {
+      position: absolute !important;
+      clip-path: inset(50%) !important;
+      overflow: hidden !important;
+      width: 1px !important;
+      height: 1px !important;
+      margin: -1px !important;
+      padding: 0 !important;
+      border: 0 !important;
+      white-space: nowrap !important;
+    }
+
+    .auth-back {
+      margin-top: 1rem;
+      padding-top: 0.85rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.85rem;
+      color: var(--muted);
+    }
+
     .hidden {
       display: none !important;
     }
@@ -400,16 +432,17 @@
     .requests-table {
       --label-1: "Time";
       --label-2: "Endpoint";
-      --label-3: "Target";
-      --label-4: "Status";
-      --label-5: "Outcome";
-      --label-6: "Price";
-      --label-7: "Payer";
-      --label-8: "Tx Hash";
-      --label-9: "Cache";
-      --label-10: "Upstream / Error";
-      --label-11: "Extension Responses";
-      --label-12: "Latency";
+      --label-3: "Transport";
+      --label-4: "Target";
+      --label-5: "Status";
+      --label-6: "Outcome";
+      --label-7: "Price";
+      --label-8: "Payer";
+      --label-9: "Tx Hash";
+      --label-10: "Cache";
+      --label-11: "Upstream / Error";
+      --label-12: "Extension Responses";
+      --label-13: "Latency";
     }
 
     @container (width < 680px) {
@@ -466,6 +499,7 @@
       .requests-table td:nth-child(10)::before { content: var(--label-10) ": "; }
       .requests-table td:nth-child(11)::before { content: var(--label-11) ": "; }
       .requests-table td:nth-child(12)::before { content: var(--label-12) ": "; }
+      .requests-table td:nth-child(13)::before { content: var(--label-13) ": "; }
     }
   </style>
 </head>
@@ -474,7 +508,7 @@
     <header>
       <div class="brand">
         <h1>ExactJSON</h1>
-        <span class="pill" id="version-pill">1.0.0</span>
+        <span class="pill" id="version-pill">1.1.0</span>
         <span class="pill net hidden" id="network-pill"></span>
         <span class="pill hidden" id="status-pill"><span class="dot"></span><span id="status-pill-text"></span></span>
       </div>
@@ -489,12 +523,16 @@
 
     <section class="card auth-panel" id="auth-section">
       <h2>Operator Authentication</h2>
-      <p>Enter your <code>DASHBOARD_TOKEN</code> to access ExactJSON telemetry and Start/Stop controls. Stored only in this browser tab's sessionStorage.</p>
+      <p>Private operator console for ExactJSON telemetry and Start/Stop controls. Enter your <code>DASHBOARD_TOKEN</code> (stored only in this browser tab's sessionStorage).</p>
       <form id="auth-form" class="form-row">
+        <label for="token-input" class="visually-hidden">DASHBOARD_TOKEN</label>
         <input id="token-input" type="password" autocomplete="current-password" placeholder="Paste DASHBOARD_TOKEN..." required>
         <button type="submit" class="primary">Unlock</button>
       </form>
       <div id="auth-error" class="error-msg hidden" role="alert"></div>
+      <div class="auth-back">
+        Looking for the public API documentation or MCP quickstart? <a href="/">← Back to ExactJSON Docs</a>
+      </div>
     </section>
 
     <main id="dashboard-main" class="stack hidden">
@@ -592,6 +630,11 @@
               <option value="eip155:8453">Base Mainnet (eip155:8453)</option>
               <option value="eip155:84532">Base Sepolia (eip155:84532)</option>
             </select>
+            <select id="filter-transport" aria-label="Filter by transport">
+              <option value="">All Transports</option>
+              <option value="http">HTTP (/v1/*)</option>
+              <option value="mcp">Remote MCP (/mcp)</option>
+            </select>
             <select id="filter-limit" aria-label="Row limit">
               <option value="25">25 rows</option>
               <option value="50" selected>50 rows</option>
@@ -607,6 +650,7 @@
               <tr>
                 <th>Time (UTC)</th>
                 <th>Endpoint</th>
+                <th>Transport</th>
                 <th>Target</th>
                 <th>Status</th>
                 <th>Outcome</th>
@@ -769,8 +813,11 @@
       el("kpi-challenged-24h").textContent = `24h: ${d24.challenged_count || 0}`;
       el("kpi-errors").textContent = `${all.verify_failed_count || 0} / ${all.error_count || 0}`;
       el("kpi-errors-24h").textContent = `24h: ${d24.verify_failed_count || 0} / ${d24.error_count || 0}`;
+      const byTransport = data.by_transport || {};
+      const httpT = byTransport.http || {};
+      const mcpT = byTransport.mcp || {};
       el("kpi-latency").textContent = `${all.avg_latency_ms || 0} ms`;
-      el("kpi-total").textContent = `Total /v1/* logged: ${all.total_requests || 0}`;
+      el("kpi-total").textContent = `Total: ${all.total_requests || 0} (HTTP ${httpT.total_requests || 0} · MCP ${mcpT.total_requests || 0})`;
 
       const tbody = el("endpoints-tbody");
       tbody.replaceChildren();
@@ -815,7 +862,7 @@
       if (rows.length === 0) {
         const tr = document.createElement("tr");
         const td = document.createElement("td");
-        td.colSpan = 12;
+        td.colSpan = 13;
         td.className = "muted";
         td.textContent = "No requests match the selected filters.";
         tr.appendChild(td);
@@ -836,6 +883,14 @@
         tdEndpoint.className = "mono";
         tdEndpoint.textContent = r.endpoint || "-";
         tr.appendChild(tdEndpoint);
+
+        const tdTransport = document.createElement("td");
+        const transportVal = r.transport === "mcp" ? "mcp" : "http";
+        const tBadge = document.createElement("span");
+        tBadge.className = `badge transport-${transportVal}`;
+        tBadge.textContent = transportVal.toUpperCase();
+        tdTransport.appendChild(tBadge);
+        tr.appendChild(tdTransport);
 
         const tdTarget = document.createElement("td");
         tdTarget.className = "mono";
@@ -912,11 +967,13 @@
       const endpoint = el("filter-endpoint").value;
       const outcome = el("filter-outcome").value;
       const network = el("filter-network").value;
+      const transport = el("filter-transport").value;
       const limit = el("filter-limit").value;
       const params = new URLSearchParams({ limit });
       if (endpoint) params.set("endpoint", endpoint);
       if (outcome) params.set("outcome", outcome);
       if (network) params.set("network", network);
+      if (transport) params.set("transport", transport);
       if (forceRefresh) params.set("refresh", "1");
 
       const overviewParams = new URLSearchParams();
@@ -1005,6 +1062,7 @@
     el("filter-endpoint").addEventListener("change", () => void loadDashboard(false));
     el("filter-outcome").addEventListener("change", () => void loadDashboard(false));
     el("filter-network").addEventListener("change", () => void loadDashboard(false));
+    el("filter-transport").addEventListener("change", () => void loadDashboard(false));
     el("filter-limit").addEventListener("change", () => void loadDashboard(false));
 
     if (getToken()) {

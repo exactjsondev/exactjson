@@ -8,6 +8,20 @@ export interface DecodedPaymentResponse {
 }
 
 /**
+ * Encodes a JSON-serializable value as UTF-8 Base64.
+ * Portable across Cloudflare Workers and Node/Vitest.
+ */
+export function encodeBase64Json(value: unknown): string {
+  const jsonText = JSON.stringify(value);
+  const bytes = new TextEncoder().encode(jsonText);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]!);
+  }
+  return btoa(binary);
+}
+
+/**
  * Safely decodes standard Base64 or Base64URL-encoded UTF-8 JSON headers.
  * Portable across Cloudflare Workers and Node/Vitest; returns null on malformed input.
  */
@@ -44,6 +58,12 @@ export function extractPaymentResponse(
   const raw =
     headers.get("PAYMENT-RESPONSE") ?? headers.get("X-PAYMENT-RESPONSE");
   return decodeBase64Json<DecodedPaymentResponse>(raw);
+}
+
+export function extractPaymentRequired(
+  headers: Headers
+): Record<string, unknown> | null {
+  return decodeBase64Json<Record<string, unknown>>(headers.get("PAYMENT-REQUIRED"));
 }
 
 export function hasPaymentSignatureHeader(headers: Headers): boolean {

@@ -128,8 +128,7 @@ export function computeFundingArb(
     }
 
     const venuesRecord: Partial<Record<PerpVenueName, FundingArbVenueQuote>> = {};
-    let highest: { venue: PerpVenueName; apr: number } | null = null;
-    let lowest: { venue: PerpVenueName; apr: number } | null = null;
+    const venueRates: Array<{ venue: PerpVenueName; apr: number }> = [];
 
     // Compare mark prices ONLY across unscaled 1:1 contracts (never mix 1000PEPE vs PEPE)
     const unscaledMarks: number[] = [];
@@ -148,15 +147,26 @@ export function computeFundingArb(
         volume_24h_usd: m.volume24hUsd,
       };
 
-      if (!highest || apr > highest.apr) highest = { venue: m.venue, apr };
-      if (!lowest || apr < lowest.apr) lowest = { venue: m.venue, apr };
+      venueRates.push({ venue: m.venue, apr });
 
       if (!m.scaledUnit && m.markPrice !== null && m.markPrice > 0) {
         unscaledMarks.push(m.markPrice);
       }
     }
 
-    if (!highest || !lowest) continue;
+    if (venueRates.length < 2) continue;
+
+    let highest = venueRates[0]!;
+    let lowest = venueRates[0]!;
+    for (let i = 1; i < venueRates.length; i += 1) {
+      const cur = venueRates[i]!;
+      if (cur.apr > highest.apr) highest = cur;
+      if (cur.apr < lowest.apr) lowest = cur;
+    }
+    if (highest.venue === lowest.venue) {
+      const distinct = venueRates.find((v) => v.venue !== highest.venue);
+      if (distinct) lowest = distinct;
+    }
 
     const spreadApr = roundTo(Math.max(0, highest.apr - lowest.apr), 4) ?? 0;
 

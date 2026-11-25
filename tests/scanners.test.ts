@@ -213,6 +213,70 @@ describe("fundingArb (Hyperliquid vs dYdX v4 vs Kraken Futures)", () => {
     expect(btcLiquid?.venues.dydx).toBeUndefined();
     expect(btcLiquid?.spread_annualized_pct).toBe(8.76);
     expect(btcLiquid?.min_open_interest_usd).toBe(12_006_000);
+
+    // Tied funding rate across 2 venues must still pick distinct highest and lowest venues
+    const tiedRes = computeFundingArb(
+      {
+        hyperliquid: new Map([
+          ["btc", { venue: "hyperliquid", symbol: "BTC", baseAsset: "BTC", scaledUnit: false, markPrice: 60000, hourlyFundingRate: 0.00001, openInterestUsd: 5_000_000, volume24hUsd: 10_000_000 }],
+        ]),
+        dydx: new Map([
+          ["btc", { venue: "dydx", symbol: "BTC-USD", baseAsset: "BTC", scaledUnit: false, markPrice: 60000, hourlyFundingRate: 0.00001, openInterestUsd: 5_000_000, volume24hUsd: 10_000_000 }],
+        ]),
+      },
+      { minOiUsd: 100_000, limit: 10 }
+    );
+    expect(tiedRes.opportunities[0]?.spread_annualized_pct).toBe(0);
+    expect(tiedRes.opportunities[0]?.highest_funding_venue).not.toBe(
+      tiedRes.opportunities[0]?.lowest_funding_venue
+    );
+  });
+
+  it("resolves lowercase ?coin=kpepe via Hyperliquid canonical name without breaking K* tickers", async () => {
+    const app = new Hono<AppBindings>();
+    app.get(
+      "/v1/perps/funding-arb",
+      createFundingArbHandler({
+        cache: new BoundedTtlCache(),
+        fetchImpl: async (input) => {
+          const url = String(input);
+          if (url.includes("hyperliquid")) {
+            return new Response(
+              JSON.stringify([
+                { universe: [{ name: "kPEPE" }, { name: "KAS" }] },
+                [
+                  { markPx: "0.01", funding: "-0.00001", openInterest: "100000000" },
+                  { markPx: "0.15", funding: "0.00001", openInterest: "10000000" },
+                ],
+              ]),
+              { status: 200 }
+            );
+          }
+          if (url.includes("dydx")) {
+            return new Response(
+              JSON.stringify({
+                markets: {
+                  "PEPE-USD": { ticker: "PEPE-USD", status: "ACTIVE", oraclePrice: "0.00001", openInterest: "100000000000", nextFundingRate: "0.00005" },
+                  "KAS-USD": { ticker: "KAS-USD", status: "ACTIVE", oraclePrice: "0.15", openInterest: "10000000", nextFundingRate: "0.00002" },
+                },
+              }),
+              { status: 200 }
+            );
+          }
+          return new Response(JSON.stringify({ tickers: [] }), { status: 200 });
+        },
+      })
+    );
+
+    const kpepeRes = await app.request("/v1/perps/funding-arb?coin=kpepe");
+    expect(kpepeRes.status).toBe(200);
+    const kpepeBody = (await kpepeRes.json()) as { opportunities: Array<{ asset: string }> };
+    expect(kpepeBody.opportunities[0]?.asset).toBe("PEPE");
+
+    const kasRes = await app.request("/v1/perps/funding-arb?coin=kas");
+    expect(kasRes.status).toBe(200);
+    const kasBody = (await kasRes.json()) as { opportunities: Array<{ asset: string }> };
+    expect(kasBody.opportunities[0]?.asset).toBe("KAS");
   });
 
   it("returns 502 unsettled when fewer than 2 venues respond", async () => {

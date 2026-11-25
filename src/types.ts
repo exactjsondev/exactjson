@@ -8,6 +8,8 @@ export type RequestOutcome =
   | "SETTLED"
   | "UNSETTLED_ERROR";
 
+export type RequestTransport = "http" | "mcp";
+
 export type RiskTier = "LOW" | "MODERATE" | "ELEVATED" | "CRITICAL";
 
 export type FundingRegime = "POSITIVE" | "NEGATIVE" | "NEUTRAL";

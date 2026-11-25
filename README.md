@@ -2,7 +2,7 @@
 
 [![ExactJSON MCP server](https://glama.ai/mcp/servers/exactjsondev/exactjson/badge)](https://glama.ai/mcp/servers/exactjsondev/exactjson)
 
-**Website & Docs:** https://exactjson.com · **MCP:** `npx -y exactjson-mcp` · **Contact:** hello@exactjson.com
+**Website & Docs:** https://exactjson.com · **Remote MCP:** `https://exactjson.com/mcp` · **Stdio MCP:** `npx -y exactjson-mcp` · **Contact:** hello@exactjson.com
 
 **ExactJSON** serves pre-computed, strict-schema, token-optimized JSON endpoints for AI agents via **x402 V2** micro-payments on **Base Mainnet (`eip155:8453`, USDC)** — `$0.005–$0.02/call`, zero API keys, zero subscriptions, strict **Pay-Only-On-Success** settlement (`HTTP 200` only).
 
@@ -30,7 +30,10 @@
 | Options | `GET /v1/options/surface` | `$0.015` | Deribit BTC/ETH ATM IV term structure, contango/backwardation, OTM skew, Max Pain & OI walls |
 | Macro | `GET /v1/macro/liquidity` | `$0.01` | Official US Treasury Debt + TGA flows, NY Fed ON RRP, EFFR/SOFR spread & net USD liquidity impulse |
 
-## Native MCP Quickstart (12 Tools)
+## Native MCP Quickstart (12 Tools — Remote Streamable HTTP or Stdio)
+
+- **Remote Streamable HTTP (x402-native MCP clients):** `https://exactjson.com/mcp`
+- **Local Stdio (`exactjson-mcp@1.1.0`):**
 
 ```json
 {
