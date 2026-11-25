@@ -113,22 +113,25 @@ describe("perpMetrics", () => {
     expect(classifyFundingRegime(null)).toBe("NEUTRAL");
   });
 
-  it("indexes metaAndAssetCtxs case-insensitively while preserving canonical names like kPEPE", () => {
+  it("indexes metaAndAssetCtxs case-insensitively while preserving canonical names like kPEPE and skipping delisted perps", () => {
     const map = indexMetaAndAssetCtxs([
       {
         universe: [
           { name: "BTC", maxLeverage: 50, szDecimals: 5 },
           { name: "kPEPE", maxLeverage: 10, szDecimals: 0 },
+          { name: "RLB", maxLeverage: 3, szDecimals: 0, isDelisted: true },
         ],
       },
       [
         { markPx: "95000", oraclePx: "94990", funding: "0.00001", openInterest: "10" },
         { markPx: "0.018", oraclePx: "0.0179", funding: "-0.00002", openInterest: "500000" },
+        { markPx: "0.05", oraclePx: "0.05", funding: "0", openInterest: "0" },
       ],
     ]);
 
     expect(map.get("kpepe")?.canonicalName).toBe("kPEPE");
     expect(map.get("btc")?.canonicalName).toBe("BTC");
+    expect(map.has("rlb")).toBe(false);
 
     const parsedBook = parseL2Book("kPEPE", {
       coin: "kPEPE",

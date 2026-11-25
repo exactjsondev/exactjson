@@ -214,6 +214,22 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
     const getRes = await app.request("http://localhost:8787/mcp", { method: "GET" }, env);
     expect(getRes.status).toBe(405);
     expect(getRes.headers.get("allow")).toContain("POST");
+    expect(getRes.headers.get("content-type")).toContain("application/json");
+
+    // Browser GET /mcp returns a helpful 405 HTML guide with strict CSP while keeping Allow: POST, OPTIONS
+    const getHtmlRes = await app.request(
+      "http://localhost:8787/mcp",
+      {
+        method: "GET",
+        headers: { Accept: "text/html,application/xhtml+xml,*/*;q=0.8" },
+      },
+      env
+    );
+    expect(getHtmlRes.status).toBe(405);
+    expect(getHtmlRes.headers.get("allow")).toContain("POST");
+    expect(getHtmlRes.headers.get("content-type")).toContain("text/html");
+    expect(getHtmlRes.headers.get("content-security-policy")).toContain("default-src 'none'");
+    expect(await getHtmlRes.text()).toContain("Streamable HTTP MCP endpoint");
 
     const delRes = await app.request("http://localhost:8787/mcp", { method: "DELETE" }, env);
     expect(delRes.status).toBe(405);

@@ -93,20 +93,24 @@ export function parseTrendingSolanaPools(raw: unknown): TrendingSolanaPool[] {
     const fdvRaw = toFiniteNumber(attrs.fdv_usd);
     const tx24 = attrs.transactions?.h24;
 
+    const buysRaw = toFiniteNumber(tx24?.buys);
+    const sellsRaw = toFiniteNumber(tx24?.sells);
+    const tradersRaw = toFiniteNumber(tx24?.unique_traders);
+
     pools.push({
       mint,
       symbol: symbol && symbol.length > 0 ? symbol : null,
       poolName,
       poolAddress: typeof attrs.address === "string" ? attrs.address : null,
       dex: typeof item.relationships?.dex?.data?.id === "string" ? item.relationships.dex.data.id : null,
-      priceUsd: priceRaw !== null ? roundPriceUsd(priceRaw, 10) : null,
+      priceUsd: priceRaw !== null && priceRaw >= 0 ? roundPriceUsd(priceRaw, 10) : null,
       liquidityUsd: roundTo(Math.max(0, liqRaw), 2),
       volume24hUsd: roundTo(Math.max(0, volRaw), 2),
-      fdvUsd: fdvRaw !== null ? roundTo(fdvRaw, 2) : null,
+      fdvUsd: fdvRaw !== null && fdvRaw >= 0 ? roundTo(fdvRaw, 2) : null,
       priceChange24hPct: toFiniteNumber(attrs.price_change_percentage?.h24),
-      buys24h: toFiniteNumber(tx24?.buys),
-      sells24h: toFiniteNumber(tx24?.sells),
-      uniqueTraders24h: toFiniteNumber(tx24?.unique_traders),
+      buys24h: buysRaw !== null && buysRaw >= 0 ? buysRaw : null,
+      sells24h: sellsRaw !== null && sellsRaw >= 0 ? sellsRaw : null,
+      uniqueTraders24h: tradersRaw !== null && tradersRaw >= 0 ? tradersRaw : null,
       poolCreatedAt: typeof attrs.pool_created_at === "string" ? attrs.pool_created_at : null,
     });
   }

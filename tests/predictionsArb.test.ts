@@ -58,13 +58,22 @@ describe("prediction markets arbitrage engine & route", () => {
       expect(typeof tok).toBe("string");
     }
 
-    // Ordinal calendar dates ("December 31st" vs "Dec 31") normalize cleanly
+    // Ordinal calendar dates ("December 31st" and "31st of December" vs "Dec 31") normalize cleanly
     const ordSim = computeTitleSimilarity(
       normalizeMarketTitle("Will BTC trade above $100k before Dec 31?"),
       normalizeMarketTitle("Bitcoin above $100,000 by December 31st?")
     );
     expect(ordSim.confidence).toBe("HIGH");
     expect(ordSim.score).toBe(1);
+
+    const ordOf = normalizeMarketTitle("Will Bitcoin reach $100k by the 31st of December 2026?");
+    expect(ordOf.thresholdNumbers.has("31")).toBe(false);
+    expect(ordOf.thresholdNumbers.has("100000")).toBe(true);
+    const ordOfSim = computeTitleSimilarity(
+      normalizeMarketTitle("Will BTC exceed $100,000 by Dec 31, 2026?"),
+      ordOf
+    );
+    expect(ordOfSim.confidence).toBe("HIGH");
   });
 
   it("rejects false positives: mismatched strikes, opposite comparators, antonyms, and range contracts", () => {

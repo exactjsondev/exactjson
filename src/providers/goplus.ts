@@ -154,10 +154,17 @@ export function parseGoPlusTokenSecurity(
   address: string,
   raw: unknown
 ): { status: "ok"; data: GoPlusTokenSecurity } | { status: "not_found" } {
-  const payload = (raw !== null && typeof raw === "object" ? raw : {}) as RawGoPlusResponse;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new UpstreamError("GOPLUS", "GOPLUS_BAD_PAYLOAD", "GoPlus returned unexpected payload");
+  }
+  const payload = raw as RawGoPlusResponse;
   const code = toFiniteNumber(payload.code);
 
-  if (code !== null && code !== 1) {
+  if (code === null) {
+    throw new UpstreamError("GOPLUS", "GOPLUS_BAD_PAYLOAD", "GoPlus response missing status code");
+  }
+
+  if (code !== 1) {
     const msg = typeof payload.message === "string" ? payload.message : `code ${code}`;
     const errCode =
       code === 4029 || /rate\s*limit|too\s*many/i.test(msg)

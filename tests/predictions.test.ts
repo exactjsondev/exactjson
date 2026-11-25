@@ -296,12 +296,17 @@ describe("prediction markets providers & scanner", () => {
       createPredictionsScannerHandler({ cache: new BoundedTtlCache(), fetchImpl: mockFetch })
     );
 
-    // 1 of 2 venues succeeds -> 200 with polymarket active
+    // 1 of 2 venues succeeds -> 200 with polymarket active (supports canonical aliases like bitcoin <-> BTC)
     const okRes = await app.request("http://localhost/v1/predictions/scanner?query=btc");
     expect(okRes.status).toBe(200);
     const body = (await okRes.json()) as { venues_active: string[]; market_summary: { matching_count: number } };
     expect(body.venues_active).toEqual(["polymarket"]);
     expect(body.market_summary.matching_count).toBe(1);
+
+    const aliasRes = await app.request("http://localhost/v1/predictions/scanner?query=bitcoin");
+    expect(aliasRes.status).toBe(200);
+    const aliasBody = (await aliasRes.json()) as { market_summary: { matching_count: number } };
+    expect(aliasBody.market_summary.matching_count).toBe(1);
 
     // Non-matching query -> 404 unsettled
     const notFound = await app.request("http://localhost/v1/predictions/scanner?query=nonexistentxyz");

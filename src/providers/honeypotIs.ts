@@ -5,7 +5,7 @@ import {
   readEdgeCache,
   writeEdgeCache,
 } from "../lib/cache";
-import { fetchJsonWithTimeout } from "../lib/http";
+import { UpstreamError, fetchJsonWithTimeout } from "../lib/http";
 import type { HoneypotIsResult } from "../types";
 
 const HONEYPOT_IS_BASE_URL = "https://api.honeypot.is/v2/IsHoneypot";
@@ -75,10 +75,25 @@ export function parseHoneypotIsResult(
   raw: unknown
 ): { status: "ok"; data: HoneypotIsResult } | { status: "not_found" } {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
-    return { status: "not_found" };
+    throw new UpstreamError(
+      "HONEYPOT_IS",
+      "HONEYPOT_IS_BAD_PAYLOAD",
+      "Honeypot.is returned unexpected payload"
+    );
   }
 
-  const obj = raw as RawHoneypotResponse;
+  const obj = raw as RawHoneypotResponse & { error?: unknown };
+  if (typeof obj.error === "string" && obj.error.trim().length > 0) {
+    const errText = obj.error.trim();
+    if (/not\s*found|no\s*pair/i.test(errText)) {
+      return { status: "not_found" };
+    }
+    const errCode = /rate\s*limit|too\s*many/i.test(errText)
+      ? "HONEYPOT_IS_429"
+      : "HONEYPOT_IS_API_ERROR";
+    throw new UpstreamError("HONEYPOT_IS", errCode, `Honeypot.is error: ${errText}`);
+  }
+
   const hasSimulationField = typeof obj.simulationSuccess === "boolean";
   const hasHoneypotObj =
     obj.honeypotResult !== undefined &&
@@ -86,7 +101,11 @@ export function parseHoneypotIsResult(
     typeof obj.honeypotResult === "object";
 
   if (!hasSimulationField && !hasHoneypotObj) {
-    return { status: "not_found" };
+    throw new UpstreamError(
+      "HONEYPOT_IS",
+      "HONEYPOT_IS_BAD_PAYLOAD",
+      "Honeypot.is response missing simulationSuccess and honeypotResult"
+    );
   }
 
   const simulationSuccess = obj.simulationSuccess === true;

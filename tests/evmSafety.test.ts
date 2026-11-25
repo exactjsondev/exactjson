@@ -158,13 +158,15 @@ describe("EVM provider parsers", () => {
     expect(parsed.data.lpLockedPct).toBe(85); // 60% burned + 25% locked
   });
 
-  it("throws GOPLUS_429 when GoPlus returns HTTP 200 with rate-limit code", () => {
+  it("throws GOPLUS_429 when GoPlus returns HTTP 200 with rate-limit code and rejects empty envelope", () => {
     expect(() =>
       parseGoPlusTokenSecurity(8453, BASE_USDC_LOWER, {
         code: 4029,
         message: "Rate limit exceeded",
       })
     ).toThrow(UpstreamError);
+
+    expect(() => parseGoPlusTokenSecurity(8453, BASE_USDC_LOWER, {})).toThrow(UpstreamError);
   });
 
   it("returns not_found when GoPlus result is empty and leaves empty owner_address as null (unknown)", () => {
@@ -203,6 +205,15 @@ describe("EVM provider parsers", () => {
     expect(parsed.data.sellTaxPct).toBe(12.25);
     expect(parsed.data.isHoneypot).toBe(false);
     expect(parsed.data.holderCount).toBe(420);
+
+    // HTTP 200 error/empty payloads must fail closed rather than silently returning not_found
+    expect(() => parseHoneypotIsResult(8453, BASE_USDC_LOWER, { error: "Rate limit exceeded" })).toThrow(
+      UpstreamError
+    );
+    expect(() => parseHoneypotIsResult(8453, BASE_USDC_LOWER, {})).toThrow(UpstreamError);
+    expect(parseHoneypotIsResult(8453, BASE_USDC_LOWER, { error: "Pair not found" }).status).toBe(
+      "not_found"
+    );
   });
 
   it("matches checksummed EVM addresses case-insensitively and filters target chain", () => {

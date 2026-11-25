@@ -179,7 +179,7 @@ const NEGATION_TOKENS = new Set([
 const NEGATIVE_CONTRACTION_RE =
   /\b(?:won|don|doesn|didn|isn|aren|wasn|weren|can|couldn|wouldn|shouldn|haven|hasn|hadn)['’]t\b/g;
 
-function resolveTokenAlias(token: string): string {
+export function resolveTokenAlias(token: string): string {
   return Object.prototype.hasOwnProperty.call(TOKEN_ALIASES, token)
     ? TOKEN_ALIASES[token]!
     : token;
@@ -362,12 +362,13 @@ export function normalizeMarketTitle(title: string): NormalizedTitle {
     if (isPlainNumberToken(tok) && !isYearToken(tok)) {
       const prev = i > 0 ? tagged[i - 1]!.token : "";
       const next = i + 1 < tagged.length ? tagged[i + 1]!.token : "";
+      const next2 = i + 2 < tagged.length ? tagged[i + 2]!.token : "";
       const hasUnitAfter = NUMERIC_UNITS.has(next);
       const isCalendarDay =
         !entry.isCurrency &&
         !hasUnitAfter &&
         isDayOfMonthNumber(tok) &&
-        (MONTHS.has(prev) || MONTHS.has(next));
+        (MONTHS.has(prev) || MONTHS.has(next) || (next === "of" && MONTHS.has(next2)));
 
       if (!isCalendarDay) {
         thresholdNumbers.add(tok);

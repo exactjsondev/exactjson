@@ -11,6 +11,8 @@ import {
   resolveMcpToolEndpoint,
 } from "../lib/mcpTools";
 import { markMcpInternalRequest } from "../lib/transport";
+import { prefersHtml } from "../lib/contentNegotiation";
+import { renderMcpGuideHtml } from "./landingHtml";
 import type { AppBindings, Env } from "../types";
 
 // IMPORTANT: Never import @x402/* or @coinbase/x402 in this file to keep free MCP calls near 0ms cold start.
@@ -394,6 +396,19 @@ export function createMcpHandler(dispatchInternal: InternalRequestDispatcher) {
   const mcpMethodNotAllowedHandler = (c: Context<AppBindings>) => {
     c.header("Allow", "POST, OPTIONS");
     c.header("Cache-Control", "no-store");
+    c.header("Vary", "Accept");
+    c.header("X-Content-Type-Options", "nosniff");
+
+    if (c.req.method === "GET" && prefersHtml(c.req.header("accept"))) {
+      c.header("X-Frame-Options", "DENY");
+      c.header("Referrer-Policy", "strict-origin-when-cross-origin");
+      c.header(
+        "Content-Security-Policy",
+        "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+      );
+      return c.html(renderMcpGuideHtml(resolveInternalOrigin(c)), 405);
+    }
+
     return c.json(
       {
         jsonrpc: "2.0",

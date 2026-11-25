@@ -59,6 +59,7 @@ interface RawUniverseItem {
   name?: unknown;
   szDecimals?: unknown;
   maxLeverage?: unknown;
+  isDelisted?: unknown;
 }
 
 interface RawAssetCtx {
@@ -120,7 +121,7 @@ export function indexMetaAndAssetCtxs(raw: unknown): Map<string, HyperliquidAsse
   for (let i = 0; i < len; i++) {
     const item = universe[i];
     const ctx = contexts[i];
-    if (!item || typeof item.name !== "string" || item.name.length === 0 || !ctx) {
+    if (!item || typeof item.name !== "string" || item.name.length === 0 || item.isDelisted === true || !ctx) {
       continue;
     }
 

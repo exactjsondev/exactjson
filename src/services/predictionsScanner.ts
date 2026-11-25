@@ -1,4 +1,5 @@
 import { DISCLAIMER } from "../config/catalog";
+import { normalizeMarketTitle, resolveTokenAlias } from "./predictionsArb";
 import type {
   PredictionMarketItem,
   PredictionVenueName,
@@ -98,7 +99,12 @@ function enrichMarket(raw: RawPredictionMarket, nowMs: number): PredictionMarket
 function matchesQuery(raw: RawPredictionMarket, queryTokens: string[]): boolean {
   if (queryTokens.length === 0) return true;
   const haystack = `${raw.title} ${raw.id} ${raw.category ?? ""}`.toLowerCase();
-  return queryTokens.every((tok) => haystack.includes(tok));
+  if (queryTokens.every((tok) => haystack.includes(tok))) return true;
+  const normalized = normalizeMarketTitle(raw.title);
+  return queryTokens.every((tok) => {
+    if (haystack.includes(tok)) return true;
+    return normalized.tokens.has(resolveTokenAlias(tok));
+  });
 }
 
 export function computePredictionsScanner(

@@ -343,8 +343,8 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
   <meta property="og:url" content="${escapeHtml(baseUrl)}/">
   <meta property="og:image" content="${escapeHtml(baseUrl)}/og-image.jpg">
   <meta property="og:image:type" content="image/jpeg">
-  <meta property="og:image:width" content="1376">
-  <meta property="og:image:height" content="768">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="${escapeHtml(SERVICE_NAME)} — Live, deterministic x402 APIs for AI agents">
   <meta name="twitter:description" content="${CATALOG.length} live x402 V2 JSON APIs for AI agents on Base USDC ($0.005-$0.02/call) + native MCP.">
@@ -593,6 +593,85 @@ curl -s ${escapeHtml(baseUrl)}/openapi.json</pre>
     <footer>
       <div>${escapeHtml(DISCLAIMER)}</div>
       <div><a href="${escapeHtml(baseUrl)}/">← Back to ${escapeHtml(SERVICE_NAME)} Docs</a> · <a href="mailto:hello@exactjson.com">hello@exactjson.com</a></div>
+    </footer>
+  </div>
+</body>
+</html>`;
+}
+
+export function renderMcpGuideHtml(baseUrl: string): string {
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Remote MCP Endpoint (POST /mcp) | ${escapeHtml(SERVICE_NAME)}</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="32x32">
+  <style>${SHARED_CSS}  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="logo">
+        <a class="logo-brand" href="${escapeHtml(baseUrl)}/">${escapeHtml(SERVICE_NAME)}</a>
+        <span class="badge warn">HTTP 405 · POST Required</span>
+        <span class="badge live">MCP Streamable HTTP · v${escapeHtml(SERVICE_VERSION)}</span>
+      </div>
+      <nav aria-label="Primary">
+        <a href="${escapeHtml(baseUrl)}/">← All Endpoints</a>
+        <a href="${escapeHtml(baseUrl)}/#quickstart">Quickstart</a>
+        <a href="${escapeHtml(baseUrl)}/.well-known/mcp/server-card.json">Server Card</a>
+      </nav>
+    </header>
+
+    <main>
+      <section style="padding: 2rem 0 1rem;">
+        <h1><code>POST ${escapeHtml(baseUrl)}/mcp</code></h1>
+        <p class="lead">
+          This is ExactJSON's stateless <strong>Streamable HTTP MCP endpoint</strong> (JSON-RPC 2.0, 12 tools). Browsers send <code>GET</code>, which returns <code>405 Method Not Allowed</code> — connect your MCP client via <code>POST</code> or use the local stdio CLI.
+        </p>
+      </section>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>1. Remote Streamable HTTP (Zero Install)</h3>
+          <p>Point any Streamable HTTP MCP client at <code>${escapeHtml(baseUrl)}/mcp</code>, or test in terminal:</p>
+          <pre>curl -s -X POST ${escapeHtml(baseUrl)}/mcp \\
+  -H "Content-Type: application/json" \\
+  -H "Accept: application/json" \\
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'</pre>
+        </div>
+        <div class="card">
+          <h3>2. Local Stdio MCP (Auto-Sign Base USDC)</h3>
+          <p>Use <code>npx -y exactjson-mcp</code> in Claude Desktop or Cursor for local EIP-3009 signing:</p>
+          <pre>{
+  "mcpServers": {
+    "exactjson": {
+      "command": "npx",
+      "args": ["-y", "exactjson-mcp"],
+      "env": {
+        "BUYER_PRIVATE_KEY": "0xYOUR_LOW_BALANCE_KEY",
+        "MAX_PAYMENT_USD": "$0.05"
+      }
+    }
+  }
+}</pre>
+        </div>
+      </div>
+
+      <div class="hero-actions" style="margin-top: 1.5rem;">
+        <a class="btn primary" href="${escapeHtml(baseUrl)}/">← Back to ExactJSON Docs</a>
+        <a class="btn" href="${escapeHtml(baseUrl)}/.well-known/mcp/server-card.json">View MCP Server Card</a>
+        <a class="btn" href="${escapeHtml(baseUrl)}/openapi.json">OpenAPI 3.1</a>
+      </div>
+    </main>
+
+    <footer>
+      <div>${escapeHtml(DISCLAIMER)}</div>
+      <div>Contact: <a href="mailto:hello@exactjson.com">hello@exactjson.com</a></div>
     </footer>
   </div>
 </body>
