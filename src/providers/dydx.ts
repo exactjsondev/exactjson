@@ -94,16 +94,19 @@ export async function fetchDydxMarketsMap(
   cache: BoundedTtlCache = isolateCache,
   fetchImpl: typeof fetch = fetch
 ): Promise<{ map: Map<string, VenuePerpMarket>; cacheHit: boolean }> {
+  const useEdgeCache = cache === isolateCache;
   const cached = cache.get<Map<string, VenuePerpMarket>>(CACHE_KEY);
   if (cached.hit) {
     return { map: cached.value, cacheHit: true };
   }
 
-  const edgeCached = await readEdgeCache<Array<[string, VenuePerpMarket]>>(CACHE_KEY);
-  if (edgeCached.hit && Array.isArray(edgeCached.value)) {
-    const map = new Map<string, VenuePerpMarket>(edgeCached.value);
-    cache.set(CACHE_KEY, map, TTL_MS.DYDX_MARKETS);
-    return { map, cacheHit: true };
+  if (useEdgeCache) {
+    const edgeCached = await readEdgeCache<Array<[string, VenuePerpMarket]>>(CACHE_KEY);
+    if (edgeCached.hit && Array.isArray(edgeCached.value)) {
+      const map = new Map<string, VenuePerpMarket>(edgeCached.value);
+      cache.set(CACHE_KEY, map, TTL_MS.DYDX_MARKETS);
+      return { map, cacheHit: true };
+    }
   }
 
   const result = await fetchJsonWithTimeout<unknown>(DYDX_MARKETS_URL, {
@@ -118,6 +121,8 @@ export async function fetchDydxMarketsMap(
 
   const map = parseDydxMarkets(result.data);
   cache.set(CACHE_KEY, map, TTL_MS.DYDX_MARKETS);
-  await writeEdgeCache(CACHE_KEY, Array.from(map.entries()), TTL_MS.DYDX_MARKETS);
+  if (useEdgeCache) {
+    await writeEdgeCache(CACHE_KEY, Array.from(map.entries()), TTL_MS.DYDX_MARKETS);
+  }
   return { map, cacheHit: false };
 }

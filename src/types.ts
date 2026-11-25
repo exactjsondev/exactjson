@@ -342,6 +342,7 @@ export interface RawPredictionMarket {
   id: string;
   title: string;
   category: string | null;
+  isBinaryYesNo?: boolean;
   yesProb: number | null;
   noProb: number | null;
   yesBid: number | null;

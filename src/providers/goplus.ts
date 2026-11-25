@@ -142,7 +142,8 @@ function parseLpLockedPct(lpHolders: unknown): number | null {
 function parseOwnerRenounced(ownerAddress: unknown): boolean | null {
   if (typeof ownerAddress !== "string") return null;
   const trimmed = ownerAddress.trim().toLowerCase();
-  if (trimmed.length === 0) return true;
+  // Empty string in GoPlus means no standard owner() detected (e.g. AccessControl/unverified), not renounced
+  if (trimmed.length === 0) return null;
   if (BURN_ADDRESSES.has(trimmed)) return true;
   if (/^0x[0-9a-f]{40}$/.test(trimmed)) return false;
   return null;

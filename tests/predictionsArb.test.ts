@@ -81,6 +81,91 @@ describe("prediction markets arbitrage engine & route", () => {
       normalizeMarketTitle("Bitcoin above $100k on Dec 31")
     );
     expect(rangeMismatch.confidence).toBeNull();
+
+    // Negative vs positive threshold (-0.5% vs +0.5%, -$100k vs $100k)
+    const signMismatch = computeTitleSimilarity(
+      normalizeMarketTitle("Will US GDP growth be below -0.5% in Q4?"),
+      normalizeMarketTitle("US GDP growth below 0.5% in Q4")
+    );
+    expect(signMismatch.confidence).toBeNull();
+    expect(signMismatch.score).toBe(0);
+
+    // Matching negative thresholds still match cleanly
+    const negMatch = computeTitleSimilarity(
+      normalizeMarketTitle("Will US GDP growth be below -0.5% in Q4?"),
+      normalizeMarketTitle("US GDP growth below -0.5% in Q4")
+    );
+    expect(negMatch.confidence).toBe("HIGH");
+
+    // Negation polarity mismatch ("will reach" vs "will not reach" / "won't reach")
+    const negationMismatch = computeTitleSimilarity(
+      normalizeMarketTitle("Will BTC reach $100k before Dec 31?"),
+      normalizeMarketTitle("Will BTC not reach $100k before Dec 31?")
+    );
+    expect(negationMismatch.confidence).toBeNull();
+
+    const contractionMismatch = computeTitleSimilarity(
+      normalizeMarketTitle("Will BTC reach $100k before Dec 31?"),
+      normalizeMarketTitle("BTC won't reach $100k before Dec 31")
+    );
+    expect(contractionMismatch.confidence).toBeNull();
+
+    // Standalone "no" negation ("no rate cut" vs "a rate cut")
+    const noNegationMismatch = computeTitleSimilarity(
+      normalizeMarketTitle("Will Fed make no rate cut in December?"),
+      normalizeMarketTitle("Will Fed make a rate cut in December?")
+    );
+    expect(noNegationMismatch.confidence).toBeNull();
+    expect(noNegationMismatch.score).toBe(0);
+
+    // Opposite temporal direction ("before Dec 31" vs "after Dec 31")
+    const temporalMismatch = computeTitleSimilarity(
+      normalizeMarketTitle("Will BTC reach $100k before Dec 31?"),
+      normalizeMarketTitle("Will BTC reach $100k after Dec 31?")
+    );
+    expect(temporalMismatch.confidence).toBeNull();
+    expect(temporalMismatch.score).toBe(0);
+
+    // One-sided strike threshold ("50bps cut" vs unquantified "any cut")
+    const oneSidedThreshold = computeTitleSimilarity(
+      normalizeMarketTitle("Fed cuts rates by 50bps in December"),
+      normalizeMarketTitle("Fed cuts rates in December")
+    );
+    expect(oneSidedThreshold.confidence).toBeNull();
+    expect(oneSidedThreshold.score).toBe(0);
+  });
+
+  it("excludes non-Yes/No Polymarket markets from cross-venue arbitrage", () => {
+    const poly = [
+      makeMarket({
+        venue: "polymarket",
+        id: "poly-sports",
+        title: "Chiefs vs Eagles December game",
+        isBinaryYesNo: false,
+        yesProb: null,
+        noProb: null,
+        yesBid: null,
+        yesAsk: null,
+      }),
+    ];
+    const kalshi = [
+      makeMarket({
+        venue: "kalshi",
+        id: "kalshi-sports",
+        title: "Chiefs vs Eagles December game",
+        yesBid: 0.5,
+        yesAsk: 0.52,
+      }),
+    ];
+    const res = computePredictionsArb(poly, kalshi, {
+      minSpreadBps: 0,
+      minLiquidityUsd: 0,
+      query: null,
+      limit: 10,
+      nowMs: NOW_MS,
+    });
+    expect(res.summary.polymarket_eligible).toBe(0);
+    expect(res.opportunities).toEqual([]);
   });
 
   it("computes optimal strategy, conservative fees, net edge, APY, and resolution_risk_warning", () => {

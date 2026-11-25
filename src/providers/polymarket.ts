@@ -1,4 +1,10 @@
-import { BoundedTtlCache, TTL_MS, readEdgeCache, writeEdgeCache } from "../lib/cache";
+import {
+  BoundedTtlCache,
+  TTL_MS,
+  isolateCache,
+  readEdgeCache,
+  writeEdgeCache,
+} from "../lib/cache";
 import { UpstreamError, fetchJsonWithTimeout } from "../lib/http";
 import type { RawPredictionMarket } from "../types";
 
@@ -60,6 +66,11 @@ function clampProb(val: number | null): number | null {
   return val;
 }
 
+function roundTo(val: number, decimals: number): number {
+  const factor = 10 ** decimals;
+  return Math.round(val * factor) / factor;
+}
+
 export function parsePolymarketMarkets(rawList: unknown): RawPredictionMarket[] {
   if (!Array.isArray(rawList)) {
     throw new UpstreamError(
@@ -85,38 +96,62 @@ export function parsePolymarketMarkets(rawList: unknown): RawPredictionMarket[] 
     const pricesArr = parseJsonStringOrArray(item.outcomePrices);
     const outcomesArr = parseJsonStringOrArray(item.outcomes);
 
-    let yesProb: number | null = null;
-    let noProb: number | null = null;
+    let yesIdx = 0;
+    let noIdx = 1;
+    let isBinaryYesNo = true;
 
-    if (pricesArr && pricesArr.length >= 2) {
-      let yesIdx = 0;
-      let noIdx = 1;
-      if (outcomesArr && outcomesArr.length === pricesArr.length) {
+    if (outcomesArr) {
+      if (outcomesArr.length === 2) {
         const lower = outcomesArr.map((o) => (typeof o === "string" ? o.trim().toLowerCase() : ""));
         const foundYes = lower.indexOf("yes");
         const foundNo = lower.indexOf("no");
         if (foundYes >= 0 && foundNo >= 0) {
           yesIdx = foundYes;
           noIdx = foundNo;
+          isBinaryYesNo = true;
+        } else {
+          // Non-Yes/No binary markets (e.g. ["Chiefs", "Eagles"] or ["Up", "Down"]) must not be mislabeled YES/NO
+          isBinaryYesNo = false;
         }
+      } else {
+        isBinaryYesNo = false;
       }
+    }
+
+    let yesProb: number | null = null;
+    let noProb: number | null = null;
+
+    if (isBinaryYesNo && pricesArr && pricesArr.length >= 2) {
       yesProb = clampProb(toFiniteNumber(pricesArr[yesIdx]));
       noProb = clampProb(toFiniteNumber(pricesArr[noIdx]));
     }
 
-    const bestBid = clampProb(toFiniteNumber(item.bestBid));
-    const bestAsk = clampProb(toFiniteNumber(item.bestAsk));
+    const rawBestBid = clampProb(toFiniteNumber(item.bestBid));
+    const rawBestAsk = clampProb(toFiniteNumber(item.bestAsk));
     const rawSpread = toFiniteNumber(item.spread);
 
+    // Gamma API bestBid/bestAsk always correspond to outcomes[0]; invert when outcomes are ["No", "Yes"]
+    let yesBid: number | null = null;
+    let yesAsk: number | null = null;
+    if (isBinaryYesNo) {
+      if (yesIdx === 1) {
+        yesBid = rawBestAsk !== null ? clampProb(roundTo(1 - rawBestAsk, 6)) : null;
+        yesAsk = rawBestBid !== null ? clampProb(roundTo(1 - rawBestBid, 6)) : null;
+      } else {
+        yesBid = rawBestBid;
+        yesAsk = rawBestAsk;
+      }
+    }
+
     let spreadBps: number | null = null;
-    if (bestBid !== null && bestAsk !== null && bestAsk >= bestBid) {
-      spreadBps = (bestAsk - bestBid) * 10_000;
+    if (rawBestBid !== null && rawBestAsk !== null && rawBestAsk >= rawBestBid) {
+      spreadBps = (rawBestAsk - rawBestBid) * 10_000;
     } else if (rawSpread !== null && rawSpread >= 0 && rawSpread <= 1) {
       spreadBps = rawSpread * 10_000;
     }
 
-    if (yesProb === null && bestBid !== null && bestAsk !== null && bestAsk >= bestBid) {
-      yesProb = (bestBid + bestAsk) / 2;
+    if (isBinaryYesNo && yesProb === null && yesBid !== null && yesAsk !== null && yesAsk >= yesBid) {
+      yesProb = (yesBid + yesAsk) / 2;
       noProb = 1 - yesProb;
     }
 
@@ -153,10 +188,11 @@ export function parsePolymarketMarkets(rawList: unknown): RawPredictionMarket[] 
       id,
       title,
       category,
+      isBinaryYesNo,
       yesProb,
       noProb,
-      yesBid: bestBid,
-      yesAsk: bestAsk,
+      yesBid,
+      yesAsk,
       spreadBps,
       volume24hUsd: Math.max(0, volume24hUsd),
       liquidityUsd: liquidityUsd !== null ? Math.max(0, liquidityUsd) : null,
@@ -173,15 +209,18 @@ export async function fetchPolymarketMarkets(
   cache: BoundedTtlCache,
   fetchImpl: typeof fetch = fetch
 ): Promise<{ markets: RawPredictionMarket[]; cacheHit: boolean }> {
+  const useEdgeCache = cache === isolateCache;
   const cached = cache.get<RawPredictionMarket[]>(POLYMARKET_CACHE_KEY);
   if (cached.hit) {
     return { markets: cached.value, cacheHit: true };
   }
 
-  const edgeCached = await readEdgeCache<RawPredictionMarket[]>(POLYMARKET_CACHE_KEY);
-  if (edgeCached.hit) {
-    cache.set(POLYMARKET_CACHE_KEY, edgeCached.value, TTL_MS.POLYMARKET_MARKETS);
-    return { markets: edgeCached.value, cacheHit: true };
+  if (useEdgeCache) {
+    const edgeCached = await readEdgeCache<RawPredictionMarket[]>(POLYMARKET_CACHE_KEY);
+    if (edgeCached.hit) {
+      cache.set(POLYMARKET_CACHE_KEY, edgeCached.value, TTL_MS.POLYMARKET_MARKETS);
+      return { markets: edgeCached.value, cacheHit: true };
+    }
   }
 
   const res = await fetchJsonWithTimeout<unknown>(POLYMARKET_MARKETS_URL, {
@@ -195,6 +234,8 @@ export async function fetchPolymarketMarkets(
 
   const markets = parsePolymarketMarkets(res.data);
   cache.set(POLYMARKET_CACHE_KEY, markets, TTL_MS.POLYMARKET_MARKETS);
-  await writeEdgeCache(POLYMARKET_CACHE_KEY, markets, TTL_MS.POLYMARKET_MARKETS);
+  if (useEdgeCache) {
+    await writeEdgeCache(POLYMARKET_CACHE_KEY, markets, TTL_MS.POLYMARKET_MARKETS);
+  }
   return { markets, cacheHit: false };
 }

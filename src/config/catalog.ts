@@ -1227,5 +1227,7 @@ export function getEndpointByPath(path: string): EndpointCatalogEntry | undefine
     decoded = path;
   }
   const normalized = decoded.length > 1 ? decoded.replace(/\/+$/, "") : decoded;
-  return CATALOG_BY_PATH[normalized];
+  return Object.prototype.hasOwnProperty.call(CATALOG_BY_PATH, normalized)
+    ? CATALOG_BY_PATH[normalized]
+    : undefined;
 }

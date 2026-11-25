@@ -364,10 +364,16 @@ export function createExecutionQuoteCheckHandler(deps: ExecutionQuoteCheckDeps =
     ]);
 
     let dexOut: DexScreenerAggregated | null = null;
+    let dexOutErrCode: string | null = null;
     if (dexOutSettled.status === "fulfilled") {
       dexOut = dexOutSettled.value.data;
       cacheHits.push(dexOutSettled.value.cacheHit);
       activeSources.add(dexOutSettled.value.source);
+    } else {
+      dexOutErrCode =
+        dexOutSettled.reason instanceof UpstreamError
+          ? dexOutSettled.reason.code
+          : "DEXSCREENER_ERROR";
     }
 
     let kyberUpstreamErrorCount = 0;
@@ -413,10 +419,10 @@ export function createExecutionQuoteCheckHandler(deps: ExecutionQuoteCheckDeps =
       };
     });
 
-    // Fail closed if ALL KyberSwap quote calls errored upstream
-    if (kyberUpstreamErrorCount === sizesUsd.length) {
+    // Fail closed if ANY KyberSwap quote tier errored upstream (never downgrade/charge on partial outage)
+    if (kyberUpstreamErrorCount > 0) {
       const code = firstKyberErrCode ?? "KYBERSWAP_UNAVAILABLE";
-      c.set("cache_status", "MISS");
+      c.set("cache_status", cacheHits.some(Boolean) ? "PARTIAL" : "MISS");
       c.set("upstream_error", code);
       return c.json(
         {
@@ -428,7 +434,24 @@ export function createExecutionQuoteCheckHandler(deps: ExecutionQuoteCheckDeps =
       );
     }
 
-    // If no route exists across any tier AND DEX Screener found zero pools -> 404 unsettled
+    // If no route exists across any tier:
+    // - If DEX Screener failed, fail closed (502) rather than misreporting unknown token as ILLIQUID 200
+    // - If DEX Screener confirmed zero pools -> 404 unsettled
+    if (!anyExecutableRoute && dexOut === null) {
+      const code = dexOutErrCode ?? "DEXSCREENER_UNAVAILABLE";
+      c.set("cache_status", cacheHits.some(Boolean) ? "PARTIAL" : "MISS");
+      c.set("upstream_error", code);
+      return c.json(
+        {
+          error: "UPSTREAM_UNAVAILABLE",
+          upstream_error: code,
+          message:
+            "No KyberSwap route found and DEX market data is temporarily unavailable. Payment was not settled.",
+        },
+        502
+      );
+    }
+
     if (!anyExecutableRoute && dexOut !== null && dexOut.pairCount === 0) {
       c.set("cache_status", cacheHits.some(Boolean) ? "PARTIAL" : "MISS");
       c.set("upstream_error", "NO_LIQUIDITY_ROUTE");

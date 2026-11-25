@@ -202,13 +202,19 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(mcpCardRes.status).toBe(200);
     const mcpCard = (await mcpCardRes.json()) as {
       serverInfo: { name: string; version: string };
-      tools: Array<{ name: string }>;
+      tools: Array<{ name: string; inputSchema: { properties: Record<string, { type?: string }> } }>;
     };
     expect(mcpCard.serverInfo.name).toBe("io.github.exactjsondev/exactjson");
     expect(mcpCard.serverInfo.version).toBe("1.0.0");
     expect(mcpCard.tools.length).toBe(12);
     expect(mcpCard.tools[0]?.name).toBe("exactjson_health");
     expect(mcpCard.tools[1]?.name).toBe("exactjson_solana_safety");
+    // MCP server-card numeric parameter types match mcp/index.mjs Zod schemas
+    const screenerTool = mcpCard.tools.find((t) => t.name === "exactjson_perps_screener");
+    expect(screenerTool?.inputSchema.properties.limit?.type).toBe("integer");
+    expect(screenerTool?.inputSchema.properties.min_oi_usd?.type).toBe("number");
+    const macroTool = mcpCard.tools.find((t) => t.name === "exactjson_macro_liquidity");
+    expect(macroTool?.inputSchema.properties.lookback_obs?.type).toBe("integer");
 
     // Sitemap & Robots
     const sitemapRes = await app.request("http://localhost:8787/sitemap.xml", {}, env);
@@ -226,9 +232,11 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(robotsTxt).toContain("Disallow: /dashboard");
     expect(robotsTxt).toContain("Disallow: /dashboard/");
 
-    // Path normalization matches URL-encoded and trailing-slash variants for telemetry
+    // Path normalization matches URL-encoded and trailing-slash variants for telemetry and rejects Object.prototype keys
     expect(getEndpointByPath("/v1/solana/%73afety")?.path).toBe("/v1/solana/safety");
     expect(getEndpointByPath("/v1/perps/snapshot/")?.path).toBe("/v1/perps/snapshot");
+    expect(getEndpointByPath("toString")).toBeUndefined();
+    expect(getEndpointByPath("constructor")).toBeUndefined();
   });
 
   it("negotiates GET / safely between HTML and JSON with Vary: Accept", async () => {
@@ -326,6 +334,14 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     );
     expect(burnRes.status).toBe(500);
     expect(((await burnRes.json()) as { error: string }).error).toBe("SERVER_MISCONFIGURED");
+
+    // Unmatched /v1/* path must return 404 cleanly without invoking x402 paywall or facilitator
+    const notFoundRes = await app.request(
+      "http://localhost:8787/v1/does-not-exist",
+      {},
+      burnEnv
+    );
+    expect(notFoundRes.status).toBe(404);
   });
 
   it("never imports @x402/* or @coinbase/x402 in free discovery modules", () => {
@@ -366,6 +382,22 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(pauseRes.status).toBe(200);
     expect(((await pauseRes.json()) as { paused: boolean }).paused).toBe(true);
 
+    // JSON null / array body must return 400 INVALID_PAYLOAD (never crash with 500)
+    const nullBodyRes = await app.request(
+      "http://localhost:8787/dashboard/api/control",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.DASHBOARD_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: "null",
+      },
+      env
+    );
+    expect(nullBodyRes.status).toBe(400);
+    expect(((await nullBodyRes.json()) as { error: string }).error).toBe("INVALID_PAYLOAD");
+
     const blocked = await app.request("http://localhost:8787/v1/perps/snapshot?coin=BTC", {}, env);
     expect(blocked.status).toBe(503);
     const blockedBody = (await blocked.json()) as { error: string; message: string };
@@ -374,6 +406,16 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
 
     await new Promise((r) => setTimeout(r, 10));
     expect(insertedRows.length).toBe(1);
+
+    // HEAD /v1/* is also tracked by telemetryMiddleware (parity with x402 HEAD matching)
+    const blockedHead = await app.request(
+      "http://localhost:8787/v1/perps/snapshot?coin=BTC",
+      { method: "HEAD" },
+      env
+    );
+    expect(blockedHead.status).toBe(503);
+    await new Promise((r) => setTimeout(r, 10));
+    expect(insertedRows.length).toBe(2);
 
     const healthPaused = await app.request("http://localhost:8787/health", {}, env);
     expect(healthPaused.status).toBe(200);

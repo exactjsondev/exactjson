@@ -51,6 +51,14 @@ function roundTo(value: number, decimals: number): number {
   return Math.round(value * factor) / factor;
 }
 
+function roundPriceUsd(value: number, standardDecimals: number = 10): number {
+  if (!Number.isFinite(value) || value === 0) return 0;
+  if (Math.abs(value) >= 1e-4) {
+    return roundTo(value, standardDecimals);
+  }
+  return Number(value.toPrecision(6));
+}
+
 export function parseTrendingSolanaPools(raw: unknown): TrendingSolanaPool[] {
   if (!raw || typeof raw !== "object" || !("data" in raw)) {
     throw new UpstreamError("GECKOTERMINAL", "GECKOTERMINAL_BAD_PAYLOAD", "Missing data array");
@@ -91,7 +99,7 @@ export function parseTrendingSolanaPools(raw: unknown): TrendingSolanaPool[] {
       poolName,
       poolAddress: typeof attrs.address === "string" ? attrs.address : null,
       dex: typeof item.relationships?.dex?.data?.id === "string" ? item.relationships.dex.data.id : null,
-      priceUsd: priceRaw !== null ? roundTo(priceRaw, 10) : null,
+      priceUsd: priceRaw !== null ? roundPriceUsd(priceRaw, 10) : null,
       liquidityUsd: roundTo(Math.max(0, liqRaw), 2),
       volume24hUsd: roundTo(Math.max(0, volRaw), 2),
       fdvUsd: fdvRaw !== null ? roundTo(fdvRaw, 2) : null,
@@ -110,15 +118,18 @@ export async function fetchTrendingSolanaPools(
   cache: BoundedTtlCache = isolateCache,
   fetchImpl: typeof fetch = fetch
 ): Promise<{ pools: TrendingSolanaPool[]; cacheHit: boolean }> {
+  const useEdgeCache = cache === isolateCache;
   const cached = cache.get<TrendingSolanaPool[]>(CACHE_KEY);
   if (cached.hit) {
     return { pools: cached.value, cacheHit: true };
   }
 
-  const edgeCached = await readEdgeCache<TrendingSolanaPool[]>(CACHE_KEY);
-  if (edgeCached.hit) {
-    cache.set(CACHE_KEY, edgeCached.value, TTL_MS.GECKO_TRENDING);
-    return { pools: edgeCached.value, cacheHit: true };
+  if (useEdgeCache) {
+    const edgeCached = await readEdgeCache<TrendingSolanaPool[]>(CACHE_KEY);
+    if (edgeCached.hit) {
+      cache.set(CACHE_KEY, edgeCached.value, TTL_MS.GECKO_TRENDING);
+      return { pools: edgeCached.value, cacheHit: true };
+    }
   }
 
   const result = await fetchJsonWithTimeout<unknown>(GECKO_TRENDING_URL, {
@@ -133,6 +144,8 @@ export async function fetchTrendingSolanaPools(
 
   const pools = parseTrendingSolanaPools(result.data);
   cache.set(CACHE_KEY, pools, TTL_MS.GECKO_TRENDING);
-  await writeEdgeCache(CACHE_KEY, pools, TTL_MS.GECKO_TRENDING);
+  if (useEdgeCache) {
+    await writeEdgeCache(CACHE_KEY, pools, TTL_MS.GECKO_TRENDING);
+  }
   return { pools, cacheHit: false };
 }

@@ -352,5 +352,33 @@ describe("solanaTrending", () => {
 
     const res = await app.request("/v1/solana/trending?limit=3");
     expect(res.status).toBe(502);
+
+    // Also fails closed with 502 if RugCheck rejects with an unexpected non-UpstreamError
+    const errApp = new Hono<AppBindings>();
+    errApp.get(
+      "/v1/solana/trending",
+      createSolanaTrendingHandler({
+        cache: new BoundedTtlCache(),
+        fetchImpl: async (input) => {
+          const url = String(input);
+          if (url.includes("geckoterminal")) {
+            return new Response(
+              JSON.stringify({
+                data: [
+                  {
+                    attributes: { name: "TOKENA / SOL", reserve_in_usd: "100000", volume_usd: { h24: "500000" } },
+                    relationships: { base_token: { data: { id: `solana_${MINT_A}` } }, dex: { data: { id: "orca" } } },
+                  },
+                ],
+              }),
+              { status: 200 }
+            );
+          }
+          throw new TypeError("socket hang up");
+        },
+      })
+    );
+    const res2 = await errApp.request("/v1/solana/trending?limit=3");
+    expect(res2.status).toBe(502);
   });
 });

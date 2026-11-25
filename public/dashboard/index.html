@@ -628,7 +628,8 @@
 
   <script>
     const TOKEN_KEY = "exactjson_dashboard_token";
-    let refreshTimer = null;
+    let lastControlState = { paused: false, updated_at: null };
+    let loadEpoch = 0;
 
     const el = (id) => document.getElementById(id);
 
@@ -691,10 +692,7 @@
     }
 
     function showAuth(errorMessage) {
-      if (refreshTimer) {
-        clearInterval(refreshTimer);
-        refreshTimer = null;
-      }
+      loadEpoch += 1;
       el("dashboard-main").classList.add("hidden");
       el("header-actions").classList.add("hidden");
       el("network-pill").classList.add("hidden");
@@ -718,7 +716,12 @@
     }
 
     function renderControlState(control) {
-      const paused = Boolean(control && control.paused);
+      const normalized = {
+        paused: Boolean(control && control.paused),
+        updated_at: (control && control.updated_at) || null,
+      };
+      lastControlState = normalized;
+      const paused = normalized.paused;
       const pill = el("status-pill");
       pill.classList.remove("live", "paused");
       pill.classList.add(paused ? "paused" : "live");
@@ -726,8 +729,8 @@
       el("start-api-btn").disabled = !paused;
       el("stop-api-btn").disabled = paused;
       el("control-updated").textContent = paused
-        ? `Paused — /v1/* returns 503 uncharged (updated: ${control.updated_at || "now"})`
-        : `Active — /v1/* accepting x402 V2 payments (updated: ${control.updated_at || "default"})`;
+        ? `Paused — /v1/* returns 503 uncharged (updated: ${normalized.updated_at || "now"})`
+        : `Active — /v1/* accepting x402 V2 payments (updated: ${normalized.updated_at || "default"})`;
     }
 
     let currentPayTo = "";
@@ -905,6 +908,7 @@
     }
 
     async function loadDashboard(forceRefresh = false) {
+      const myEpoch = ++loadEpoch;
       const endpoint = el("filter-endpoint").value;
       const outcome = el("filter-outcome").value;
       const network = el("filter-network").value;
@@ -928,12 +932,14 @@
           apiFetch(overviewPath),
           apiFetch(`/dashboard/api/requests?${params.toString()}`),
         ]);
+        if (myEpoch !== loadEpoch) return;
         showDashboard();
         el("dash-error").classList.add("hidden");
         el("auth-error").classList.add("hidden");
         renderOverview(overview);
         renderRequests(requests);
       } catch (err) {
+        if (myEpoch !== loadEpoch) return;
         if (err && err.message !== "Unauthorized") {
           const msg = err.message || "Failed to load dashboard data.";
           if (el("dashboard-main").classList.contains("hidden")) {
@@ -959,6 +965,7 @@
         renderControlState(state);
         await loadDashboard(true);
       } catch (err) {
+        renderControlState(lastControlState);
         if (err && err.message !== "Unauthorized") {
           el("dash-error").textContent = err.message || "Failed to update service control.";
           el("dash-error").classList.remove("hidden");

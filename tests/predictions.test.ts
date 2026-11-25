@@ -76,6 +76,61 @@ describe("prediction markets providers & scanner", () => {
     expect(parsed[0]!.url).toBe("https://polymarket.com/market/btc-above-100k");
   });
 
+  it("inverts Polymarket bestBid/bestAsk when outcomes are [No, Yes] and avoids mislabeling non-Yes/No markets", () => {
+    const parsed = parsePolymarketMarkets([
+      {
+        id: "inv-1",
+        question: "Will X happen?",
+        active: true,
+        closed: false,
+        outcomes: '["No", "Yes"]',
+        outcomePrices: '["0.70", "0.30"]',
+        bestBid: 0.69,
+        bestAsk: 0.71,
+        volume24hr: 100000,
+      },
+      {
+        id: "sports-1",
+        question: "Chiefs vs Eagles",
+        active: true,
+        closed: false,
+        outcomes: '["Chiefs", "Eagles"]',
+        outcomePrices: '["0.62", "0.38"]',
+        bestBid: 0.61,
+        bestAsk: 0.63,
+        volume24hr: 500000,
+      },
+    ]);
+
+    expect(parsed.length).toBe(2);
+    const inv = parsed[0]!;
+    expect(inv.isBinaryYesNo).toBe(true);
+    expect(inv.yesProb).toBe(0.3);
+    expect(inv.noProb).toBe(0.7);
+    expect(inv.yesBid).toBeCloseTo(0.29, 6);
+    expect(inv.yesAsk).toBeCloseTo(0.31, 6);
+    expect(inv.spreadBps).toBeCloseTo(200, 4);
+
+    const sports = parsed[1]!;
+    expect(sports.isBinaryYesNo).toBe(false);
+    expect(sports.yesProb).toBeNull();
+    expect(sports.noProb).toBeNull();
+    expect(sports.yesBid).toBeNull();
+    expect(sports.yesAsk).toBeNull();
+    expect(sports.spreadBps).toBeCloseTo(200, 4);
+
+    const scan = computePredictionsScanner([sports], {
+      venue: "polymarket",
+      query: null,
+      minVolume24hUsd: 0,
+      limit: 5,
+      venuesActive: ["polymarket"],
+    });
+    expect(scan.top_by_volume[0]?.dominant_side).toBeNull();
+    expect(scan.top_by_volume[0]?.yes_prob).toBeNull();
+    expect(scan.high_conviction_carry).toEqual([]);
+  });
+
   it("parses both Kalshi fixed-point _dollars/_fp and legacy integer-cent formats", () => {
     const parsed = parseKalshiMarkets(SAMPLE_KALSHI);
     expect(parsed.length).toBe(2);
@@ -140,6 +195,15 @@ describe("prediction markets providers & scanner", () => {
           volume_24h_fp: "50000",
           close_time: "2026-12-10T12:00:00Z",
         },
+        {
+          ticker: "KXEMPTYBOOK",
+          title: "Completely empty 0/100 book",
+          status: "open",
+          yes_bid_dollars: "0.0000",
+          yes_ask_dollars: "1.0000",
+          volume_24h_fp: "50000",
+          close_time: "2026-12-10T12:00:00Z",
+        },
       ],
     });
 
@@ -153,6 +217,7 @@ describe("prediction markets providers & scanner", () => {
     });
 
     expect(result.high_conviction_carry).toEqual([]);
+    expect(result.widest_spreads.some((m) => m.id === "KXEMPTYBOOK")).toBe(false);
     for (const item of result.top_by_volume) {
       expect(item.implied_annualized_carry_pct).toBeNull();
     }

@@ -154,7 +154,7 @@ function parseBookSide(rawLevels: unknown): HyperliquidBookLevel[] {
     const px = toFiniteNumber(item.px);
     const sz = toFiniteNumber(item.sz);
     const n = toFiniteNumber(item.n) ?? 0;
-    if (px !== null && sz !== null && px > 0 && sz >= 0) {
+    if (px !== null && sz !== null && px > 0 && sz > 0) {
       levels.push({ px, sz, n });
     }
   }

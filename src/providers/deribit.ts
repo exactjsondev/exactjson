@@ -1,4 +1,10 @@
-import { BoundedTtlCache, TTL_MS, readEdgeCache, writeEdgeCache } from "../lib/cache";
+import {
+  BoundedTtlCache,
+  TTL_MS,
+  isolateCache,
+  readEdgeCache,
+  writeEdgeCache,
+} from "../lib/cache";
 import { UpstreamError, fetchJsonWithTimeout } from "../lib/http";
 import type { DeribitOptionContract, OptionsCurrency } from "../types";
 
@@ -137,15 +143,18 @@ export async function fetchDeribitOptions(
   fetchImpl: typeof fetch = fetch
 ): Promise<{ contracts: DeribitOptionContract[]; cacheHit: boolean }> {
   const cacheKey = `deribit:options:${currency}`;
+  const useEdgeCache = cache === isolateCache;
   const cached = cache.get<DeribitOptionContract[]>(cacheKey);
   if (cached.hit) {
     return { contracts: cached.value, cacheHit: true };
   }
 
-  const edgeCached = await readEdgeCache<DeribitOptionContract[]>(cacheKey);
-  if (edgeCached.hit) {
-    cache.set(cacheKey, edgeCached.value, TTL_MS.DERIBIT_OPTIONS);
-    return { contracts: edgeCached.value, cacheHit: true };
+  if (useEdgeCache) {
+    const edgeCached = await readEdgeCache<DeribitOptionContract[]>(cacheKey);
+    if (edgeCached.hit) {
+      cache.set(cacheKey, edgeCached.value, TTL_MS.DERIBIT_OPTIONS);
+      return { contracts: edgeCached.value, cacheHit: true };
+    }
   }
 
   const url = `${DERIBIT_API_BASE}?currency=${encodeURIComponent(currency)}&kind=option`;
@@ -164,6 +173,8 @@ export async function fetchDeribitOptions(
   }
 
   cache.set(cacheKey, contracts, TTL_MS.DERIBIT_OPTIONS);
-  await writeEdgeCache(cacheKey, contracts, TTL_MS.DERIBIT_OPTIONS);
+  if (useEdgeCache) {
+    await writeEdgeCache(cacheKey, contracts, TTL_MS.DERIBIT_OPTIONS);
+  }
   return { contracts, cacheHit: false };
 }

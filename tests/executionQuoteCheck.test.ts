@@ -130,8 +130,13 @@ describe("execution quote-check engine & route", () => {
     expect(thin.summary.liquidity_grade).toBe("THIN");
     expect(thin.summary.max_size_under_100bps_usd).toBeGreaterThan(2_000);
     expect(thin.summary.max_size_under_100bps_usd).toBeLessThan(10_000);
+    // Bottleneck sell side hit 100 bps limit (not visible-book capped), even though buy side is capped
+    expect(thin.buy?.capped_by_visible_book).toBe(true);
+    expect(thin.sell?.capped_by_visible_book).toBe(false);
+    expect(thin.summary.capped_by_visible_book).toBe(false);
     expect(thin.summary.flags).toContain("THIN_LIQUIDITY");
     expect(thin.summary.flags).toContain("HIGH_SLIPPAGE_10K");
+    expect(thin.summary.flags).not.toContain("VISIBLE_BOOK_DEPTH_CAP");
   });
 
   it("interpolates EVM max_size_under_100bps_usd across tiers and handles fallback pricing & grades", () => {
@@ -556,5 +561,115 @@ describe("execution quote-check engine & route", () => {
         )
       ).status
     ).toBe(502);
+
+    // 7. Partial KyberSwap 503 outage on 1 of 2 tiers -> fail closed 502 (never settle degraded quote)
+    let partialCalls = 0;
+    const partialOutageApp = new Hono<AppBindings>();
+    partialOutageApp.get(
+      "/v1/execution/quote-check",
+      createExecutionQuoteCheckHandler({
+        cache: new BoundedTtlCache(),
+        fetchImpl: async (input) => {
+          const url = String(input);
+          if (url.includes("kyberswap")) {
+            partialCalls += 1;
+            if (partialCalls === 1) return new Response("down", { status: 503 });
+            return new Response("not found", { status: 404 });
+          }
+          return new Response(
+            JSON.stringify([
+              {
+                chainId: "base",
+                dexId: "uniswap-v2",
+                baseToken: { address: SAMPLE_TOKEN, symbol: "SMP" },
+                priceUsd: "0.0000000042",
+                liquidity: { usd: 50_000 },
+                volume: { h24: 10_000 },
+              },
+            ]),
+            { status: 200 }
+          );
+        },
+      })
+    );
+    expect(
+      (
+        await partialOutageApp.request(
+          `http://localhost/v1/execution/quote-check?mode=evm&token_out=${SAMPLE_TOKEN}&sizes_usd=1000,10000`
+        )
+      ).status
+    ).toBe(502);
+
+    // 8. KyberSwap no_route + DEX Screener 503 -> fail closed 502 (cannot distinguish 404 vs ILLIQUID)
+    const dexDownApp = new Hono<AppBindings>();
+    dexDownApp.get(
+      "/v1/execution/quote-check",
+      createExecutionQuoteCheckHandler({
+        cache: new BoundedTtlCache(),
+        fetchImpl: async (input) => {
+          if (String(input).includes("kyberswap")) {
+            return new Response("not found", { status: 404 });
+          }
+          return new Response("down", { status: 503 });
+        },
+      })
+    );
+    expect(
+      (
+        await dexDownApp.request(
+          `http://localhost/v1/execution/quote-check?mode=evm&token_out=${SAMPLE_TOKEN}&sizes_usd=1000`
+        )
+      ).status
+    ).toBe(502);
+
+    // 9. Micro-cap sub-1e-8 spot price preserves precision (never truncates effective_price_usd to 0)
+    const microRes = computeEvmQuoteCheck(
+      [
+        {
+          sizeUsd: 1_000,
+          amountInRaw: "1000000000",
+          failureReason: null,
+          quote: {
+            chain: "base",
+            tokenIn: DEFAULT_USDC_BY_CHAIN.base.address,
+            tokenOut: SAMPLE_TOKEN,
+            amountInRaw: "1000000000",
+            amountOutRaw: "238095238095",
+            amountInUsd: 1_000,
+            amountOutUsd: 995,
+            gasUnits: 150000,
+            gasUsd: 0.05,
+            dexesUsed: ["uniswap-v3"],
+            routeHops: 1,
+            routerAddress: "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+          },
+        },
+      ],
+      {
+        chain: EVM_CHAINS.base,
+        tokenIn: {
+          address: DEFAULT_USDC_BY_CHAIN.base.address,
+          symbol: "USDC",
+          decimals: 6,
+          priceUsd: 0.0000000042,
+        },
+        tokenOutAddress: SAMPLE_TOKEN,
+        dexOut: {
+          pairCount: 1,
+          totalLiquidityUsd: 100_000,
+          volume24hUsd: 50_000,
+          priceUsd: 0.0000000042,
+          priceChange24hPct: 0,
+          fdvUsd: 420_000,
+          primaryDex: "uniswap-v3",
+          primaryPairAddress: "0x2222",
+          symbol: "MICRO",
+          name: "Micro Token",
+        },
+        sources: ["dexscreener", "kyberswap"],
+      }
+    );
+    expect(microRes.token_in.price_usd).toBeCloseTo(4.2e-9, 12);
+    expect(microRes.tiers[0]!.effective_price_usd).toBeGreaterThan(4.2e-9);
   });
 });

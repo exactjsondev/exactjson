@@ -1,4 +1,10 @@
-import { BoundedTtlCache, TTL_MS, readEdgeCache, writeEdgeCache } from "../lib/cache";
+import {
+  BoundedTtlCache,
+  TTL_MS,
+  isolateCache,
+  readEdgeCache,
+  writeEdgeCache,
+} from "../lib/cache";
 import { UpstreamError, fetchJsonWithTimeout } from "../lib/http";
 import type { RawPredictionMarket } from "../types";
 
@@ -182,15 +188,18 @@ export async function fetchKalshiMarkets(
   cache: BoundedTtlCache,
   fetchImpl: typeof fetch = fetch
 ): Promise<{ markets: RawPredictionMarket[]; cacheHit: boolean }> {
+  const useEdgeCache = cache === isolateCache;
   const cached = cache.get<RawPredictionMarket[]>(KALSHI_CACHE_KEY);
   if (cached.hit) {
     return { markets: cached.value, cacheHit: true };
   }
 
-  const edgeCached = await readEdgeCache<RawPredictionMarket[]>(KALSHI_CACHE_KEY);
-  if (edgeCached.hit) {
-    cache.set(KALSHI_CACHE_KEY, edgeCached.value, TTL_MS.KALSHI_MARKETS);
-    return { markets: edgeCached.value, cacheHit: true };
+  if (useEdgeCache) {
+    const edgeCached = await readEdgeCache<RawPredictionMarket[]>(KALSHI_CACHE_KEY);
+    if (edgeCached.hit) {
+      cache.set(KALSHI_CACHE_KEY, edgeCached.value, TTL_MS.KALSHI_MARKETS);
+      return { markets: edgeCached.value, cacheHit: true };
+    }
   }
 
   let data: unknown;
@@ -218,6 +227,8 @@ export async function fetchKalshiMarkets(
 
   const markets = parseKalshiMarkets(data);
   cache.set(KALSHI_CACHE_KEY, markets, TTL_MS.KALSHI_MARKETS);
-  await writeEdgeCache(KALSHI_CACHE_KEY, markets, TTL_MS.KALSHI_MARKETS);
+  if (useEdgeCache) {
+    await writeEdgeCache(KALSHI_CACHE_KEY, markets, TTL_MS.KALSHI_MARKETS);
+  }
   return { markets, cacheHit: false };
 }

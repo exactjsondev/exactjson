@@ -100,8 +100,9 @@ export function createSolanaTrendingHandler(deps: SolanaTrendingDeps = {}) {
         }
       } else {
         rugByMint.set(mint, null);
-        if (!firstRugErrorCode && settled.reason instanceof UpstreamError) {
-          firstRugErrorCode = settled.reason.code;
+        if (!firstRugErrorCode) {
+          firstRugErrorCode =
+            settled.reason instanceof UpstreamError ? settled.reason.code : "RUGCHECK_ERROR";
         }
       }
     }

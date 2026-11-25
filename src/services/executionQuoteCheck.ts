@@ -24,6 +24,14 @@ function roundTo(value: number, decimals: number): number {
   return Math.round(value * factor) / factor;
 }
 
+function roundPriceUsd(value: number, standardDecimals: number = 8): number {
+  if (!Number.isFinite(value) || value === 0) return 0;
+  if (Math.abs(value) >= 1e-4) {
+    return roundTo(value, standardDecimals);
+  }
+  return Number(value.toPrecision(6));
+}
+
 export function classifyLiquidityGrade(
   maxSizeUnder100BpsUsd: number,
   anyExecutable: boolean
@@ -124,8 +132,8 @@ export function simulateL2TierFill(
     size_usd: sizeUsd,
     executable: true,
     fill_pct: 100,
-    effective_price: roundTo(vwap, 6),
-    worst_fill_price: roundTo(worstPx, 6),
+    effective_price: roundPriceUsd(vwap, 6),
+    worst_fill_price: roundPriceUsd(worstPx, 6),
     vwap_slippage_bps: roundTo(Math.max(0, rawVwapSlippage), 2),
     price_impact_bps: roundTo(Math.max(0, rawMarginalImpact), 2),
   };
@@ -281,8 +289,11 @@ export function computePerpsQuoteCheck(
     activeSides.length > 0
       ? roundTo(Math.min(...activeSides.map((s) => s.max_size_under_100bps_usd)), 2)
       : 0;
+  const bottleneckSides = activeSides.filter(
+    (s) => Math.abs(s.max_size_under_100bps_usd - maxSizeUnder100BpsUsd) <= 0.01
+  );
   const cappedByVisibleBook =
-    activeSides.length > 0 && activeSides.some((s) => s.capped_by_visible_book);
+    bottleneckSides.length > 0 && bottleneckSides.some((s) => s.capped_by_visible_book);
 
   const liquidityGrade = classifyLiquidityGrade(maxSizeUnder100BpsUsd, anyExecutable);
 
@@ -319,7 +330,7 @@ export function computePerpsQuoteCheck(
     coin: entry.canonicalName,
     side: options.side,
     market: {
-      mid_price: midPrice !== null ? roundTo(midPrice, 6) : null,
+      mid_price: midPrice !== null ? roundPriceUsd(midPrice, 6) : null,
       mark_price: ctx.markPx,
       oracle_price: ctx.oraclePx,
       best_bid: bestBid,
@@ -509,7 +520,7 @@ export function computeEvmQuoteCheck(
 
     const effectivePriceUsd =
       spotPriceUsd !== null && spotPriceUsd > 0
-        ? roundTo(spotPriceUsd * (1 + priceImpactBps / 10_000), 8)
+        ? roundPriceUsd(spotPriceUsd * (1 + priceImpactBps / 10_000), 8)
         : null;
 
     const gasUsd = q.gasUsd !== null ? roundTo(q.gasUsd, 4) : null;
@@ -591,7 +602,7 @@ export function computeEvmQuoteCheck(
       address: ctx.tokenIn.address,
       symbol: ctx.tokenIn.symbol,
       decimals: ctx.tokenIn.decimals,
-      price_usd: roundTo(ctx.tokenIn.priceUsd, 6),
+      price_usd: roundPriceUsd(ctx.tokenIn.priceUsd, 6),
     },
     token_out: {
       address: ctx.tokenOutAddress.toLowerCase(),

@@ -1,7 +1,7 @@
 import type { MiddlewareHandler } from "hono";
 import type { Network } from "@x402/core/types";
 import type { RoutesConfig, x402ResourceServer } from "@x402/core/server";
-import { CATALOG, SERVICE_NAME } from "../config/catalog";
+import { CATALOG, SERVICE_NAME, getEndpointByPath } from "../config/catalog";
 import type { AppBindings } from "../types";
 
 interface MemoizedX402Instance {
@@ -132,6 +132,16 @@ async function ensureInitialized(instance: MemoizedX402Instance): Promise<void> 
  * Lazy per-isolate x402 V2 paywall middleware mounted strictly on /v1/*.
  */
 export const x402PaywallMiddleware: MiddlewareHandler<AppBindings> = async (c, next) => {
+  // Never import @x402/* or contact facilitator for unmatched /v1/* paths or unsupported methods
+  const endpoint = getEndpointByPath(c.req.path);
+  const methodMatches =
+    endpoint !== undefined &&
+    (c.req.method === endpoint.method ||
+      (endpoint.method === "GET" && c.req.method === "HEAD"));
+  if (!endpoint || !methodMatches) {
+    return next();
+  }
+
   const network = c.env.X402_NETWORK as Network;
   const payTo = c.env.X402_PAY_TO?.trim();
 
@@ -146,15 +156,15 @@ export const x402PaywallMiddleware: MiddlewareHandler<AppBindings> = async (c, n
     );
   }
 
+  let instance: MemoizedX402Instance;
   try {
-    const instance = await getOrCreateInstance(
+    instance = await getOrCreateInstance(
       network,
       payTo,
       c.env.CDP_API_KEY_ID,
       c.env.CDP_API_KEY_SECRET
     );
     await ensureInitialized(instance);
-    return await instance.middleware(c, next);
   } catch (err) {
     const detail = err instanceof Error ? err.message : "Facilitator initialization failed";
     console.error("x402 facilitator error:", detail);
@@ -167,4 +177,6 @@ export const x402PaywallMiddleware: MiddlewareHandler<AppBindings> = async (c, n
       502
     );
   }
+
+  return await instance.middleware(c, next);
 };

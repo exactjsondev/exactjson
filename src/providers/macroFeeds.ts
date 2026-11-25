@@ -1,4 +1,10 @@
-import { BoundedTtlCache, TTL_MS, readEdgeCache, writeEdgeCache } from "../lib/cache";
+import {
+  BoundedTtlCache,
+  TTL_MS,
+  isolateCache,
+  readEdgeCache,
+  writeEdgeCache,
+} from "../lib/cache";
 import { UpstreamError, fetchJsonWithTimeout } from "../lib/http";
 import type {
   NyFedRateObservation,
@@ -10,10 +16,10 @@ import type {
 const TREASURY_DEBT_URL =
   "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v2/accounting/od/debt_to_penny?sort=-record_date&page[size]=35";
 const TREASURY_TGA_URL =
-  "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/dts/operating_cash_balance?sort=-record_date&page[size]=120";
+  "https://api.fiscaldata.treasury.gov/services/api/fiscal_service/v1/accounting/dts/operating_cash_balance?sort=-record_date&page[size]=200";
 const NYFED_SOFR_URL = "https://markets.newyorkfed.org/api/rates/secured/sofr/last/10.json";
 const NYFED_EFFR_URL = "https://markets.newyorkfed.org/api/rates/unsecured/effr/last/10.json";
-const NYFED_RRP_URL = "https://markets.newyorkfed.org/api/rp/reverserepo/all/results/last/25.json";
+const NYFED_RRP_URL = "https://markets.newyorkfed.org/api/rp/reverserepo/all/results/last/35.json";
 
 const KEYS = {
   DEBT: "macro:treasury:debt",
@@ -221,18 +227,23 @@ async function cachedFetch<T>(
   cache: BoundedTtlCache,
   fetcher: () => Promise<T>
 ): Promise<{ data: T; cacheHit: boolean }> {
+  const useEdgeCache = cache === isolateCache;
   const cached = cache.get<T>(cacheKey);
   if (cached.hit) {
     return { data: cached.value, cacheHit: true };
   }
-  const edgeCached = await readEdgeCache<T>(cacheKey);
-  if (edgeCached.hit) {
-    cache.set(cacheKey, edgeCached.value, ttlMs);
-    return { data: edgeCached.value, cacheHit: true };
+  if (useEdgeCache) {
+    const edgeCached = await readEdgeCache<T>(cacheKey);
+    if (edgeCached.hit) {
+      cache.set(cacheKey, edgeCached.value, ttlMs);
+      return { data: edgeCached.value, cacheHit: true };
+    }
   }
   const data = await fetcher();
   cache.set(cacheKey, data, ttlMs);
-  await writeEdgeCache(cacheKey, data, ttlMs);
+  if (useEdgeCache) {
+    await writeEdgeCache(cacheKey, data, ttlMs);
+  }
   return { data, cacheHit: false };
 }
 

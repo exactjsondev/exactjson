@@ -4,7 +4,10 @@ import { DISCLAIMER } from "../src/config/catalog";
 import { BoundedTtlCache } from "../src/lib/cache";
 import { UpstreamError } from "../src/lib/http";
 import { EVM_CHAINS, parseEvmAddress, parseEvmChain } from "../src/lib/validation";
-import { aggregateDexScreenerEvmPairs } from "../src/providers/dexscreener";
+import {
+  aggregateDexScreenerEvmPairs,
+  parseGeckoTerminalToken,
+} from "../src/providers/dexscreener";
 import { parseGoPlusTokenSecurity } from "../src/providers/goplus";
 import { parseHoneypotIsResult } from "../src/providers/honeypotIs";
 import { createEvmSafetyHandler } from "../src/routes/evmSafety";
@@ -159,9 +162,25 @@ describe("EVM provider parsers", () => {
     ).toThrow(UpstreamError);
   });
 
-  it("returns not_found when GoPlus result is empty", () => {
+  it("returns not_found when GoPlus result is empty and leaves empty owner_address as null (unknown)", () => {
     const parsed = parseGoPlusTokenSecurity(8453, BASE_USDC_LOWER, { code: 1, result: {} });
     expect(parsed.status).toBe("not_found");
+
+    const unknownOwner = parseGoPlusTokenSecurity(8453, BASE_USDC_LOWER, {
+      code: 1,
+      result: {
+        [BASE_USDC_LOWER]: {
+          token_name: "RoleToken",
+          token_symbol: "ROLE",
+          owner_address: "",
+          is_honeypot: "0",
+        },
+      },
+    });
+    expect(unknownOwner.status).toBe("ok");
+    if (unknownOwner.status === "ok") {
+      expect(unknownOwner.data.ownerRenounced).toBeNull();
+    }
   });
 
   it("parses Honeypot.is v2 percentages without rescaling", () => {
@@ -208,6 +227,13 @@ describe("EVM provider parsers", () => {
     expect(agg.totalLiquidityUsd).toBe(12_000_000);
     expect(agg.priceUsd).toBe(1.0001);
     expect(agg.earliestPairCreatedAt).toBe(new Date(1_710_000_000_000).toISOString());
+
+    // GeckoTerminal fallback preserves sub-1e-8 micro-cap prices without truncating to 0
+    const microGecko = parseGeckoTerminalToken({
+      data: { attributes: { symbol: "MICRO", name: "Micro", price_usd: "0.0000000042" } },
+      included: [],
+    });
+    expect(microGecko.priceUsd).toBeCloseTo(4.2e-9, 12);
   });
 });
 

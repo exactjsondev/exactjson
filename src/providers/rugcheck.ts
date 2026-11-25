@@ -1,4 +1,10 @@
-import { BoundedTtlCache, TTL_MS, isolateCache } from "../lib/cache";
+import {
+  BoundedTtlCache,
+  TTL_MS,
+  isolateCache,
+  readEdgeCache,
+  writeEdgeCache,
+} from "../lib/cache";
 import { fetchJsonWithTimeout } from "../lib/http";
 import type { RugCheckRiskItem, RugCheckSummary } from "../types";
 
@@ -102,9 +108,19 @@ export async function fetchRugCheckSummary(
   fetchImpl: typeof fetch = fetch
 ): Promise<RugCheckProviderResult> {
   const cacheKey = `rugcheck:summary:${mint}`;
+  const useEdgeCache = cache === isolateCache;
+
   const cached = cache.get<RugCheckSummary>(cacheKey);
   if (cached.hit) {
     return { status: "ok", data: cached.value, cacheHit: true };
+  }
+
+  if (useEdgeCache) {
+    const edge = await readEdgeCache<RugCheckSummary>(cacheKey);
+    if (edge.hit) {
+      cache.set(cacheKey, edge.value, TTL_MS.RUGCHECK_SUMMARY);
+      return { status: "ok", data: edge.value, cacheHit: true };
+    }
   }
 
   const url = `${RUGCHECK_BASE_URL}/${encodeURIComponent(mint)}/report/summary`;
@@ -121,5 +137,8 @@ export async function fetchRugCheckSummary(
 
   const parsed = parseRugCheckSummary(mint, result.data);
   cache.set(cacheKey, parsed, TTL_MS.RUGCHECK_SUMMARY);
+  if (useEdgeCache) {
+    await writeEdgeCache(cacheKey, parsed, TTL_MS.RUGCHECK_SUMMARY);
+  }
   return { status: "ok", data: parsed, cacheHit: false };
 }

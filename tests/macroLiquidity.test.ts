@@ -161,6 +161,38 @@ describe("US macro liquidity & Treasury pulse", () => {
     // SOFR 4.39 - EFFR 4.33 = +6 bps -> TIGHT
     expect(res.rates.sofr_effr_spread_bps).toBe(6);
     expect(res.rates.funding_stress_regime).toBe("TIGHT");
+    // Effective lookback aligned to available observations (3 rows = 2 steps)
+    expect(res.lookback_obs).toBe(5);
+    expect(res.liquidity_impulse.lookback_obs).toBe(2);
+  });
+
+  it("aligns TGA and ON RRP impulse lookback when series lengths differ", () => {
+    const shortTga = [
+      { recordDate: "2026-11-20", closingBalanceUsd: 750_000_000_000 },
+      { recordDate: "2026-11-19", closingBalanceUsd: 770_000_000_000 },
+      { recordDate: "2026-11-18", closingBalanceUsd: 780_000_000_000 },
+    ];
+    const longerRrp = [
+      { operationDate: "2026-11-20", acceptedUsd: 100_000_000_000, awardRatePct: 4.25, counterpartiesAccepted: 40 },
+      { operationDate: "2026-11-19", acceptedUsd: 110_000_000_000, awardRatePct: 4.25, counterpartiesAccepted: 41 },
+      { operationDate: "2026-11-18", acceptedUsd: 120_000_000_000, awardRatePct: 4.25, counterpartiesAccepted: 42 },
+      { operationDate: "2026-11-17", acceptedUsd: 140_000_000_000, awardRatePct: 4.25, counterpartiesAccepted: 43 },
+      { operationDate: "2026-11-14", acceptedUsd: 160_000_000_000, awardRatePct: 4.25, counterpartiesAccepted: 44 },
+      { operationDate: "2026-11-13", acceptedUsd: 200_000_000_000, awardRatePct: 4.25, counterpartiesAccepted: 45 },
+    ];
+    const res = computeMacroLiquidity({
+      tga: shortTga,
+      rrp: longerRrp,
+      sofr: parseNyFedRates(SAMPLE_SOFR),
+      lookbackObs: 5,
+      sources: ["treasury_tga", "nyfed_rrp", "nyfed_sofr"],
+      missingSources: ["treasury_debt", "nyfed_effr"],
+    });
+    // Both TGA and RRP aligned to 2 steps (2026-11-18): TGA -30B (+30B liq), RRP -20B (+20B liq) => +50B
+    expect(res.liquidity_impulse.lookback_obs).toBe(2);
+    expect(res.tga?.period_change_usd).toBe(-30_000_000_000);
+    expect(res.on_rrp?.period_change_usd).toBe(-20_000_000_000);
+    expect(res.liquidity_impulse.combined_net_impulse_usd).toBe(50_000_000_000);
   });
 
   it("handles route 200, partial-feed resilience, 400 validation, and 502 when <3 feeds succeed", async () => {

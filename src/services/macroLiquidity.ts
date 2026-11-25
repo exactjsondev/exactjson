@@ -67,6 +67,18 @@ export function computeMacroLiquidity(input: MacroLiquidityInput): MacroLiquidit
     };
   }
 
+  // Align TGA & ON RRP lookback window when both series have >= 2 observations so combined_net_impulse_usd never mixes mismatched horizons
+  const tgaMaxSteps = input.tga && input.tga.length >= 2 ? input.tga.length - 1 : null;
+  const rrpMaxSteps = input.rrp && input.rrp.length >= 2 ? input.rrp.length - 1 : null;
+  const effectiveImpulseLookback =
+    tgaMaxSteps !== null && rrpMaxSteps !== null
+      ? Math.min(lookbackObs, tgaMaxSteps, rrpMaxSteps)
+      : tgaMaxSteps !== null
+        ? Math.min(lookbackObs, tgaMaxSteps)
+        : rrpMaxSteps !== null
+          ? Math.min(lookbackObs, rrpMaxSteps)
+          : lookbackObs;
+
   // 2. Treasury General Account (TGA)
   let tga: MacroLiquidityResponse["tga"] = null;
   let tgaLiquidityEffect: number | null = null;
@@ -74,7 +86,7 @@ export function computeMacroLiquidity(input: MacroLiquidityInput): MacroLiquidit
     const latest = input.tga[0]!;
     const deltas = computeDeltas(
       input.tga.map((d) => d.closingBalanceUsd),
-      lookbackObs
+      effectiveImpulseLookback
     );
     tga = {
       record_date: latest.recordDate,
@@ -95,7 +107,7 @@ export function computeMacroLiquidity(input: MacroLiquidityInput): MacroLiquidit
     const latest = input.rrp[0]!;
     const deltas = computeDeltas(
       input.rrp.map((d) => d.acceptedUsd),
-      lookbackObs
+      effectiveImpulseLookback
     );
     onRrp = {
       operation_date: latest.operationDate,
@@ -163,7 +175,7 @@ export function computeMacroLiquidity(input: MacroLiquidityInput): MacroLiquidit
       funding_stress_regime: fundingStressRegime,
     },
     liquidity_impulse: {
-      lookback_obs: lookbackObs,
+      lookback_obs: effectiveImpulseLookback,
       tga_liquidity_effect_usd: tgaLiquidityEffect,
       rrp_liquidity_effect_usd: rrpLiquidityEffect,
       combined_net_impulse_usd: combinedNetImpulse,

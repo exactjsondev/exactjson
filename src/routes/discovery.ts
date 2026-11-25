@@ -388,6 +388,46 @@ export function apiCatalogHandler(c: Context<AppBindings>) {
   });
 }
 
+const MCP_INTEGER_PARAMS = new Set([
+  "limit",
+  "max_risk_score",
+  "lookback_obs",
+  "token_in_decimals",
+]);
+
+const MCP_NUMBER_PARAMS = new Set([
+  "min_oi_usd",
+  "min_spread_bps",
+  "min_liquidity_usd",
+  "min_volume_24h_usd",
+]);
+
+function toMcpToolInputSchema(
+  inputSchema: (typeof CATALOG)[number]["inputSchema"]
+): Record<string, unknown> {
+  const properties: Record<string, Record<string, unknown>> = {};
+  for (const [paramName, rawProp] of Object.entries(inputSchema.properties)) {
+    const nextProp: Record<string, unknown> = { ...rawProp };
+    if (MCP_INTEGER_PARAMS.has(paramName)) {
+      nextProp.type = "integer";
+      if (typeof nextProp.example === "string" && Number.isFinite(Number(nextProp.example))) {
+        nextProp.example = Number.parseInt(nextProp.example, 10);
+      }
+    } else if (MCP_NUMBER_PARAMS.has(paramName)) {
+      nextProp.type = "number";
+      if (typeof nextProp.example === "string" && Number.isFinite(Number(nextProp.example))) {
+        nextProp.example = Number(nextProp.example);
+      }
+    }
+    properties[paramName] = nextProp;
+  }
+  return {
+    type: inputSchema.type,
+    properties,
+    required: inputSchema.required ?? [],
+  };
+}
+
 export function mcpServerCardHandler(c: Context<AppBindings>) {
   const baseUrl = resolveBaseUrl(c);
   const network = c.env.X402_NETWORK || "eip155:8453";
@@ -440,7 +480,7 @@ export function mcpServerCardHandler(c: Context<AppBindings>) {
       ...CATALOG.map((entry) => ({
         name: `exactjson_${entry.id}`,
         description: `Paid (${entry.priceFormatted} USDC): ${entry.description}`,
-        inputSchema: entry.inputSchema,
+        inputSchema: toMcpToolInputSchema(entry.inputSchema),
       })),
     ],
     links: {

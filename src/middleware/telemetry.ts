@@ -58,7 +58,11 @@ function truncate(val: string | null | undefined, maxLen: number): string | null
  */
 export const telemetryMiddleware: MiddlewareHandler<AppBindings> = async (c, next) => {
   const endpoint = getEndpointByPath(c.req.path);
-  if (!endpoint || c.req.method !== endpoint.method) {
+  const methodMatches =
+    endpoint !== undefined &&
+    (c.req.method === endpoint.method ||
+      (endpoint.method === "GET" && c.req.method === "HEAD"));
+  if (!endpoint || !methodMatches) {
     await next();
     return;
   }

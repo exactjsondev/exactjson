@@ -103,7 +103,9 @@ async function main() {
     return;
   }
 
-  const normalizedKey = (rawKey.startsWith("0x") ? rawKey : `0x${rawKey}`) as `0x${string}`;
+  const normalizedKey = (
+    /^0x/i.test(rawKey) ? `0x${rawKey.slice(2)}` : `0x${rawKey}`
+  ) as `0x${string}`;
   const account = privateKeyToAccount(normalizedKey);
 
   console.log(`Buyer Address: ${account.address}`);

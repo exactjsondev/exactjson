@@ -84,6 +84,14 @@ function roundTo(value: number, decimals: number): number {
   return Math.round(value * factor) / factor;
 }
 
+function roundPriceUsd(value: number, standardDecimals: number = 8): number {
+  if (!Number.isFinite(value) || value === 0) return 0;
+  if (Math.abs(value) >= 1e-4) {
+    return roundTo(value, standardDecimals);
+  }
+  return Number(value.toPrecision(6));
+}
+
 function toValidEpochMs(value: unknown): number | null {
   if (typeof value === "number" && Number.isFinite(value)) {
     return value >= MIN_VALID_EPOCH_MS && value <= MAX_VALID_EPOCH_MS ? value : null;
@@ -279,7 +287,7 @@ export function parseGeckoTerminalToken(raw: unknown): DexScreenerAggregated {
     pairCount: pools.length,
     totalLiquidityUsd: roundTo(totalLiquidityUsd, 2),
     volume24hUsd: roundTo(effectiveVol, 2),
-    priceUsd: priceUsd !== null ? roundTo(priceUsd, 8) : null,
+    priceUsd: priceUsd !== null ? roundPriceUsd(priceUsd, 8) : null,
     priceChange24hPct: toFiniteNumber(primaryPool?.attributes?.price_change_percentage?.h24),
     fdvUsd: (() => {
       const fdv = toFiniteNumber(attrs?.fdv_usd);

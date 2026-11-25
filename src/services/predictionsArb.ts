@@ -166,6 +166,19 @@ const ANTONYM_PAIRS: ReadonlyArray<readonly [string, string]> = [
   ["pass", "fail"],
 ];
 
+const NEGATION_TOKENS = new Set([
+  "no",
+  "not",
+  "never",
+  "without",
+  "cannot",
+  "neither",
+  "nor",
+]);
+
+const NEGATIVE_CONTRACTION_RE =
+  /\b(?:won|don|doesn|didn|isn|aren|wasn|weren|can|couldn|wouldn|shouldn|haven|hasn|hadn)['’]t\b/g;
+
 function round(val: number, decimals: number): number {
   const factor = 10 ** decimals;
   return Math.round(val * factor) / factor;
@@ -178,11 +191,12 @@ function normalizeNumberLiteral(numStr: string, suffix: string): string {
   if (suffix === "k") scaled = base * 1_000;
   else if (suffix === "m") scaled = base * 1_000_000;
   else if (suffix === "b") scaled = base * 1_000_000_000;
+  if (scaled === 0) return "0";
   return String(Number(scaled.toPrecision(10)));
 }
 
 function isPlainNumberToken(tok: string): boolean {
-  return /^\d+(?:\.\d+)?$/.test(tok);
+  return /^-?\d+(?:\.\d+)?$/.test(tok);
 }
 
 function isYearToken(tok: string): boolean {
@@ -201,38 +215,63 @@ export interface NormalizedTitle {
   tokens: Set<string>;
   thresholdNumbers: Set<string>;
   hasBetween: boolean;
+  hasNegation: boolean;
+  hasAfter: boolean;
 }
 
 export function normalizeMarketTitle(title: string): NormalizedTitle {
   let cleaned = title.toLowerCase();
 
-  // Preserve currency marker briefly so "$25" is never mistaken for a calendar day
+  // Strip benign "yes/no" or "yes or no" binary labels and ordinal "no. 1" before negation detection
+  cleaned = cleaned.replace(/\byes\s*(?:\/|\bor\b)\s*no\b/g, " ");
+  cleaned = cleaned.replace(/\bno\.\s*(?=\d)/g, "number ");
+
+  // Normalize negative contractions (won't, doesn't, can't, etc.) into explicit 'not' token before punctuation stripping
+  cleaned = cleaned.replace(NEGATIVE_CONTRACTION_RE, " not ");
+
+  // Preserve leading negative signs on currency values (-$100k, $-100k) and plain numbers (-0.5%, -25bps)
+  // while leaving internal hyphens (GPT-5, 2026-12-31, non-farm) untouched as separators.
+  cleaned = cleaned.replace(
+    /(^|[\s([{(])(?:-\s*\$|\$\s*-)(\d[\d,]*(?:\.\d+)?)/g,
+    (_m, lead: string, n: string) => `${lead}neg_cur_${n.replace(/,/g, "")}`
+  );
+
+  // Preserve positive currency marker briefly so "$25" is never mistaken for a calendar day
   cleaned = cleaned.replace(/\$(\d[\d,]*(?:\.\d+)?)/g, (_m, n: string) => {
     return ` cur_${n.replace(/,/g, "")}`;
   });
+
+  // Preserve negative sign on standalone numbers (e.g. "-0.5%", "-25bps", "-1.5")
+  cleaned = cleaned.replace(
+    /(^|[\s([{(])-(\d[\d,]*(?:\.\d+)?)/g,
+    (_m, lead: string, n: string) => `${lead}neg_${n.replace(/,/g, "")}`
+  );
 
   // Remove commas inside remaining numbers (e.g. 100,000 -> 100000)
   cleaned = cleaned.replace(/(\d),(\d)/g, "$1$2");
   cleaned = cleaned.replace(/(\d),(\d)/g, "$1$2");
 
-  // Expand multiplier suffixes attached to numbers (e.g. 100k -> 100000, cur_100k -> cur_100000)
+  // Expand multiplier suffixes attached to numbers (e.g. 100k -> 100000, neg_cur_100k -> neg_cur_100000)
   cleaned = cleaned.replace(
-    /\b(cur_)?(\d+(?:\.\d+)?)([kmb])\b/g,
-    (_m, cur: string | undefined, num: string, suffix: string) => {
-      return `${cur ?? ""}${normalizeNumberLiteral(num, suffix)}`;
+    /\b(neg_)?(cur_)?(\d+(?:\.\d+)?)([kmb])\b/g,
+    (_m, neg: string | undefined, cur: string | undefined, num: string, suffix: string) => {
+      return `${neg ?? ""}${cur ?? ""}${normalizeNumberLiteral(num, suffix)}`;
     }
   );
 
-  // Split glued units: 25bps -> 25 bp, 3.0% -> 3 pct
-  cleaned = cleaned.replace(/\b(cur_)?(\d+(?:\.\d+)?)(bps?|%)\b/g, (_m, cur, num: string, unit: string) => {
-    const normUnit = unit === "%" ? "pct" : "bp";
-    return `${cur ?? ""}${normalizeNumberLiteral(num, "")} ${normUnit}`;
-  });
+  // Split glued units: 25bps -> 25 bp, -0.5% -> neg_0.5 pct
+  cleaned = cleaned.replace(
+    /\b(neg_)?(cur_)?(\d+(?:\.\d+)?)(?:(bps?)\b|%)/g,
+    (_m, neg: string | undefined, cur: string | undefined, num: string, bpsUnit: string | undefined) => {
+      const normUnit = bpsUnit ? "bp" : "pct";
+      return `${neg ?? ""}${cur ?? ""}${normalizeNumberLiteral(num, "")} ${normUnit}`;
+    }
+  );
 
   // Normalize standalone % signs
   cleaned = cleaned.replace(/%/g, " pct ");
 
-  // Replace non-alphanumeric separators (keep underscores for cur_ marker and decimal dots inside numbers)
+  // Replace non-alphanumeric separators (keep underscores for neg_/cur_ markers and decimal dots inside numbers)
   cleaned = cleaned.replace(/[^a-z0-9_.]+/g, " ");
   // Remove leading/trailing dots not surrounded by digits
   cleaned = cleaned.replace(/(^|\s)\.+|\.+(\s|$)/g, " ");
@@ -248,14 +287,28 @@ export function normalizeMarketTitle(title: string): NormalizedTitle {
   }
 
   const tagged: TaggedToken[] = [];
+  let negationCount = 0;
   for (const part of rawParts) {
-    const isCurrency = part.startsWith("cur_");
-    const stripped = isCurrency ? part.slice(4) : part;
-    if (!stripped) continue;
+    let working = part;
+    let isNegative = false;
+    let isCurrency = false;
 
-    let canonical = TOKEN_ALIASES[stripped] ?? stripped;
+    if (working.startsWith("neg_")) {
+      isNegative = true;
+      working = working.slice(4);
+    }
+    if (working.startsWith("cur_")) {
+      isCurrency = true;
+      working = working.slice(4);
+    }
+    if (!working) continue;
+
+    let canonical = TOKEN_ALIASES[working] ?? working;
+    if (NEGATION_TOKENS.has(canonical)) {
+      negationCount += 1;
+    }
     if (isPlainNumberToken(canonical)) {
-      canonical = normalizeNumberLiteral(canonical, "");
+      canonical = normalizeNumberLiteral(isNegative ? `-${canonical}` : canonical, "");
     }
     tagged.push({ token: canonical, isCurrency });
   }
@@ -263,6 +316,8 @@ export function normalizeMarketTitle(title: string): NormalizedTitle {
   const tokens = new Set<string>();
   const thresholdNumbers = new Set<string>();
   let hasBetween = false;
+  let hasAfter = false;
+  const hasNegation = negationCount % 2 === 1;
 
   for (let i = 0; i < tagged.length; i += 1) {
     const entry = tagged[i]!;
@@ -270,6 +325,9 @@ export function normalizeMarketTitle(title: string): NormalizedTitle {
 
     if (tok === "between") {
       hasBetween = true;
+    }
+    if (tok === "after") {
+      hasAfter = true;
     }
 
     if (STOPWORDS.has(tok)) continue;
@@ -292,7 +350,7 @@ export function normalizeMarketTitle(title: string): NormalizedTitle {
     }
   }
 
-  return { tokens, thresholdNumbers, hasBetween };
+  return { tokens, thresholdNumbers, hasBetween, hasNegation, hasAfter };
 }
 
 export interface TitleSimilarityResult {
@@ -314,6 +372,16 @@ export function computeTitleSimilarity(
     return { score: 0, confidence: null, matchedTokens: [] };
   }
 
+  // Reject logical negation mismatches (e.g. "will reach" vs "will not reach" / "no rate cut")
+  if (a.hasNegation !== b.hasNegation) {
+    return { score: 0, confidence: null, matchedTokens: [] };
+  }
+
+  // Reject opposite temporal direction ("after Dec 31" vs "before/by/on Dec 31")
+  if (a.hasAfter !== b.hasAfter) {
+    return { score: 0, confidence: null, matchedTokens: [] };
+  }
+
   // Reject antonym direction mismatches (e.g. above vs below, cut vs hike)
   for (const [left, right] of ANTONYM_PAIRS) {
     const aHasLeft = a.tokens.has(left);
@@ -326,9 +394,9 @@ export function computeTitleSimilarity(
     }
   }
 
-  // Strict strike/threshold number parity when both titles specify numeric thresholds
+  // Strict strike/threshold number parity whenever EITHER title specifies numeric thresholds
   let hasExactNumericMatch = false;
-  if (a.thresholdNumbers.size > 0 && b.thresholdNumbers.size > 0) {
+  if (a.thresholdNumbers.size > 0 || b.thresholdNumbers.size > 0) {
     if (a.thresholdNumbers.size !== b.thresholdNumbers.size) {
       return { score: 0, confidence: null, matchedTokens: [] };
     }
@@ -448,6 +516,7 @@ function prepareVenueMarkets(
   const eligible: IndexedMarket[] = [];
 
   for (const raw of markets) {
+    if (raw.isBinaryYesNo === false) continue;
     if (!raw.expiresAt) continue;
     const expiryMs = Date.parse(raw.expiresAt);
     if (!Number.isFinite(expiryMs) || expiryMs <= nowMs) continue;

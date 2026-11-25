@@ -134,11 +134,20 @@ describe("perpMetrics", () => {
       coin: "kPEPE",
       time: 123,
       levels: [
-        [{ px: "0.0179", sz: "1000", n: 2 }],
-        [{ px: "0.0181", sz: "1000", n: 1 }],
+        [
+          { px: "0.0180", sz: "0", n: 0 },
+          { px: "0.0179", sz: "1000", n: 2 },
+        ],
+        [
+          { px: "0.01805", sz: "0", n: 0 },
+          { px: "0.0181", sz: "1000", n: 1 },
+        ],
       ],
     });
+    expect(parsedBook.bids.length).toBe(1);
     expect(parsedBook.bids[0]?.px).toBe(0.0179);
+    expect(parsedBook.asks.length).toBe(1);
+    expect(parsedBook.asks[0]?.px).toBe(0.0181);
   });
 });
 

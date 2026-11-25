@@ -153,7 +153,12 @@ export function computePredictionsScanner(
     .slice(0, options.limit);
 
   const widestSpreads = enriched
-    .filter((m) => m.bid_ask_spread_bps !== null && m.bid_ask_spread_bps > 0)
+    .filter(
+      (m) =>
+        m.bid_ask_spread_bps !== null &&
+        m.bid_ask_spread_bps > 0 &&
+        m.bid_ask_spread_bps < 10_000
+    )
     .sort((a, b) => {
       const diff = (b.bid_ask_spread_bps ?? 0) - (a.bid_ask_spread_bps ?? 0);
       if (diff !== 0) return diff;

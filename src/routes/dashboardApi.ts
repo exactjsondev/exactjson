@@ -280,22 +280,29 @@ export async function dashboardGetControlHandler(c: Context<AppBindings>) {
 }
 
 export async function dashboardSetControlHandler(c: Context<AppBindings>) {
-  let body: { paused?: unknown };
+  let body: unknown;
   try {
-    body = (await c.req.json()) as { paused?: unknown };
+    body = await c.req.json();
   } catch {
     return c.json({ error: "INVALID_JSON", message: "Expected JSON body { paused: boolean }." }, 400);
   }
 
-  if (typeof body.paused !== "boolean") {
+  if (
+    body === null ||
+    typeof body !== "object" ||
+    Array.isArray(body) ||
+    typeof (body as { paused?: unknown }).paused !== "boolean"
+  ) {
     return c.json(
       { error: "INVALID_PAYLOAD", message: "Field 'paused' must be a boolean." },
       400
     );
   }
 
+  const paused = (body as { paused: boolean }).paused;
+
   try {
-    const state = await setServicePaused(c.env.DB, body.paused);
+    const state = await setServicePaused(c.env.DB, paused);
     // Invalidate all cached overview views so toggle state reflects immediately
     isolateCache.deleteByPrefix(OVERVIEW_CACHE_PREFIX);
     return c.json(state, 200);
