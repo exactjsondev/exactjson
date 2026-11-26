@@ -5,15 +5,15 @@ import {
   DEFAULT_USDC_BY_CHAIN,
   KYBERSWAP_CLIENT_ID,
   usdToRawTokenUnits,
-} from "../src/providers/kyberswap";
-import { createExecutionQuoteCheckHandler } from "../src/routes/executionQuoteCheck";
+} from "../src/packs/markets/providers/kyberswap";
+import { createExecutionQuoteCheckHandler } from "../src/packs/markets/routes/executionQuoteCheck";
 import {
   classifyLiquidityGrade,
   computeEvmQuoteCheck,
   computeMaxSizeUnderSlippageL2,
   computePerpsQuoteCheck,
   simulateL2TierFill,
-} from "../src/services/executionQuoteCheck";
+} from "../src/packs/markets/services/executionQuoteCheck";
 import { EVM_CHAINS } from "../src/lib/validation";
 import type {
   AppBindings,

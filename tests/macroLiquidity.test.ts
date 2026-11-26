@@ -6,9 +6,9 @@ import {
   parseNyFedRrp,
   parseTreasuryDebt,
   parseTreasuryTga,
-} from "../src/providers/macroFeeds";
-import { createMacroLiquidityHandler } from "../src/routes/macroLiquidity";
-import { computeMacroLiquidity } from "../src/services/macroLiquidity";
+} from "../src/packs/markets/providers/macroFeeds";
+import { createMacroLiquidityHandler } from "../src/packs/markets/routes/macroLiquidity";
+import { computeMacroLiquidity } from "../src/packs/markets/services/macroLiquidity";
 import type { AppBindings } from "../src/types";
 
 const SAMPLE_DEBT = {

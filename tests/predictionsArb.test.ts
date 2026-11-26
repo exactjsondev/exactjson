@@ -1,14 +1,14 @@
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { BoundedTtlCache } from "../src/lib/cache";
-import { createPredictionsArbHandler } from "../src/routes/predictionsArb";
+import { createPredictionsArbHandler } from "../src/packs/markets/routes/predictionsArb";
 import {
   MAX_MARKETS_PER_VENUE,
   computePredictionsArb,
   computeTitleSimilarity,
   estimateKalshiTakerFeeUsd,
   normalizeMarketTitle,
-} from "../src/services/predictionsArb";
+} from "../src/packs/markets/services/predictionsArb";
 import type { AppBindings, RawPredictionMarket } from "../src/types";
 
 const NOW_ISO = "2026-11-22T12:00:00Z";

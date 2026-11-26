@@ -1,8 +1,12 @@
 import {
   CATALOG,
   DISCLAIMER,
+  MARKETS_PACK,
+  PACKS,
   SERVICE_NAME,
   SERVICE_VERSION,
+  getActivePacks,
+  getPackEndpoints,
   type EndpointCatalogEntry,
   type EndpointId,
 } from "../config/catalog";
@@ -26,33 +30,11 @@ function formatNetworkLabel(network: string): string {
   return network;
 }
 
-interface EndpointGroup {
-  id: string;
-  title: string;
-  subtitle: string;
-  ids: readonly EndpointId[];
-}
+const ENDPOINT_GROUPS = MARKETS_PACK.subgroups ?? [];
 
-const ENDPOINT_GROUPS: readonly EndpointGroup[] = [
-  {
-    id: "group-safety-execution",
-    title: "Token Safety & Pre-Trade Execution",
-    subtitle: "Dual-engine fail-closed safety audits and multi-tier swap/orderbook slippage ladders.",
-    ids: ["evm_safety", "execution_quote_check", "solana_safety", "solana_trending"],
-  },
-  {
-    id: "group-perps-funding",
-    title: "Perpetuals & Cross-Venue Funding",
-    subtitle: "Hyperliquid L2 snapshots, full-market screeners, and 3-venue annualized funding spreads.",
-    ids: ["perps_snapshot", "perps_screener", "perps_funding_arb"],
-  },
-  {
-    id: "group-predictions-options-macro",
-    title: "Prediction Markets, Options & US Macro",
-    subtitle: "Polymarket + Kalshi cross-venue arbitrage, Deribit volatility surface, and Treasury/NY Fed liquidity.",
-    ids: ["predictions_arb", "predictions_scanner", "options_surface", "macro_liquidity"],
-  },
-];
+function stripPackDisclaimer(entry: EndpointCatalogEntry): string {
+  return entry.description.replace(PACKS[entry.pack].disclaimer, "").trim();
+}
 
 function renderEndpointRows(entries: readonly EndpointCatalogEntry[], baseUrl: string): string {
   return entries
@@ -65,7 +47,7 @@ function renderEndpointRows(entries: readonly EndpointCatalogEntry[], baseUrl: s
         <td class="price">${escapeHtml(entry.priceFormatted)}</td>
         <td>
           <strong>${escapeHtml(entry.summary)}</strong>
-          <div class="desc">${escapeHtml(entry.description.replace(DISCLAIMER, "").trim())}</div>
+          <div class="desc">${escapeHtml(stripPackDisclaimer(entry))}</div>
           <div class="sample">
             <a href="${escapeHtml(sampleUrl)}"><code>${escapeHtml(sampleUrl)}</code></a>
           </div>
@@ -442,6 +424,34 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
     </section>`;
   }).join("\n");
 
+  const extraPackSections = getActivePacks()
+    .filter((pack) => pack.id !== "markets")
+    .map((pack) => {
+      const entries = getPackEndpoints([pack.id]);
+      return `<section class="group">
+      <div class="group-head">
+        <h3 id="pack-${escapeHtml(pack.id)}">${escapeHtml(pack.title)}</h3>
+        <p>${escapeHtml(pack.subtitle)}</p>
+      </div>
+      <div tabindex="0" role="region" aria-labelledby="pack-${escapeHtml(pack.id)}" class="table-wrap">
+        <table>
+          <caption class="visually-hidden">${escapeHtml(pack.title)} paid x402 endpoints</caption>
+          <thead>
+            <tr>
+              <th scope="col">Endpoint</th>
+              <th scope="col">USDC</th>
+              <th scope="col">Output &amp; Sample Request</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${renderEndpointRows(entries, baseUrl)}
+          </tbody>
+        </table>
+      </div>
+    </section>`;
+    })
+    .join("\n");
+
   const structuredData = renderBrandJsonLd(baseUrl, true);
 
   return `<!doctype html>
@@ -560,6 +570,7 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
           All endpoints settle via x402 V2 (<code>exact</code> EVM scheme on <code>${escapeHtml(networkLabel)}</code>). Expand any row to inspect the exact output schema, or check live availability for free at <a href="${escapeHtml(baseUrl)}/health"><code>GET /health</code></a>.
         </p>
         ${groupedSections}
+        ${extraPackSections}
       </section>
 
       <section id="quickstart">
@@ -664,7 +675,7 @@ export function renderPaywallHtml(
     <main>
       <section style="padding: 2rem 0 1rem;">
         <h1><code>GET ${escapeHtml(entry.path)}</code></h1>
-        <p class="lead">${escapeHtml(entry.summary)}. ${escapeHtml(entry.description.replace(DISCLAIMER, "").trim())}</p>
+        <p class="lead">${escapeHtml(entry.summary)}. ${escapeHtml(stripPackDisclaimer(entry))}</p>
         <div class="pills">
           <span class="badge live">Price: ${escapeHtml(entry.priceFormatted)} USDC</span>
           <span class="badge">x402 V2 · ${escapeHtml(networkLabel)}</span>
@@ -720,7 +731,11 @@ curl -s ${escapeHtml(baseUrl)}/openapi.json</pre>
 </html>`;
 }
 
-export function renderMcpGuideHtml(baseUrl: string): string {
+export function renderMcpGuideHtml(
+  baseUrl: string,
+  mcpPath = "/mcp",
+  toolCount = 1 + getPackEndpoints(["markets"]).length
+): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -728,7 +743,7 @@ export function renderMcpGuideHtml(baseUrl: string): string {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="robots" content="noindex, nofollow">
-  <title>Remote MCP Endpoint (POST /mcp) | ${escapeHtml(SERVICE_NAME)}</title>
+  <title>Remote MCP Endpoint (POST ${escapeHtml(mcpPath)}) | ${escapeHtml(SERVICE_NAME)}</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="32x32">
   <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
@@ -751,17 +766,17 @@ export function renderMcpGuideHtml(baseUrl: string): string {
 
     <main>
       <section style="padding: 2rem 0 1rem;">
-        <h1><code>POST ${escapeHtml(baseUrl)}/mcp</code></h1>
+        <h1><code>POST ${escapeHtml(baseUrl)}${escapeHtml(mcpPath)}</code></h1>
         <p class="lead">
-          This is ExactJSON's stateless <strong>Streamable HTTP MCP endpoint</strong> (JSON-RPC 2.0, 12 tools). Browsers send <code>GET</code>, which returns <code>405 Method Not Allowed</code> — connect your MCP client via <code>POST</code> or use the local stdio CLI.
+          This is ExactJSON's stateless <strong>Streamable HTTP MCP endpoint</strong> (JSON-RPC 2.0, ${toolCount} tools). Browsers send <code>GET</code>, which returns <code>405 Method Not Allowed</code> — connect your MCP client via <code>POST</code> or use the local stdio CLI.
         </p>
       </section>
 
       <div class="grid-2">
         <div class="card">
           <h3>1. Remote Streamable HTTP (Zero Install)</h3>
-          <p>Point any Streamable HTTP MCP client at <code>${escapeHtml(baseUrl)}/mcp</code>, or test in terminal:</p>
-          <pre>curl -s -X POST ${escapeHtml(baseUrl)}/mcp \\
+          <p>Point any Streamable HTTP MCP client at <code>${escapeHtml(baseUrl)}${escapeHtml(mcpPath)}</code>, or test in terminal:</p>
+          <pre>curl -s -X POST "${escapeHtml(baseUrl)}${escapeHtml(mcpPath)}" \\
   -H "Content-Type: application/json" \\
   -H "Accept: application/json" \\
   -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'</pre>
@@ -809,7 +824,7 @@ export function renderDocsHtml(baseUrl: string, network: string): string {
       <td class="price">${escapeHtml(entry.priceFormatted)}</td>
       <td>
         <strong>${escapeHtml(entry.summary)}</strong>
-        <div class="desc">${escapeHtml(entry.description.replace(DISCLAIMER, "").trim())}</div>
+        <div class="desc">${escapeHtml(stripPackDisclaimer(entry))}</div>
         <div class="sample"><a href="${escapeHtml(sampleUrl)}"><code>${escapeHtml(sampleUrl)}</code></a></div>
       </td>
     </tr>`;

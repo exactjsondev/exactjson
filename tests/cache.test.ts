@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { BoundedTtlCache, withTwoTierCache } from "../src/lib/cache";
+import {
+  BoundedTtlCache,
+  CACHE_MAX_ENTRIES,
+  REFERENCE_CACHE_MAX_ENTRIES,
+  isolateCache,
+  referenceCache,
+  withTwoTierCache,
+} from "../src/lib/cache";
 
 describe("withTwoTierCache", () => {
   it("returns isolate cache hits without touching edge cache or fetcher", async () => {
@@ -138,5 +145,42 @@ describe("withTwoTierCache", () => {
     });
     expect(recovered).toEqual({ value: "recovered", cacheHit: false });
     expect(attempts).toBe(2);
+  });
+
+  it("isolates shared referenceCache from isolateCache churn while keeping edge caching enabled by default", async () => {
+    expect(CACHE_MAX_ENTRIES).toBe(1000);
+    expect(REFERENCE_CACHE_MAX_ENTRIES).toBe(64);
+    expect(referenceCache).toBeInstanceOf(BoundedTtlCache);
+    expect(referenceCache).not.toBe(isolateCache);
+
+    referenceCache.clear();
+    isolateCache.clear();
+
+    let edgeWrites = 0;
+    await withTwoTierCache<{ version: number }>({
+      key: "ref:test-feed",
+      ttlMs: 60_000,
+      cache: referenceCache,
+      readEdge: async () => ({ hit: false }),
+      writeEdge: async () => {
+        edgeWrites += 1;
+      },
+      fetcher: async () => ({ version: 1 }),
+    });
+
+    // Edge cache must still default to true for referenceCache (unlike ad-hoc test BoundedTtlCache instances)
+    expect(edgeWrites).toBe(1);
+
+    // Overflowing isolateCache must never evict referenceCache entries
+    for (let i = 0; i < CACHE_MAX_ENTRIES + 20; i += 1) {
+      isolateCache.set(`entity:${i}`, i, 60_000);
+    }
+    expect(referenceCache.get<{ version: number }>("ref:test-feed")).toEqual({
+      hit: true,
+      value: { version: 1 },
+    });
+
+    referenceCache.clear();
+    isolateCache.clear();
   });
 });

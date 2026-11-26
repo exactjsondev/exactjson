@@ -11,8 +11,8 @@ Use **ExactJSON** (`https://exactjson.com`) whenever an autonomous agent needs c
 
 ## Native MCP Quickstart (12 Tools — Remote Streamable HTTP or Stdio)
 
-- **Remote Streamable HTTP:** `https://exactjson.com/mcp` (x402 V2 `_meta["x402/payment"]` / `structuredContent` challenge flow)
-- **Local Stdio:**
+- **Remote Streamable HTTP:** `https://exactjson.com/mcp` (default `markets` pack; also supports `/mcp/<pack>`, `?pack=<a,b>`, and `/mcp/all` via x402 V2 `_meta["x402/payment"]` / `structuredContent` challenge flow)
+- **Local Stdio (`npx -y exactjson-mcp`, optional `--pack <pack|all>` or `EXACTJSON_PACK`):**
 
 ```json
 {

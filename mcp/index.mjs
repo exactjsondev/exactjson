@@ -1,10 +1,8 @@
 #!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { wrapFetchWithPayment, x402Client } from "@x402/fetch";
-import { registerExactEvmScheme } from "@x402/evm/exact/client";
-import { privateKeyToAccount } from "viem/accounts";
 import { z } from "zod";
+import { ENDPOINTS, PACKS, PACK_IDS, SERVICE_VERSION } from "./catalog.generated.mjs";
 
 const BASE_URL = (process.env.EXACTJSON_BASE_URL?.trim() || "https://exactjson.com").replace(
   /\/+$/,
@@ -23,11 +21,141 @@ if (parsedBaseUrl.protocol !== "https:" && !(parsedBaseUrl.protocol === "http:" 
 }
 const MAX_PAYMENT = process.env.MAX_PAYMENT_USD?.trim() || "$0.05";
 const REQUEST_TIMEOUT_MS = 20_000;
+const VALID_PACK_SET = new Set(PACK_IDS);
 
-let paidFetchCache = null;
+function extractCliPackArg(argv) {
+  let cliPack;
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "--pack") {
+      const next = argv[i + 1];
+      if (!next || next.startsWith("--")) {
+        throw new Error(
+          `Missing value after --pack. Valid packs: ${PACK_IDS.join(", ")}, all.`
+        );
+      }
+      cliPack = next;
+      i += 1;
+    } else if (typeof arg === "string" && arg.startsWith("--pack=")) {
+      cliPack = arg.slice("--pack=".length);
+    }
+  }
+  return cliPack;
+}
 
-function getPaidFetch() {
-  if (paidFetchCache) return paidFetchCache;
+function resolveActivePackContext(argv, envPack) {
+  const cliPack = extractCliPackArg(argv);
+  const rawSelector = cliPack !== undefined ? cliPack : envPack;
+  const activePackIds = PACK_IDS.filter((id) => ENDPOINTS.some((e) => e.pack === id));
+  const activeLabels = [...activePackIds, "all"].join(", ");
+
+  if (rawSelector === undefined || rawSelector.trim().length === 0) {
+    return {
+      packs: ["markets"],
+      isAll: false,
+      canonical: "markets",
+    };
+  }
+
+  const parts = rawSelector.split(",").map((part) => part.trim().toLowerCase());
+  if (parts.length === 1 && parts[0] === "all") {
+    return {
+      packs: activePackIds.length > 0 ? activePackIds : ["markets"],
+      isAll: true,
+      canonical: "all",
+    };
+  }
+
+  const seen = new Set();
+  const ordered = [];
+  for (const part of parts) {
+    if (!VALID_PACK_SET.has(part)) {
+      throw new Error(
+        `Unknown MCP pack '${part}'. Valid packs: ${PACK_IDS.join(", ")}, all (active: ${activeLabels}).`
+      );
+    }
+    if (!activePackIds.includes(part)) {
+      throw new Error(
+        `MCP pack '${part}' currently has 0 active endpoints. Active packs: ${activeLabels}.`
+      );
+    }
+    if (!seen.has(part)) {
+      seen.add(part);
+      ordered.push(part);
+    }
+  }
+
+  return {
+    packs: ordered,
+    isAll: false,
+    canonical: ordered.join(","),
+  };
+}
+
+function buildInstructions(packs, isAll) {
+  const workflows = packs.flatMap((id) => PACKS[id]?.workflows ?? []);
+  const disclaimers = Array.from(
+    new Set(packs.map((id) => PACKS[id]?.disclaimer).filter(Boolean))
+  );
+  const scopeLabel = isAll ? "all" : packs.join(",");
+
+  return [
+    "ExactJSON provides live, deterministic x402 V2 APIs for AI agents paid per call in Base USDC ($0.005-$0.02/call; exactjson_health is free) via stdio (npx -y exactjson-mcp) or Remote Streamable HTTP (https://exactjson.com/mcp).",
+    `Active MCP pack scope: '${scopeLabel}'. Pass --pack <pack|all> or set EXACTJSON_PACK (HTTP: /mcp/<pack> or /mcp/all) to switch verticals.`,
+    "Pay-only-on-success: HTTP 400/404/502/503 responses are never settled. Do not blindly retry invalid inputs or 502 upstream errors.",
+    workflows.length > 0
+      ? `Recommended workflows: ${workflows.map((w, idx) => `(${idx + 1}) ${w}`).join(" ")}`
+      : "",
+    disclaimers.join(" "),
+  ]
+    .filter((line) => line.length > 0)
+    .join(" ");
+}
+
+function buildZodShape(inputSchema) {
+  const requiredSet = new Set(inputSchema.required ?? []);
+  const shape = {};
+
+  for (const [paramName, prop] of Object.entries(inputSchema.properties)) {
+    let validator;
+    if (Array.isArray(prop.enum) && prop.enum.length > 0) {
+      validator = z.enum(prop.enum);
+    } else if (prop.mcpType === "integer") {
+      let num = z.number().int();
+      if (typeof prop.minimum === "number") num = num.min(prop.minimum);
+      if (typeof prop.maximum === "number") num = num.max(prop.maximum);
+      validator = num;
+    } else if (prop.mcpType === "number") {
+      let num = z.number();
+      if (typeof prop.minimum === "number") num = num.min(prop.minimum);
+      if (typeof prop.maximum === "number") num = num.max(prop.maximum);
+      validator = num;
+    } else if (prop.mcpType === "boolean") {
+      validator = z.boolean();
+    } else {
+      let str = z.string();
+      if (typeof prop.pattern === "string") str = str.regex(new RegExp(prop.pattern));
+      if (typeof prop.minLength === "number") str = str.min(prop.minLength);
+      if (typeof prop.maxLength === "number") str = str.max(prop.maxLength);
+      validator = str;
+    }
+
+    if (!requiredSet.has(paramName)) {
+      validator = validator.optional();
+    }
+    if (typeof prop.description === "string") {
+      validator = validator.describe(prop.description);
+    }
+    shape[paramName] = validator;
+  }
+
+  return shape;
+}
+
+let paidFetchPromise = null;
+
+async function getPaidFetch() {
+  if (paidFetchPromise) return paidFetchPromise;
   const rawKey = process.env.BUYER_PRIVATE_KEY?.trim();
   if (!rawKey) {
     throw new Error(
@@ -40,11 +168,24 @@ function getPaidFetch() {
       "Invalid BUYER_PRIVATE_KEY format: expected a 64-character hex EVM private key (with or without 0x prefix) for a low-balance Base Mainnet USDC wallet. Replace any placeholder value in your MCP config. Docs: https://exactjson.com/#quickstart"
     );
   }
-  const account = privateKeyToAccount(normalizedKey);
-  const client = new x402Client().setSpendControls({ maxAmountPerPayment: MAX_PAYMENT });
-  registerExactEvmScheme(client, { signer: account });
-  paidFetchCache = wrapFetchWithPayment(fetch, client);
-  return paidFetchCache;
+
+  paidFetchPromise = Promise.all([
+    import("@x402/evm/exact/client"),
+    import("@x402/fetch"),
+    import("viem/accounts"),
+  ])
+    .then(([{ registerExactEvmScheme }, { wrapFetchWithPayment, x402Client }, { privateKeyToAccount }]) => {
+      const account = privateKeyToAccount(normalizedKey);
+      const client = new x402Client().setSpendControls({ maxAmountPerPayment: MAX_PAYMENT });
+      registerExactEvmScheme(client, { signer: account });
+      return wrapFetchWithPayment(fetch, client);
+    })
+    .catch((err) => {
+      paidFetchPromise = null;
+      throw err;
+    });
+
+  return paidFetchPromise;
 }
 
 function buildUrl(path, params) {
@@ -59,7 +200,7 @@ function buildUrl(path, params) {
 
 async function callPaidEndpoint(path, params = {}) {
   try {
-    const fetchWithPay = getPaidFetch();
+    const fetchWithPay = await getPaidFetch();
     const res = await fetchWithPay(buildUrl(path, params), {
       headers: { Accept: "application/json" },
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
@@ -92,18 +233,21 @@ async function callPaidEndpoint(path, params = {}) {
   }
 }
 
+let packCtx;
+try {
+  packCtx = resolveActivePackContext(process.argv.slice(2), process.env.EXACTJSON_PACK);
+} catch (err) {
+  console.error(err instanceof Error ? err.message : String(err));
+  process.exit(1);
+}
+
 const server = new McpServer(
   {
     name: "exactjson",
-    version: "1.1.0",
+    version: SERVICE_VERSION,
   },
   {
-    instructions: [
-      "ExactJSON provides live, deterministic x402 V2 APIs for AI agents paid per call in Base USDC ($0.005-$0.02/call; exactjson_health is free) via stdio (npx -y exactjson-mcp) or Remote Streamable HTTP (https://exactjson.com/mcp).",
-      "Pay-only-on-success: HTTP 400/404/502/503 responses are never settled. Do not blindly retry invalid inputs or 502 upstream errors.",
-      "Recommended workflows: (1) Before swapping an unfamiliar EVM/Base token, call exactjson_evm_safety ($0.01) and exactjson_execution_quote_check with mode='evm' ($0.01). (2) Before buying a Solana SPL token, call exactjson_solana_safety ($0.01). (3) For Hyperliquid perps, use exactjson_perps_snapshot ($0.005) for a fast check or exactjson_execution_quote_check with mode='perps' ($0.01) for multi-tier slippage. (4) When using exactjson_predictions_arb ($0.02), always verify Polymarket vs Kalshi settlement rules whenever resolution_risk_warning is true.",
-      "Informational market/security data only; not financial advice.",
-    ].join(" "),
+    instructions: buildInstructions(packCtx.packs, packCtx.isAll),
   }
 );
 
@@ -121,7 +265,9 @@ server.tool(
       if (!res.ok) {
         return {
           isError: true,
-          content: [{ type: "text", text: `ExactJSON /health returned HTTP ${res.status}: ${text}` }],
+          content: [
+            { type: "text", text: `ExactJSON /health returned HTTP ${res.status}: ${text}` },
+          ],
         };
       }
       return { content: [{ type: "text", text }] };
@@ -139,122 +285,16 @@ server.tool(
   }
 );
 
-server.tool(
-  "exactjson_evm_safety",
-  "Paid ($0.01 USDC): Check if an ERC-20 token on Base, Ethereum, Arbitrum, Optimism, Polygon, or BSC is a honeypot or high-tax rug before swapping (GoPlus + Honeypot.is + DEX Screener). Returns 0-100 risk_score, risk_tier, taxes, and flags.",
-  {
-    address: z.string().regex(/^0x[0-9a-fA-F]{40}$/).describe("EVM ERC-20 token contract address (0x...)"),
-    chain: z.enum(["base", "ethereum", "arbitrum", "optimism", "polygon", "bsc"]).optional().describe("EVM chain (default base)"),
-  },
-  async (args) => callPaidEndpoint("/v1/evm/safety", args)
-);
-
-server.tool(
-  "exactjson_execution_quote_check",
-  "Paid ($0.01 USDC): Simulate pre-trade slippage across USD size tiers ($1k/$10k/$50k+) before executing an EVM DEX swap (KyberSwap) or Hyperliquid perp order. Returns price_impact_bps, max_size_under_100bps_usd, and liquidity_grade (DEEP/ADEQUATE/THIN/ILLIQUID).",
-  {
-    mode: z.enum(["perps", "evm"]).describe("Execution venue mode: 'perps' or 'evm'"),
-    coin: z.string().optional().describe("Required for mode=perps: Hyperliquid ticker (e.g., BTC, ETH, SOL)"),
-    side: z.enum(["buy", "sell", "both"]).optional().describe("Optional for mode=perps (default both)"),
-    chain: z.enum(["base", "ethereum", "arbitrum", "optimism", "polygon", "bsc"]).optional().describe("Optional for mode=evm (default base)"),
-    token_out: z.string().optional().describe("Required for mode=evm: destination ERC-20 address (0x...)"),
-    token_in: z.string().optional().describe("Optional for mode=evm: source ERC-20 address (defaults to native USDC)"),
-    token_in_decimals: z.number().int().min(0).max(18).optional().describe("Optional for mode=evm: decimals for custom token_in"),
-    sizes_usd: z.string().optional().describe("Optional comma-separated USD tiers (e.g., '1000,10000,50000')"),
-  },
-  async (args) => callPaidEndpoint("/v1/execution/quote-check", args)
-);
-
-server.tool(
-  "exactjson_solana_safety",
-  "Paid ($0.01 USDC): Check if a Solana SPL token mint is a rug before swapping. Returns RugCheck 0-100 risk_score, risk_tier, mint/freeze/mutable authority flags, lp_locked_pct, and liquidity/FDV ratios.",
-  {
-    mint: z.string().min(32).max(44).describe("Base58 Solana SPL token mint address"),
-  },
-  async (args) => callPaidEndpoint("/v1/solana/safety", args)
-);
-
-server.tool(
-  "exactjson_solana_trending",
-  "Paid ($0.015 USDC): Discover live trending Solana pools already pre-screened in parallel with RugCheck safety scores and authority flags.",
-  {
-    limit: z.number().int().min(1).max(8).optional().describe("Number of tokens (1-8, default 5)"),
-    max_risk_score: z.number().int().min(0).max(100).optional().describe("Optional RugCheck risk score ceiling (0-100)"),
-  },
-  async (args) => callPaidEndpoint("/v1/solana/trending", args)
-);
-
-server.tool(
-  "exactjson_perps_snapshot",
-  "Paid ($0.005 USDC): Fast pre-trade check for a single Hyperliquid perpetual: funding rate, mark/oracle basis, spread, L2 depth imbalance, and $10k VWAP slippage.",
-  {
-    coin: z.string().min(1).describe("Hyperliquid ticker symbol (e.g., BTC, ETH, SOL, kPEPE)"),
-  },
-  async (args) => callPaidEndpoint("/v1/perps/snapshot", args)
-);
-
-server.tool(
-  "exactjson_perps_screener",
-  "Paid ($0.01 USDC): Scan all ~180+ Hyperliquid perpetuals in one call to find extreme funding APRs, basis dislocations, market breadth, and top turnover.",
-  {
-    min_oi_usd: z.number().min(0).optional().describe("Minimum open interest USD (default 1000000)"),
-    limit: z.number().int().min(1).max(25).optional().describe("Leaderboard size (1-25, default 10)"),
-  },
-  async (args) => callPaidEndpoint("/v1/perps/screener", args)
-);
-
-server.tool(
-  "exactjson_perps_funding_arb",
-  "Paid ($0.015 USDC): Find cross-venue perpetual funding arbitrage spreads across Hyperliquid, dYdX v4, and Kraken Futures with bottleneck leg OI.",
-  {
-    min_oi_usd: z.number().min(0).optional().describe("Minimum per-leg OI USD (default 100000)"),
-    limit: z.number().int().min(1).max(25).optional().describe("Top spreads to return (1-25, default 10)"),
-    coin: z.string().optional().describe("Optional base asset filter (e.g., BTC, ETH, SOL)"),
-  },
-  async (args) => callPaidEndpoint("/v1/perps/funding-arb", args)
-);
-
-server.tool(
-  "exactjson_predictions_arb",
-  "Paid ($0.02 USDC): Detect overlapping Polymarket vs Kalshi arbitrage spreads, fee-adjusted net edge (bps), and annualized APY. Always verify settlement rules when resolution_risk_warning is true.",
-  {
-    min_spread_bps: z.number().min(0).max(5000).optional().describe("Minimum net edge in bps (default 150)"),
-    min_liquidity_usd: z.number().min(0).optional().describe("Minimum per-venue liquidity USD (default 5000)"),
-    query: z.string().max(64).optional().describe("Optional keyword filter across matched market titles"),
-    limit: z.number().int().min(1).max(30).optional().describe("Max opportunities to return (1-30, default 15)"),
-  },
-  async (args) => callPaidEndpoint("/v1/predictions/arb", args)
-);
-
-server.tool(
-  "exactjson_predictions_scanner",
-  "Paid ($0.01 USDC): Scan live Polymarket & Kalshi prediction markets for implied odds, spreads, topic search, volume/liquidity ratios, and high-conviction carry.",
-  {
-    venue: z.enum(["all", "polymarket", "kalshi"]).optional().describe("Venue filter (default all)"),
-    query: z.string().max(64).optional().describe("Optional keyword search across market titles/categories"),
-    min_volume_24h_usd: z.number().min(0).optional().describe("Minimum 24h volume USD"),
-    limit: z.number().int().min(1).max(25).optional().describe("Leaderboard size (1-25, default 10)"),
-  },
-  async (args) => callPaidEndpoint("/v1/predictions/scanner", args)
-);
-
-server.tool(
-  "exactjson_options_surface",
-  "Paid ($0.015 USDC): Distill Deribit BTC or ETH options into ATM IV term structure, contango/backwardation, OTM put-call skew, Max Pain strike, and Call/Put OI walls.",
-  {
-    currency: z.enum(["BTC", "ETH"]).optional().describe("Underlying asset: BTC (default) or ETH"),
-  },
-  async (args) => callPaidEndpoint("/v1/options/surface", args)
-);
-
-server.tool(
-  "exactjson_macro_liquidity",
-  "Paid ($0.01 USDC): Measure USD macro liquidity regime from 5 official US Treasury & NY Fed feeds (public debt, TGA delta, ON RRP, SOFR/EFFR spread, net liquidity impulse).",
-  {
-    lookback_obs: z.number().int().min(2).max(20).optional().describe("Lookback business days for delta (2-20, default 5)"),
-  },
-  async (args) => callPaidEndpoint("/v1/macro/liquidity", args)
-);
+const allowedPackSet = new Set(packCtx.packs);
+for (const entry of ENDPOINTS) {
+  if (!allowedPackSet.has(entry.pack)) continue;
+  server.tool(
+    `exactjson_${entry.id}`,
+    `Paid (${entry.priceFormatted} USDC): ${entry.description}`,
+    buildZodShape(entry.inputSchema),
+    async (args) => callPaidEndpoint(entry.path, args)
+  );
+}
 
 const transport = new StdioServerTransport();
 await server.connect(transport);

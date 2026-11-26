@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { Hono } from "hono";
 import app from "../src/index";
-import { CATALOG } from "../src/config/catalog";
+import { CATALOG, PACKS, getPackEndpoints, type EndpointCatalogEntry } from "../src/config/catalog";
 import { decodeBase64Json, encodeBase64Json } from "../src/lib/headers";
 import { detectRequestTransport } from "../src/lib/transport";
 import { clearServiceControlCache } from "../src/middleware/serviceControl";
@@ -512,5 +512,188 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
     // transport is the 16th bound parameter (index 15) in telemetryMiddleware
     expect(insertedRows[0]?.[15]).toBe("mcp");
     expect(insertedRows[1]?.[15]).toBe("http");
+  });
+
+  it("supports /mcp/:pack, ?pack=, /mcp/all, CORS on /mcp/*, empty/unknown pack 404s, and cross-pack tools/call hints", async () => {
+    const { db } = createMockDb(false);
+    const env = makeEnv(db);
+
+    // 1. Live app: /mcp/markets, /mcp?pack=markets, and /mcp/all work with CORS preflight on /mcp/*
+    const marketsRes = await app.request(
+      "http://localhost:8787/mcp/markets",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
+      },
+      env
+    );
+    expect(marketsRes.status).toBe(200);
+    const marketsJson = (await marketsRes.json()) as { result: { tools: Array<{ name: string }> } };
+    expect(marketsJson.result.tools.length).toBe(1 + getPackEndpoints(["markets"]).length);
+
+    const allRes = await app.request(
+      "http://localhost:8787/mcp/all",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list" }),
+      },
+      env
+    );
+    expect(allRes.status).toBe(200);
+    const allJson = (await allRes.json()) as { result: { tools: Array<{ name: string }> } };
+    expect(allJson.result.tools.length).toBe(1 + CATALOG.length);
+
+    const optPackRes = await app.request(
+      "http://localhost:8787/mcp/markets",
+      {
+        method: "OPTIONS",
+        headers: {
+          Origin: "https://glama.ai",
+          "Access-Control-Request-Method": "POST",
+        },
+      },
+      env
+    );
+    expect(optPackRes.status).toBe(204);
+    expect(optPackRes.headers.get("access-control-expose-headers")).toContain(
+      "Mcp-Protocol-Version"
+    );
+
+    // Browser GET /mcp/all returns pack-aware 405 HTML guide
+    const getAllHtml = await app.request(
+      "http://localhost:8787/mcp/all",
+      {
+        method: "GET",
+        headers: { Accept: "text/html" },
+      },
+      env
+    );
+    expect(getAllHtml.status).toBe(405);
+    expect(await getAllHtml.text()).toContain("/mcp/all");
+
+    // 2. Unpopulated pack (security has 0 endpoints in Wave 0) & unknown pack return deterministic 404 JSON-RPC errors
+    const emptyPackRes = await app.request(
+      "http://localhost:8787/mcp/security",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 3, method: "tools/list" }),
+      },
+      env
+    );
+    expect(emptyPackRes.status).toBe(404);
+    const emptyPackErr = (await emptyPackRes.json()) as { error: { code: number; message: string } };
+    expect(emptyPackErr.error.code).toBe(-32602);
+    expect(emptyPackErr.error.message).toContain("0 active endpoints");
+
+    const unknownPackRes = await app.request(
+      "http://localhost:8787/mcp?pack=nonexistent",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 4, method: "tools/list" }),
+      },
+      env
+    );
+    expect(unknownPackRes.status).toBe(404);
+    expect(((await unknownPackRes.json()) as { error: { message: string } }).error.message).toContain(
+      "Unknown MCP pack"
+    );
+
+    const conflictRes = await app.request(
+      "http://localhost:8787/mcp/markets?pack=all",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 5, method: "tools/list" }),
+      },
+      env
+    );
+    expect(conflictRes.status).toBe(400);
+
+    // 3. Multi-pack synthetic fixture verifies pack isolation, ?pack=a,b union, and cross-pack tools/call hint
+    const mockSecurityEntry: EndpointCatalogEntry = {
+      ...CATALOG[0]!,
+      id: "solana_safety",
+      pack: "security",
+      path: "/v1/solana/safety",
+      description: `Synthetic security pack fixture. Do NOT use for other things. ${PACKS.security.disclaimer}`,
+    };
+    const multiCatalog: readonly EndpointCatalogEntry[] = [
+      CATALOG[2]!, // perps_snapshot (markets)
+      mockSecurityEntry, // security
+    ];
+
+    const multiApp = new Hono<AppBindings>();
+    const { mcpPostHandler, mcpMethodNotAllowedHandler } = createMcpHandler(
+      async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      { catalogEntries: multiCatalog }
+    );
+    multiApp.post("/mcp", mcpPostHandler);
+    multiApp.post("/mcp/:pack", mcpPostHandler);
+    multiApp.all("/mcp", mcpMethodNotAllowedHandler);
+    multiApp.all("/mcp/:pack", mcpMethodNotAllowedHandler);
+
+    const secListRes = await multiApp.request(
+      "http://localhost:8787/mcp/security",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 10, method: "tools/list" }),
+      },
+      env
+    );
+    expect(secListRes.status).toBe(200);
+    const secTools = (
+      (await secListRes.json()) as { result: { tools: Array<{ name: string }> } }
+    ).result.tools.map((t) => t.name);
+    expect(secTools).toEqual(["exactjson_health", "exactjson_solana_safety"]);
+
+    const unionListRes = await multiApp.request(
+      "http://localhost:8787/mcp?pack=markets,security",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 11, method: "tools/list" }),
+      },
+      env
+    );
+    expect(unionListRes.status).toBe(200);
+    const unionTools = (
+      (await unionListRes.json()) as { result: { tools: Array<{ name: string }> } }
+    ).result.tools.map((t) => t.name);
+    expect(unionTools).toEqual([
+      "exactjson_health",
+      "exactjson_perps_snapshot",
+      "exactjson_solana_safety",
+    ]);
+
+    // Calling security tool on /mcp (default markets) rejects with -32602 and redirects to /mcp/security or /mcp/all
+    const crossPackCall = await multiApp.request(
+      "http://localhost:8787/mcp",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 12,
+          method: "tools/call",
+          params: {
+            name: "exactjson_solana_safety",
+            arguments: { mint: "So11111111111111111111111111111111111111112" },
+          },
+        }),
+      },
+      env
+    );
+    expect(crossPackCall.status).toBe(200);
+    const crossPackErr = (await crossPackCall.json()) as {
+      error: { code: number; message: string };
+    };
+    expect(crossPackErr.error.code).toBe(-32602);
+    expect(crossPackErr.error.message).toContain("belongs to pack 'security'");
+    expect(crossPackErr.error.message).toContain("http://localhost:8787/mcp/security");
   });
 });

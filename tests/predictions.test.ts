@@ -1,10 +1,10 @@
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { BoundedTtlCache } from "../src/lib/cache";
-import { parseKalshiMarkets } from "../src/providers/kalshi";
-import { parsePolymarketMarkets } from "../src/providers/polymarket";
-import { createPredictionsScannerHandler } from "../src/routes/predictionsScanner";
-import { computePredictionsScanner } from "../src/services/predictionsScanner";
+import { parseKalshiMarkets } from "../src/packs/markets/providers/kalshi";
+import { parsePolymarketMarkets } from "../src/packs/markets/providers/polymarket";
+import { createPredictionsScannerHandler } from "../src/packs/markets/routes/predictionsScanner";
+import { computePredictionsScanner } from "../src/packs/markets/services/predictionsScanner";
 import type { AppBindings } from "../src/types";
 
 const SAMPLE_POLY = [

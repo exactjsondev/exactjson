@@ -1,4 +1,4 @@
-import { CATALOG, SERVICE_VERSION } from "../src/config/catalog";
+import { CATALOG, SERVICE_VERSION, getPackEndpoints } from "../src/config/catalog";
 import { decodeBase64Json } from "../src/lib/headers";
 
 interface CheckResult {
@@ -127,9 +127,27 @@ async function main() {
         signal: AbortSignal.timeout(10_000),
       });
       assert(listRes.status === 200, `tools/list status=${listRes.status}`);
+      const expectedDefaultTools = getPackEndpoints(["markets"]).length + 1;
       const listJson = (await listRes.json()) as { result?: { tools?: unknown[] } };
       const toolCount = listJson.result?.tools?.length ?? 0;
-      assert(toolCount === CATALOG.length + 1, `Expected ${CATALOG.length + 1} MCP tools, got ${toolCount}`);
+      assert(
+        toolCount === expectedDefaultTools,
+        `Expected ${expectedDefaultTools} default MCP tools on /mcp, got ${toolCount}`
+      );
+
+      const allRes = await fetch(`${baseUrl}/mcp/all`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 4, method: "tools/list" }),
+        signal: AbortSignal.timeout(10_000),
+      });
+      assert(allRes.status === 200, `/mcp/all tools/list status=${allRes.status}`);
+      const allJson = (await allRes.json()) as { result?: { tools?: unknown[] } };
+      const allToolCount = allJson.result?.tools?.length ?? 0;
+      assert(
+        allToolCount === CATALOG.length + 1,
+        `Expected ${CATALOG.length + 1} MCP tools on /mcp/all, got ${allToolCount}`
+      );
 
       const hugeRes = await fetch(`${baseUrl}/mcp`, {
         method: "POST",

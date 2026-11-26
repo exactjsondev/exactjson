@@ -7,11 +7,11 @@ import { EVM_CHAINS, parseEvmAddress, parseEvmChain } from "../src/lib/validatio
 import {
   aggregateDexScreenerEvmPairs,
   parseGeckoTerminalToken,
-} from "../src/providers/dexscreener";
-import { parseGoPlusTokenSecurity } from "../src/providers/goplus";
-import { parseHoneypotIsResult } from "../src/providers/honeypotIs";
-import { createEvmSafetyHandler } from "../src/routes/evmSafety";
-import { computeEvmSafety } from "../src/services/evmSafetyScoring";
+} from "../src/packs/markets/providers/dexscreener";
+import { parseGoPlusTokenSecurity } from "../src/packs/markets/providers/goplus";
+import { parseHoneypotIsResult } from "../src/packs/markets/providers/honeypotIs";
+import { createEvmSafetyHandler } from "../src/packs/markets/routes/evmSafety";
+import { computeEvmSafety } from "../src/packs/markets/services/evmSafetyScoring";
 import type {
   AppBindings,
   DexScreenerAggregated,

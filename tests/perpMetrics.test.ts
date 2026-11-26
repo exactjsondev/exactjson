@@ -2,13 +2,13 @@ import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { DISCLAIMER } from "../src/config/catalog";
 import { BoundedTtlCache } from "../src/lib/cache";
-import { indexMetaAndAssetCtxs, parseL2Book } from "../src/providers/hyperliquid";
-import { createPerpsSnapshotHandler } from "../src/routes/perpsSnapshot";
+import { indexMetaAndAssetCtxs, parseL2Book } from "../src/packs/markets/providers/hyperliquid";
+import { createPerpsSnapshotHandler } from "../src/packs/markets/routes/perpsSnapshot";
 import {
   classifyFundingRegime,
   computePerpsSnapshot,
   estimateExecutionSlippageBps,
-} from "../src/services/perpMetrics";
+} from "../src/packs/markets/services/perpMetrics";
 import type { AppBindings, HyperliquidAssetEntry, HyperliquidL2Book } from "../src/types";
 
 const BTC_ENTRY: HyperliquidAssetEntry = {

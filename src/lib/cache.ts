@@ -1,4 +1,5 @@
-export const CACHE_MAX_ENTRIES = 500;
+export const CACHE_MAX_ENTRIES = 1000;
+export const REFERENCE_CACHE_MAX_ENTRIES = 64;
 
 export const TTL_MS = {
   RUGCHECK_SUMMARY: 60_000,
@@ -103,6 +104,7 @@ export class BoundedTtlCache {
 }
 
 export const isolateCache = new BoundedTtlCache(CACHE_MAX_ENTRIES);
+export const referenceCache = new BoundedTtlCache(REFERENCE_CACHE_MAX_ENTRIES);
 
 // Must use an active Cloudflare zone hostname so caches.default persists entries in production PoPs
 const EDGE_CACHE_ORIGIN = "https://exactjson.com/__edge_cache";
@@ -199,7 +201,7 @@ export async function withTwoTierCache<T, E = T>(
     key,
     ttlMs,
     cache = isolateCache,
-    useEdgeCache = cache === isolateCache,
+    useEdgeCache = cache === isolateCache || cache === referenceCache,
     waitUntil,
     shouldCache,
     serializeEdge,

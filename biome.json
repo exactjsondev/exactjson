@@ -6,6 +6,7 @@
       "tests/**/*.ts",
       "scripts/**/*.ts",
       "mcp/index.mjs",
+      "mcp/catalog.generated.mjs",
       "public/dashboard/app.js"
     ]
   },

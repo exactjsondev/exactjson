@@ -1,30 +1,41 @@
 import {
   CATALOG,
+  PACKS,
+  getPackEndpoints,
   type EndpointCatalogEntry,
+  type EndpointInputSchema,
+  type PackId,
 } from "../config/catalog";
 
 // IMPORTANT: Never import @x402/* or @coinbase/x402 in this file to keep discovery & free MCP calls near 0ms cold start.
 
-const MCP_INTEGER_PARAMS = new Set([
-  "limit",
-  "max_risk_score",
-  "lookback_obs",
-  "token_in_decimals",
-]);
+export function buildMcpInstructions(
+  packs: readonly PackId[] = ["markets"],
+  isAll = false,
+  catalogEntries: readonly EndpointCatalogEntry[] = CATALOG
+): string {
+  const activeSet = new Set<PackId>(catalogEntries.map((e) => e.pack));
+  const effectivePacks = packs.filter((id) => activeSet.has(id));
+  const selectedPacks = effectivePacks.length > 0 ? effectivePacks : (["markets"] as const);
 
-const MCP_NUMBER_PARAMS = new Set([
-  "min_oi_usd",
-  "min_spread_bps",
-  "min_liquidity_usd",
-  "min_volume_24h_usd",
-]);
+  const workflows = selectedPacks.flatMap((id) => PACKS[id].workflows);
+  const disclaimers = Array.from(new Set(selectedPacks.map((id) => PACKS[id].disclaimer)));
+  const scopeLabel = isAll ? "all" : selectedPacks.join(",");
 
-export const MCP_INSTRUCTIONS = [
-  "ExactJSON provides live, deterministic x402 V2 APIs for AI agents paid per call in Base USDC ($0.005-$0.02/call; exactjson_health is free) via Remote Streamable HTTP (https://exactjson.com/mcp) or stdio (npx -y exactjson-mcp).",
-  "Pay-only-on-success: HTTP 400/404/502/503 responses are never settled. Do not blindly retry invalid inputs or 502 upstream errors.",
-  "Recommended workflows: (1) Before swapping an unfamiliar EVM/Base token, call exactjson_evm_safety ($0.01) and exactjson_execution_quote_check with mode='evm' ($0.01). (2) Before buying a Solana SPL token, call exactjson_solana_safety ($0.01). (3) For Hyperliquid perps, use exactjson_perps_snapshot ($0.005) for a fast check or exactjson_execution_quote_check with mode='perps' ($0.01) for multi-tier slippage. (4) When using exactjson_predictions_arb ($0.02), always verify Polymarket vs Kalshi settlement rules whenever resolution_risk_warning is true.",
-  "Informational market/security data only; not financial advice.",
-].join(" ");
+  return [
+    "ExactJSON provides live, deterministic x402 V2 APIs for AI agents paid per call in Base USDC ($0.005-$0.02/call; exactjson_health is free) via Remote Streamable HTTP (https://exactjson.com/mcp) or stdio (npx -y exactjson-mcp).",
+    `Active MCP pack scope: '${scopeLabel}'. Other vertical packs are available at https://exactjson.com/mcp/<pack>, ?pack=<a,b>, or /mcp/all (stdio: --pack <pack|all> or EXACTJSON_PACK).`,
+    "Pay-only-on-success: HTTP 400/404/502/503 responses are never settled. Do not blindly retry invalid inputs or 502 upstream errors.",
+    workflows.length > 0
+      ? `Recommended workflows: ${workflows.map((w, idx) => `(${idx + 1}) ${w}`).join(" ")}`
+      : "",
+    disclaimers.join(" "),
+  ]
+    .filter((part) => part.length > 0)
+    .join(" ");
+}
+
+export const MCP_INSTRUCTIONS = buildMcpInstructions(["markets"], false);
 
 export interface McpToolAnnotations {
   readOnlyHint: true;
@@ -47,33 +58,53 @@ const READ_ONLY_TOOL_ANNOTATIONS: McpToolAnnotations = {
   openWorldHint: true,
 };
 
-export function toMcpToolInputSchema(
-  inputSchema: EndpointCatalogEntry["inputSchema"]
-): Record<string, unknown> {
+export function toMcpToolInputSchema(inputSchema: EndpointInputSchema): Record<string, unknown> {
   const properties: Record<string, Record<string, unknown>> = {};
   for (const [paramName, rawProp] of Object.entries(inputSchema.properties)) {
-    const nextProp: Record<string, unknown> = { ...rawProp };
-    if (MCP_INTEGER_PARAMS.has(paramName)) {
-      nextProp.type = "integer";
-      if (typeof nextProp.example === "string" && Number.isFinite(Number(nextProp.example))) {
-        nextProp.example = Number.parseInt(nextProp.example, 10);
-      }
-    } else if (MCP_NUMBER_PARAMS.has(paramName)) {
-      nextProp.type = "number";
-      if (typeof nextProp.example === "string" && Number.isFinite(Number(nextProp.example))) {
-        nextProp.example = Number(nextProp.example);
+    const resolvedType = rawProp.mcpType ?? rawProp.type;
+    const nextProp: Record<string, unknown> = {
+      type: resolvedType,
+      description: rawProp.description,
+    };
+
+    if (rawProp.pattern !== undefined) nextProp.pattern = rawProp.pattern;
+    if (rawProp.enum !== undefined) nextProp.enum = [...rawProp.enum];
+    if (rawProp.minLength !== undefined) nextProp.minLength = rawProp.minLength;
+    if (rawProp.maxLength !== undefined) nextProp.maxLength = rawProp.maxLength;
+    if (rawProp.minimum !== undefined) nextProp.minimum = rawProp.minimum;
+    if (rawProp.maximum !== undefined) nextProp.maximum = rawProp.maximum;
+
+    if (rawProp.example !== undefined) {
+      if (resolvedType === "integer" && Number.isFinite(Number(rawProp.example))) {
+        nextProp.example = Number.parseInt(rawProp.example, 10);
+      } else if (resolvedType === "number" && Number.isFinite(Number(rawProp.example))) {
+        nextProp.example = Number(rawProp.example);
+      } else if (resolvedType === "boolean") {
+        nextProp.example = rawProp.example === "true";
+      } else {
+        nextProp.example = rawProp.example;
       }
     }
+
     properties[paramName] = nextProp;
   }
   return {
     type: inputSchema.type,
     properties,
-    required: inputSchema.required ?? [],
+    required: [...(inputSchema.required ?? [])],
   };
 }
 
-export function buildMcpTools(): McpToolDescriptor[] {
+export interface McpToolScopeOptions {
+  packs?: readonly PackId[];
+  catalogEntries?: readonly EndpointCatalogEntry[];
+}
+
+export function buildMcpTools(options: McpToolScopeOptions = {}): McpToolDescriptor[] {
+  const packs = options.packs ?? ["markets"];
+  const catalogEntries = options.catalogEntries ?? CATALOG;
+  const scopedEntries = getPackEndpoints(packs, catalogEntries);
+
   return [
     {
       name: "exactjson_health",
@@ -82,7 +113,7 @@ export function buildMcpTools(): McpToolDescriptor[] {
       inputSchema: { type: "object", properties: {}, required: [] },
       annotations: READ_ONLY_TOOL_ANNOTATIONS,
     },
-    ...CATALOG.map((entry) => ({
+    ...scopedEntries.map((entry) => ({
       name: `exactjson_${entry.id}`,
       description: `Paid (${entry.priceFormatted} USDC): ${entry.description}`,
       inputSchema: toMcpToolInputSchema(entry.inputSchema),
@@ -91,15 +122,31 @@ export function buildMcpTools(): McpToolDescriptor[] {
   ];
 }
 
-const TOOL_BY_NAME = new Map<string, EndpointCatalogEntry>(
-  CATALOG.map((entry) => [`exactjson_${entry.id}`, entry])
-);
+export type ResolvedMcpTool =
+  | { kind: "health" }
+  | { kind: "allowed"; entry: EndpointCatalogEntry }
+  | { kind: "other_pack"; entry: EndpointCatalogEntry }
+  | { kind: "unknown" };
 
 export function resolveMcpToolEndpoint(
-  toolName: string
-): "health" | EndpointCatalogEntry | null {
+  toolName: string,
+  options: McpToolScopeOptions = {}
+): ResolvedMcpTool {
   if (toolName === "exactjson_health") {
-    return "health";
+    return { kind: "health" };
   }
-  return TOOL_BY_NAME.get(toolName) ?? null;
+
+  const packs = options.packs ?? ["markets"];
+  const catalogEntries = options.catalogEntries ?? CATALOG;
+  const matched = catalogEntries.find((entry) => `exactjson_${entry.id}` === toolName);
+  if (!matched) {
+    return { kind: "unknown" };
+  }
+
+  const allowedSet = new Set<PackId>(packs);
+  if (!allowedSet.has(matched.pack)) {
+    return { kind: "other_pack", entry: matched };
+  }
+
+  return { kind: "allowed", entry: matched };
 }

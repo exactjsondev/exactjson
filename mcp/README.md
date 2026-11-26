@@ -50,6 +50,7 @@ For local desktop hosts (Claude Desktop / Cursor / OpenClaw):
 | `BUYER_PRIVATE_KEY` | For paid tools | — | Dedicated low-balance Base EVM wallet private key (`0x...` or 64-char hex) holding USDC for paid x402 calls. |
 | `MAX_PAYMENT_USD` | No | `$0.05` | Maximum USDC spend per call enforced client-side before signing. |
 | `EXACTJSON_BASE_URL` | No | `https://exactjson.com` | Optional base URL override when self-hosting ExactJSON. |
+| `EXACTJSON_PACK` | No | `markets` | Vertical tool pack filter (`markets`, `security`, `world`, `commerce`, `research`, comma-separated, or `all`; also available via `--pack`). |
 
 ## Security & Spend Controls
 

@@ -2,15 +2,15 @@ import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { DISCLAIMER } from "../src/config/catalog";
 import { BoundedTtlCache } from "../src/lib/cache";
-import { normalizeBaseAsset, parseDydxMarkets } from "../src/providers/dydx";
-import { parseTrendingSolanaPools } from "../src/providers/geckoTrending";
-import { parseKrakenPerpTickers } from "../src/providers/krakenFutures";
-import { createFundingArbHandler } from "../src/routes/fundingArb";
-import { createPerpsScreenerHandler } from "../src/routes/perpsScreener";
-import { createSolanaTrendingHandler } from "../src/routes/solanaTrending";
-import { computeFundingArb, hyperliquidToVenueMap } from "../src/services/fundingArb";
-import { computePerpsScreener } from "../src/services/perpScreener";
-import { computeSolanaTrending } from "../src/services/solanaTrending";
+import { normalizeBaseAsset, parseDydxMarkets } from "../src/packs/markets/providers/dydx";
+import { parseTrendingSolanaPools } from "../src/packs/markets/providers/geckoTrending";
+import { parseKrakenPerpTickers } from "../src/packs/markets/providers/krakenFutures";
+import { createFundingArbHandler } from "../src/packs/markets/routes/fundingArb";
+import { createPerpsScreenerHandler } from "../src/packs/markets/routes/perpsScreener";
+import { createSolanaTrendingHandler } from "../src/packs/markets/routes/solanaTrending";
+import { computeFundingArb, hyperliquidToVenueMap } from "../src/packs/markets/services/fundingArb";
+import { computePerpsScreener } from "../src/packs/markets/services/perpScreener";
+import { computeSolanaTrending } from "../src/packs/markets/services/solanaTrending";
 import type { AppBindings, HyperliquidAssetEntry, RugCheckSummary } from "../src/types";
 
 describe("perpsScreener", () => {

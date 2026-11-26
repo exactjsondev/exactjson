@@ -1,7 +1,7 @@
 import type { MiddlewareHandler } from "hono";
 import type { Network, PaymentRequired } from "@x402/core/types";
 import type { PaywallProvider, RoutesConfig, x402ResourceServer } from "@x402/core/server";
-import { CATALOG, SERVICE_NAME, getEndpointByPath } from "../config/catalog";
+import { CATALOG, SERVICE_NAME, getEndpointByPath, toHttpInputSchema } from "../config/catalog";
 import { applyHtmlSecurityHeaders } from "../lib/securityHeaders";
 import { renderPaywallHtml } from "../routes/landingHtml";
 import type { AppBindings } from "../types";
@@ -77,7 +77,7 @@ async function buildX402Instance(
       extensions: {
         ...declareDiscoveryExtension({
           input: entry.exampleQueryParams,
-          inputSchema: entry.inputSchema,
+          inputSchema: toHttpInputSchema(entry.inputSchema),
           output: {
             example: entry.outputExample,
             schema: entry.outputSchema,

@@ -1,9 +1,9 @@
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { BoundedTtlCache } from "../src/lib/cache";
-import { parseDeribitExpiryMs, parseDeribitOptions } from "../src/providers/deribit";
-import { createOptionsSurfaceHandler } from "../src/routes/optionsSurface";
-import { computeOptionsSurface } from "../src/services/optionsSurface";
+import { parseDeribitExpiryMs, parseDeribitOptions } from "../src/packs/markets/providers/deribit";
+import { createOptionsSurfaceHandler } from "../src/packs/markets/routes/optionsSurface";
+import { computeOptionsSurface } from "../src/packs/markets/services/optionsSurface";
 import type { AppBindings } from "../src/types";
 
 const SAMPLE_DERIBIT = {

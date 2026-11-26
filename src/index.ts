@@ -31,19 +31,9 @@ import {
 import { getEndpointByPath } from "./config/catalog";
 import { negotiateContentType } from "./lib/contentNegotiation";
 import { applyHtmlSecurityHeaders } from "./lib/securityHeaders";
+import { registerMarketsPackRoutes } from "./packs/markets";
 import { renderNotFoundHtml } from "./routes/landingHtml";
-import { evmSafetyHandler } from "./routes/evmSafety";
-import { executionQuoteCheckHandler } from "./routes/executionQuoteCheck";
-import { fundingArbHandler } from "./routes/fundingArb";
-import { macroLiquidityHandler } from "./routes/macroLiquidity";
 import { createMcpHandler } from "./routes/mcp";
-import { optionsSurfaceHandler } from "./routes/optionsSurface";
-import { perpsScreenerHandler } from "./routes/perpsScreener";
-import { perpsSnapshotHandler } from "./routes/perpsSnapshot";
-import { predictionsArbHandler } from "./routes/predictionsArb";
-import { predictionsScannerHandler } from "./routes/predictionsScanner";
-import { solanaSafetyHandler } from "./routes/solanaSafety";
-import { solanaTrendingHandler } from "./routes/solanaTrending";
 import type { AppBindings, Env } from "./types";
 
 const app = new Hono<AppBindings>({ strict: false });
@@ -88,6 +78,7 @@ app.use("/", x402Cors);
 app.use("/health", x402Cors);
 app.use("/v1/*", x402Cors);
 app.use("/mcp", mcpCors);
+app.use("/mcp/*", mcpCors);
 app.use("/.well-known/*", x402Cors);
 app.use("/openapi.json", x402Cors);
 app.use("/llms.txt", x402Cors);
@@ -118,24 +109,16 @@ app.get("/llms.txt", llmsTxtHandler);
 
 // Remote Streamable HTTP MCP (stateless JSON-RPC 2.0; free discovery + paid /v1/* bridge)
 app.post("/mcp", mcpPostHandler);
+app.post("/mcp/:pack", mcpPostHandler);
 app.all("/mcp", mcpMethodNotAllowedHandler);
+app.all("/mcp/:pack", mcpMethodNotAllowedHandler);
 app.get("/llms-full.txt", llmsTxtHandler);
 
-// Paid /v1/* pipeline: telemetry -> operator pause gate -> lazy x402 V2 paywall -> exact full-path handlers
+// Paid /v1/* pipeline: telemetry -> operator pause gate -> lazy x402 V2 paywall -> pack route handlers
 app.use("/v1/*", telemetryMiddleware);
 app.use("/v1/*", serviceControlMiddleware);
 app.use("/v1/*", x402PaywallMiddleware);
-app.get("/v1/solana/safety", solanaSafetyHandler);
-app.get("/v1/solana/trending", solanaTrendingHandler);
-app.get("/v1/perps/snapshot", perpsSnapshotHandler);
-app.get("/v1/perps/screener", perpsScreenerHandler);
-app.get("/v1/perps/funding-arb", fundingArbHandler);
-app.get("/v1/predictions/scanner", predictionsScannerHandler);
-app.get("/v1/options/surface", optionsSurfaceHandler);
-app.get("/v1/macro/liquidity", macroLiquidityHandler);
-app.get("/v1/evm/safety", evmSafetyHandler);
-app.get("/v1/predictions/arb", predictionsArbHandler);
-app.get("/v1/execution/quote-check", executionQuoteCheckHandler);
+registerMarketsPackRoutes(app);
 
 // Return 405 Method Not Allowed when a known /v1/* endpoint is called with a non-GET/HEAD method
 app.all("/v1/*", (c, next) => {

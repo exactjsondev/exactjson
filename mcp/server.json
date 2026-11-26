@@ -42,6 +42,12 @@
           "description": "Optional base URL override when self-hosting ExactJSON.",
           "isRequired": false,
           "isSecret": false
+        },
+        {
+          "name": "EXACTJSON_PACK",
+          "description": "Optional vertical tool pack filter (default markets; or security, world, commerce, research, all).",
+          "isRequired": false,
+          "isSecret": false
         }
       ]
     }

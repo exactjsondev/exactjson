@@ -150,11 +150,16 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
         string,
         {
           get: {
+            parameters?: Array<{ name: string; schema: Record<string, unknown> }>;
             responses: Record<string, { content?: { "application/json"?: { schema?: { $ref?: string } } } }>;
           };
         }
       >;
     };
+    const screenerParams = oaFull.paths["/v1/perps/screener"]?.get.parameters ?? [];
+    const limitParam = screenerParams.find((p) => p.name === "limit");
+    expect(limitParam?.schema.type).toBe("string");
+    expect(limitParam?.schema.mcpType).toBeUndefined();
     expect(oaFull.info?.license?.identifier).toBe("MIT");
     expect(oaFull.info?.license?.name).toBe("MIT");
     expect(oaFull.externalDocs?.url).toBe("http://localhost:8787/docs");
@@ -240,10 +245,20 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(mcpCard.serverInfo.version).toBe("1.1.0");
     expect(mcpCard.transport.type).toBe("streamable-http");
     expect(mcpCard.transport.endpoint).toBe("http://localhost:8787/mcp");
-    expect(mcpCard.remotes[0]).toEqual({
-      type: "streamable-http",
-      url: "http://localhost:8787/mcp",
-    });
+    expect(mcpCard.remotes).toEqual([
+      {
+        type: "streamable-http",
+        url: "http://localhost:8787/mcp",
+      },
+      {
+        type: "streamable-http",
+        url: "http://localhost:8787/mcp/markets",
+      },
+      {
+        type: "streamable-http",
+        url: "http://localhost:8787/mcp/all",
+      },
+    ]);
     expect(mcpCard.tools.length).toBe(12);
     expect(mcpCard.tools[0]?.name).toBe("exactjson_health");
     expect(mcpCard.tools[1]?.name).toBe("exactjson_solana_safety");

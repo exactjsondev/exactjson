@@ -2,10 +2,10 @@ import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
 import { DISCLAIMER } from "../src/config/catalog";
 import { BoundedTtlCache } from "../src/lib/cache";
-import { aggregateDexScreenerPairs } from "../src/providers/dexscreener";
-import { parseRugCheckSummary } from "../src/providers/rugcheck";
-import { createSolanaSafetyHandler } from "../src/routes/solanaSafety";
-import { computeSolanaSafety } from "../src/services/safetyScoring";
+import { aggregateDexScreenerPairs } from "../src/packs/markets/providers/dexscreener";
+import { parseRugCheckSummary } from "../src/packs/markets/providers/rugcheck";
+import { createSolanaSafetyHandler } from "../src/packs/markets/routes/solanaSafety";
+import { computeSolanaSafety } from "../src/packs/markets/services/safetyScoring";
 import type { AppBindings, DexScreenerAggregated, RugCheckSummary } from "../src/types";
 
 const SOL_MINT = "So11111111111111111111111111111111111111112";

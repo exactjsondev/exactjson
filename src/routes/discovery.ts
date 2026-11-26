@@ -4,7 +4,9 @@ import {
   DISCLAIMER,
   SERVICE_NAME,
   SERVICE_VERSION,
+  getActivePacks,
   getEndpointById,
+  toHttpInputSchema,
 } from "../config/catalog";
 import { negotiateContentType } from "../lib/contentNegotiation";
 import { buildMcpTools } from "../lib/mcpTools";
@@ -77,6 +79,14 @@ export async function indexHandler(c: Context<AppBindings>) {
       remote_url: `${baseUrl}/mcp`,
       transport: "streamable-http",
       server_card: `${baseUrl}/.well-known/mcp/server-card.json`,
+      packs: {
+        default: "markets",
+        active: getActivePacks().map((p) => p.id),
+        all_url: `${baseUrl}/mcp/all`,
+        endpoints: Object.fromEntries(
+          getActivePacks().map((p) => [p.id, `${baseUrl}${p.mcpPath}`])
+        ),
+      },
     },
     discovery: {
       docs: `${baseUrl}/docs`,
@@ -134,8 +144,9 @@ export function openApiHandler(c: Context<AppBindings>) {
 
   const paths: Record<string, unknown> = {};
   for (const entry of CATALOG) {
-    const requiredSet = new Set(entry.inputSchema.required ?? []);
-    const parameters = Object.entries(entry.inputSchema.properties).map(
+    const cleanInputSchema = toHttpInputSchema(entry.inputSchema);
+    const requiredSet = new Set(cleanInputSchema.required);
+    const parameters = Object.entries(cleanInputSchema.properties).map(
       ([paramName, propSchema]) => ({
         name: paramName,
         in: "query",
@@ -514,6 +525,14 @@ export function mcpServerCardHandler(c: Context<AppBindings>) {
       {
         type: "streamable-http",
         url: `${baseUrl}/mcp`,
+      },
+      ...getActivePacks().map((pack) => ({
+        type: "streamable-http",
+        url: `${baseUrl}${pack.mcpPath}`,
+      })),
+      {
+        type: "streamable-http",
+        url: `${baseUrl}/mcp/all`,
       },
     ],
     packages: [
