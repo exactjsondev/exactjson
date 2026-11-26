@@ -429,6 +429,11 @@
       color: var(--muted);
     }
 
+    .requests-table th,
+    .requests-table td {
+      padding: 0.5rem 0.55rem;
+    }
+
     .requests-table {
       --label-1: "Time";
       --label-2: "Endpoint";
@@ -591,6 +596,7 @@
                 <th>Settled</th>
                 <th>Revenue (USD)</th>
                 <th>402 Challenges</th>
+                <th>Verify Failed</th>
                 <th>Unsettled Errors</th>
                 <th>Avg Latency</th>
               </tr>
@@ -659,7 +665,7 @@
                 <th>Tx Hash</th>
                 <th>Cache</th>
                 <th>Upstream / Error</th>
-                <th>Extension Responses</th>
+                <th title="Extension Responses">Ext</th>
                 <th>Latency</th>
               </tr>
             </thead>
@@ -674,6 +680,7 @@
     const TOKEN_KEY = "exactjson_dashboard_token";
     let lastControlState = { paused: false, updated_at: null };
     let loadEpoch = 0;
+    let requestsEpoch = 0;
 
     const el = (id) => document.getElementById(id);
 
@@ -737,6 +744,7 @@
 
     function showAuth(errorMessage) {
       loadEpoch += 1;
+      requestsEpoch += 1;
       el("dashboard-main").classList.add("hidden");
       el("header-actions").classList.add("hidden");
       el("network-pill").classList.add("hidden");
@@ -825,7 +833,7 @@
       if (rows.length === 0) {
         const tr = document.createElement("tr");
         const td = document.createElement("td");
-        td.colSpan = 7;
+        td.colSpan = 8;
         td.className = "muted";
         td.textContent = "No paid endpoint traffic logged yet.";
         tr.appendChild(td);
@@ -841,6 +849,7 @@
           { text: String(row.settled_count || 0) },
           { text: fmtUsd(row.revenue_usd), cls: "mono" },
           { text: String(row.challenged_count || 0) },
+          { text: String(row.verify_failed_count || 0) },
           { text: String(row.error_count || 0) },
           { text: `${row.avg_latency_ms || 0} ms` },
         ];
@@ -949,7 +958,7 @@
         tdExt.className = r.extension_responses ? "mono" : "muted";
         tdExt.textContent = r.extension_responses
           ? `${r.extension_responses.slice(0, 28)}...`
-          : "Not emitted";
+          : "-";
         if (r.extension_responses) tdExt.title = r.extension_responses;
         tr.appendChild(tdExt);
 
@@ -962,8 +971,7 @@
       }
     }
 
-    async function loadDashboard(forceRefresh = false) {
-      const myEpoch = ++loadEpoch;
+    function buildRequestsParams(forceRefresh = false) {
       const endpoint = el("filter-endpoint").value;
       const outcome = el("filter-outcome").value;
       const network = el("filter-network").value;
@@ -975,6 +983,14 @@
       if (network) params.set("network", network);
       if (transport) params.set("transport", transport);
       if (forceRefresh) params.set("refresh", "1");
+      return params;
+    }
+
+    async function loadDashboard(forceRefresh = false) {
+      const myEpoch = ++loadEpoch;
+      const myReqEpoch = ++requestsEpoch;
+      const network = el("filter-network").value;
+      const params = buildRequestsParams(forceRefresh);
 
       const overviewParams = new URLSearchParams();
       if (network) overviewParams.set("network", network);
@@ -994,7 +1010,9 @@
         el("dash-error").classList.add("hidden");
         el("auth-error").classList.add("hidden");
         renderOverview(overview);
-        renderRequests(requests);
+        if (myReqEpoch === requestsEpoch) {
+          renderRequests(requests);
+        }
       } catch (err) {
         if (myEpoch !== loadEpoch) return;
         if (err && err.message !== "Unauthorized") {
@@ -1006,6 +1024,24 @@
             el("dash-error").textContent = msg;
             el("dash-error").classList.remove("hidden");
           }
+        }
+      }
+    }
+
+    async function loadRequestsOnly() {
+      const myReqEpoch = ++requestsEpoch;
+      const params = buildRequestsParams(false);
+
+      try {
+        const requests = await apiFetch(`/dashboard/api/requests?${params.toString()}`);
+        if (myReqEpoch !== requestsEpoch || el("dashboard-main").classList.contains("hidden")) return;
+        el("dash-error").classList.add("hidden");
+        renderRequests(requests);
+      } catch (err) {
+        if (myReqEpoch !== requestsEpoch || el("dashboard-main").classList.contains("hidden")) return;
+        if (err && err.message !== "Unauthorized") {
+          el("dash-error").textContent = err.message || "Failed to load requests.";
+          el("dash-error").classList.remove("hidden");
         }
       }
     }
@@ -1059,11 +1095,11 @@
     el("refresh-btn").addEventListener("click", () => void loadDashboard(true));
     el("start-api-btn").addEventListener("click", () => toggleService(false));
     el("stop-api-btn").addEventListener("click", () => toggleService(true));
-    el("filter-endpoint").addEventListener("change", () => void loadDashboard(false));
-    el("filter-outcome").addEventListener("change", () => void loadDashboard(false));
+    el("filter-endpoint").addEventListener("change", () => void loadRequestsOnly());
+    el("filter-outcome").addEventListener("change", () => void loadRequestsOnly());
     el("filter-network").addEventListener("change", () => void loadDashboard(false));
-    el("filter-transport").addEventListener("change", () => void loadDashboard(false));
-    el("filter-limit").addEventListener("change", () => void loadDashboard(false));
+    el("filter-transport").addEventListener("change", () => void loadRequestsOnly());
+    el("filter-limit").addEventListener("change", () => void loadRequestsOnly());
 
     if (getToken()) {
       void loadDashboard(false);

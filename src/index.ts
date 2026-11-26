@@ -191,28 +191,32 @@ app.notFound((c) => {
 });
 
 const RETENTION_DAYS_402 = 7;
+const RETENTION_DAYS_VERIFY_FAILED = 14;
 const PRUNE_BATCH_LIMIT = 5000;
 
 export async function pruneOldChallengedRequests(db: Env["DB"]): Promise<number> {
-  const cutoff = new Date(
+  const cutoff402 = new Date(
     Date.now() - RETENTION_DAYS_402 * 24 * 60 * 60 * 1000
   ).toISOString();
+  const cutoffVerifyFailed = new Date(
+    Date.now() - RETENTION_DAYS_VERIFY_FAILED * 24 * 60 * 60 * 1000
+  ).toISOString();
 
-  // Covering index scan on idx_api_requests_outcome_created via rowid; SETTLED revenue rows are kept forever
-  const result = await db
-    .prepare(
-      `DELETE FROM api_requests
+  // Covering index scan on idx_api_requests_outcome_created via rowid; SETTLED revenue and UNSETTLED_ERROR rows are kept
+  const deleteSql = `DELETE FROM api_requests
        WHERE rowid IN (
          SELECT rowid FROM api_requests
-         WHERE outcome = 'CHALLENGED_402' AND created_at < ?
+         WHERE outcome = ? AND created_at < ?
          ORDER BY created_at ASC
          LIMIT ?
-       )`
-    )
-    .bind(cutoff, PRUNE_BATCH_LIMIT)
-    .run();
+       )`;
 
-  return Number(result.meta?.changes ?? 0);
+  const [res402, resVerify] = await Promise.all([
+    db.prepare(deleteSql).bind("CHALLENGED_402", cutoff402, PRUNE_BATCH_LIMIT).run(),
+    db.prepare(deleteSql).bind("VERIFY_FAILED", cutoffVerifyFailed, PRUNE_BATCH_LIMIT).run(),
+  ]);
+
+  return Number(res402.meta?.changes ?? 0) + Number(resVerify.meta?.changes ?? 0);
 }
 
 export { app };
@@ -229,11 +233,13 @@ export default {
       pruneOldChallengedRequests(env.DB)
         .then((deleted) => {
           if (deleted > 0) {
-            console.log(`Pruned ${deleted} CHALLENGED_402 rows older than ${RETENTION_DAYS_402}d`);
+            console.log(
+              `Pruned ${deleted} unpaid rows (CHALLENGED_402 > ${RETENTION_DAYS_402}d, VERIFY_FAILED > ${RETENTION_DAYS_VERIFY_FAILED}d)`
+            );
           }
         })
         .catch((err) => {
-          console.error("Daily D1 402 prune failed:", err);
+          console.error("Daily D1 unpaid telemetry prune failed:", err);
         })
     );
   },

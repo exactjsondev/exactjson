@@ -2,6 +2,7 @@ import type { Context, MiddlewareHandler } from "hono";
 import { getEndpointByPath } from "../config/catalog";
 import {
   extractExtensionResponses,
+  extractPaymentRequired,
   extractPaymentResponse,
   hasPaymentSignatureHeader,
 } from "../lib/headers";
@@ -13,10 +14,13 @@ export function classifyOutcome(
   hadPaymentHeader: boolean,
   paymentResponse: ReturnType<typeof extractPaymentResponse>
 ): RequestOutcome {
+  if (paymentResponse !== null && paymentResponse.success === false) {
+    return "UNSETTLED_ERROR";
+  }
   if (httpStatus === 402) {
     return hadPaymentHeader ? "VERIFY_FAILED" : "CHALLENGED_402";
   }
-  if (httpStatus === 200 && paymentResponse !== null && paymentResponse.success !== false) {
+  if (httpStatus === 200 && paymentResponse !== null) {
     return "SETTLED";
   }
   return "UNSETTLED_ERROR";
@@ -54,6 +58,41 @@ function truncate(val: string | null | undefined, maxLen: number): string | null
 }
 
 /**
+ * Resolves the most specific failure reason for telemetry logging without
+ * touching normal CHALLENGED_402 or SETTLED rows.
+ */
+export function extractTelemetryError(
+  explicitError: string | null | undefined,
+  outcome: RequestOutcome,
+  paymentResponse: ReturnType<typeof extractPaymentResponse>,
+  paymentRequired: ReturnType<typeof extractPaymentRequired>
+): string | null {
+  const explicit = truncate(explicitError, 64);
+  if (explicit) {
+    return explicit;
+  }
+
+  if (paymentResponse && typeof paymentResponse.errorReason === "string") {
+    const reason = truncate(paymentResponse.errorReason, 64);
+    if (reason) return reason;
+  }
+
+  if (
+    outcome === "VERIFY_FAILED" &&
+    paymentRequired &&
+    typeof paymentRequired.error === "string"
+  ) {
+    const rawErr = paymentRequired.error.trim();
+    if (rawErr === "Payment required") {
+      return "MALFORMED_PAYMENT_HEADER";
+    }
+    return truncate(rawErr, 64);
+  }
+
+  return null;
+}
+
+/**
  * Mounted BEFORE x402 paymentMiddleware on /v1/*.
  * Logs strictly 1 D1 row per matched paid endpoint asynchronously via safeWaitUntil().
  */
@@ -85,7 +124,17 @@ export const telemetryMiddleware: MiddlewareHandler<AppBindings> = async (c, nex
   const queryTarget = truncate(c.get("query_target") ?? rawTarget, 128);
   const cacheStatus = c.get("cache_status") ?? null;
   const upstreamSource = truncate(c.get("upstream_source"), 64);
-  const upstreamError = truncate(c.get("upstream_error"), 64);
+  const explicitError = c.get("upstream_error");
+  const paymentRequired =
+    outcome === "VERIFY_FAILED" && !explicitError
+      ? extractPaymentRequired(res.headers)
+      : null;
+  const upstreamError = extractTelemetryError(
+    explicitError,
+    outcome,
+    paymentResponse,
+    paymentRequired
+  );
 
   const priceUsd = outcome === "SETTLED" ? endpoint.priceUsd : 0;
   const payerAddress = paymentResponse?.payer ?? null;

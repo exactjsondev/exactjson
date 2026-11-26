@@ -216,16 +216,36 @@ async function handlePaidToolCall(
   const bodyText = await res.text();
 
   if (res.status === 402) {
-    const paymentRequired =
-      extractPaymentRequired(res.headers) ??
-      safeParseJsonObject(bodyText) ?? {
+    const paymentRequired = extractPaymentRequired(res.headers);
+    const paymentResponse = extractPaymentResponse(res.headers);
+
+    if (!paymentRequired && paymentResponse !== null) {
+      const settlementError = {
+        x402Version: 2,
+        error: paymentResponse.errorReason || "Payment settlement failed",
+        payment_response: paymentResponse,
+      };
+      return {
+        isError: true,
+        structuredContent: settlementError,
+        content: [{ type: "text", text: JSON.stringify(settlementError) }],
+        _meta: { "x402/payment-response": paymentResponse },
+      };
+    }
+
+    const parsedBody = safeParseJsonObject(bodyText);
+    const nonEmptyBody =
+      parsedBody && Object.keys(parsedBody).length > 0 ? parsedBody : null;
+    const challengePayload =
+      paymentRequired ??
+      nonEmptyBody ?? {
         x402Version: 2,
         error: "Payment required",
       };
     return {
       isError: true,
-      structuredContent: paymentRequired,
-      content: [{ type: "text", text: JSON.stringify(paymentRequired) }],
+      structuredContent: challengePayload,
+      content: [{ type: "text", text: JSON.stringify(challengePayload) }],
     };
   }
 

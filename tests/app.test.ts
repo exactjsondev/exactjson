@@ -1,10 +1,12 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
-import app from "../src/index";
+import app, { pruneOldChallengedRequests } from "../src/index";
 import { DISCLAIMER, getEndpointByPath } from "../src/config/catalog";
+import { isolateCache } from "../src/lib/cache";
 import { clearServiceControlCache } from "../src/middleware/serviceControl";
-import { classifyOutcome } from "../src/middleware/telemetry";
+import { classifyOutcome, extractTelemetryError } from "../src/middleware/telemetry";
+import { classifyFacilitatorInitError } from "../src/middleware/x402";
 import type { Env } from "../src/types";
 
 function createMockDb(initialPaused = false) {
@@ -501,10 +503,199 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
   it("classifies telemetry outcomes deterministically", () => {
     expect(classifyOutcome(402, false, null)).toBe("CHALLENGED_402");
     expect(classifyOutcome(402, true, null)).toBe("VERIFY_FAILED");
+    expect(
+      classifyOutcome(402, true, { success: false, errorReason: "insufficient_funds" })
+    ).toBe("UNSETTLED_ERROR");
     expect(classifyOutcome(200, true, { success: true, transaction: "0xabc" })).toBe("SETTLED");
     expect(classifyOutcome(200, true, { success: false })).toBe("UNSETTLED_ERROR");
     expect(classifyOutcome(400, true, null)).toBe("UNSETTLED_ERROR");
     expect(classifyOutcome(502, true, null)).toBe("UNSETTLED_ERROR");
     expect(classifyOutcome(503, false, null)).toBe("UNSETTLED_ERROR");
+  });
+
+  it("extracts telemetry error reasons and classifies facilitator init failures", () => {
+    expect(
+      extractTelemetryError("FACILITATOR_INIT_429", "UNSETTLED_ERROR", null, null)
+    ).toBe("FACILITATOR_INIT_429");
+    expect(
+      extractTelemetryError(
+        null,
+        "UNSETTLED_ERROR",
+        { success: false, errorReason: "insufficient_balance" },
+        null
+      )
+    ).toBe("insufficient_balance");
+    expect(
+      extractTelemetryError(null, "VERIFY_FAILED", null, { error: "Payment required" })
+    ).toBe("MALFORMED_PAYMENT_HEADER");
+    expect(
+      extractTelemetryError(null, "VERIFY_FAILED", null, { error: "invalid_signature" })
+    ).toBe("invalid_signature");
+    expect(
+      extractTelemetryError(null, "CHALLENGED_402", null, { error: "Payment required" })
+    ).toBeNull();
+
+    expect(classifyFacilitatorInitError(new Error("Request timed out after 5000ms"))).toBe(
+      "FACILITATOR_INIT_TIMEOUT"
+    );
+    expect(classifyFacilitatorInitError(Object.assign(new Error("Auth failed"), { status: 401 }))).toBe(
+      "FACILITATOR_INIT_401"
+    );
+    expect(classifyFacilitatorInitError(new Error("HTTP 403 Forbidden"))).toBe(
+      "FACILITATOR_INIT_403"
+    );
+    expect(classifyFacilitatorInitError(new Error("429 Too Many Requests"))).toBe(
+      "FACILITATOR_INIT_429"
+    );
+    expect(classifyFacilitatorInitError(new Error("Facilitator returned 503"))).toBe(
+      "FACILITATOR_INIT_5XX"
+    );
+    expect(classifyFacilitatorInitError(new Error("unexpected socket reset"))).toBe(
+      "FACILITATOR_INIT_ERROR"
+    );
+    expect(
+      classifyFacilitatorInitError(
+        new Error("Failed to initialize: no supported payment kinds loaded from any facilitator.", {
+          cause: new Error("HTTP 401 Unauthorized"),
+        })
+      )
+    ).toBe("FACILITATOR_INIT_401");
+    expect(
+      classifyFacilitatorInitError(
+        new Error("Failed to initialize: no supported payment kinds loaded from any facilitator.", {
+          cause: Object.assign(new Error("boom"), { status: 429 }),
+        })
+      )
+    ).toBe("FACILITATOR_INIT_429");
+    expect(
+      classifyFacilitatorInitError(
+        new Error("Failed to initialize: no supported payment kinds loaded from any facilitator.", {
+          cause: new Error("fetch timed out"),
+        })
+      )
+    ).toBe("FACILITATOR_INIT_TIMEOUT");
+  });
+
+  it("includes verify_failed_count in /dashboard/api/overview and bypasses stale service_control cache on refresh=1 and /control", async () => {
+    isolateCache.clear();
+    let dbPaused = 0;
+    const overviewDb = {
+      prepare(sql: string) {
+        return {
+          bind() {
+            return this;
+          },
+          async first<T>() {
+            if (sql.includes("FROM service_control")) {
+              return { paused: dbPaused, updated_at: "2026-11-26T00:00:00.000Z" } as T;
+            }
+            return null as T;
+          },
+          async all<T>() {
+            return {
+              results: [
+                {
+                  endpoint: "/v1/perps/snapshot",
+                  total_requests: 5,
+                  settled_count: 1,
+                  revenue_usd: 0.005,
+                  challenged_count: 2,
+                  verify_failed_count: 1,
+                  error_count: 1,
+                  sum_latency_ms: 500,
+                  avg_latency_ms: 100,
+                  total_requests_24h: 5,
+                  settled_count_24h: 1,
+                  revenue_usd_24h: 0.005,
+                  challenged_count_24h: 2,
+                  verify_failed_count_24h: 1,
+                  error_count_24h: 1,
+                  mcp_requests: 0,
+                  mcp_settled: 0,
+                  mcp_requests_24h: 0,
+                  mcp_settled_24h: 0,
+                },
+              ] as T[],
+            };
+          },
+        };
+      },
+    } as unknown as D1Database;
+
+    const env = makeEnv(overviewDb);
+    const firstOverview = await app.request(
+      "http://localhost:8787/dashboard/api/overview",
+      { headers: { Authorization: `Bearer ${env.DASHBOARD_TOKEN}` } },
+      env
+    );
+    expect(firstOverview.status).toBe(200);
+    const firstBody = (await firstOverview.json()) as {
+      control: { paused: boolean };
+      by_endpoint: Array<{ endpoint: string; verify_failed_count: number }>;
+    };
+    expect(firstBody.control.paused).toBe(false);
+    expect(firstBody.by_endpoint[0]?.verify_failed_count).toBe(1);
+
+    // Simulate another isolate flipping service_control in D1 while this isolate's cache still has paused=false
+    dbPaused = 1;
+
+    const controlRes = await app.request(
+      "http://localhost:8787/dashboard/api/control",
+      { headers: { Authorization: `Bearer ${env.DASHBOARD_TOKEN}` } },
+      env
+    );
+    expect(controlRes.status).toBe(200);
+    expect(((await controlRes.json()) as { paused: boolean }).paused).toBe(true);
+
+    // Reset cache back to stale false and verify ?refresh=1 bypasses both overview and pause caches
+    isolateCache.set("service_control:state", { paused: false, updated_at: null }, 60_000);
+    const refreshedOverview = await app.request(
+      "http://localhost:8787/dashboard/api/overview?refresh=1",
+      { headers: { Authorization: `Bearer ${env.DASHBOARD_TOKEN}` } },
+      env
+    );
+    expect(refreshedOverview.status).toBe(200);
+    expect(((await refreshedOverview.json()) as { control: { paused: boolean } }).control.paused).toBe(
+      true
+    );
+  });
+
+  it("prunes both CHALLENGED_402 and VERIFY_FAILED rows without touching SETTLED", async () => {
+    const boundCalls: unknown[][] = [];
+    const mockDb = {
+      prepare(sql: string) {
+        let args: unknown[] = [];
+        return {
+          bind(...params: unknown[]) {
+            args = params;
+            boundCalls.push(params);
+            return this;
+          },
+          async run() {
+            expect(sql).toContain("DELETE FROM api_requests");
+            expect(sql).toContain("WHERE outcome = ? AND created_at < ?");
+            return { meta: { changes: args[0] === "CHALLENGED_402" ? 42 : 7 } };
+          },
+        };
+      },
+    } as unknown as D1Database;
+
+    const totalDeleted = await pruneOldChallengedRequests(mockDb);
+    expect(totalDeleted).toBe(49);
+    expect(boundCalls.map((b) => b[0])).toEqual(["CHALLENGED_402", "VERIFY_FAILED"]);
+  });
+
+  it("sets Cache-Control: no-cache on /dashboard and renders Verify Failed column in dashboard HTML", () => {
+    const headersFile = readFileSync(resolve(process.cwd(), "public/_headers"), "utf8");
+    expect(headersFile).toMatch(/\/dashboard\r?\n\s+Cache-Control:\s*no-cache/);
+    expect(headersFile).toMatch(/\/dashboard\/\*\r?\n\s+Cache-Control:\s*no-cache/);
+
+    const dashboardHtml = readFileSync(
+      resolve(process.cwd(), "public/dashboard/index.html"),
+      "utf8"
+    );
+    expect(dashboardHtml).toContain("<th>Verify Failed</th>");
+    expect(dashboardHtml).toContain("verify_failed_count");
+    expect(dashboardHtml).toContain("loadRequestsOnly");
   });
 });

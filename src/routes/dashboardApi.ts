@@ -90,7 +90,7 @@ export async function dashboardOverviewHandler(c: Context<AppBindings>) {
   }
 
   try {
-    const control = await getServiceControlState(db);
+    const control = await getServiceControlState(db, isolateCache, forceRefresh);
     const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
     // Single-pass aggregate scan (replaces 3 separate full-table scans to stay well within D1 free-tier row reads)
@@ -193,6 +193,7 @@ export async function dashboardOverviewHandler(c: Context<AppBindings>) {
         settled_count: rSettled,
         revenue_usd: Math.round(rRev * 10000) / 10000,
         challenged_count: rChallenged,
+        verify_failed_count: rVerifyFailed,
         error_count: rError,
         avg_latency_ms: Number(row.avg_latency_ms || 0),
       };
@@ -322,7 +323,7 @@ export async function dashboardRequestsHandler(c: Context<AppBindings>) {
 
 export async function dashboardGetControlHandler(c: Context<AppBindings>) {
   try {
-    const control = await getServiceControlState(c.env.DB);
+    const control = await getServiceControlState(c.env.DB, isolateCache, true);
     return c.json(control);
   } catch (err) {
     return d1ErrorResponse(c, err);

@@ -142,13 +142,80 @@ async function getOrCreateInstance(
   return creating;
 }
 
+const FACILITATOR_RETRY_DELAY_MS = 150;
+
+export function classifyFacilitatorInitError(err: unknown): string {
+  const seen = new Set<unknown>();
+  const messages: string[] = [];
+  const names: string[] = [];
+  const statuses: number[] = [];
+
+  let current: unknown = err;
+  for (let depth = 0; depth < 4 && current !== null && current !== undefined; depth++) {
+    if (seen.has(current)) break;
+    seen.add(current);
+
+    if (current instanceof Error) {
+      names.push(current.name);
+      messages.push(current.message);
+    } else if (typeof current === "string") {
+      messages.push(current);
+    }
+
+    if (typeof current === "object") {
+      const obj = current as { status?: unknown; statusCode?: unknown; cause?: unknown };
+      if (typeof obj.status === "number") statuses.push(obj.status);
+      if (typeof obj.statusCode === "number") statuses.push(obj.statusCode);
+      current = obj.cause;
+    } else {
+      break;
+    }
+  }
+
+  const combinedMsg = messages.join(" ");
+  if (
+    names.includes("AbortError") ||
+    /timeout|timed out|abort/i.test(combinedMsg)
+  ) {
+    return "FACILITATOR_INIT_TIMEOUT";
+  }
+  if (statuses.includes(401) || /\b401\b|unauthorized/i.test(combinedMsg)) {
+    return "FACILITATOR_INIT_401";
+  }
+  if (statuses.includes(403) || /\b403\b|forbidden/i.test(combinedMsg)) {
+    return "FACILITATOR_INIT_403";
+  }
+  if (statuses.includes(429) || /\b429\b|rate limit|too many requests/i.test(combinedMsg)) {
+    return "FACILITATOR_INIT_429";
+  }
+  if (
+    statuses.some((s) => s >= 500 && s <= 599) ||
+    /\b5\d{2}\b/.test(combinedMsg)
+  ) {
+    return "FACILITATOR_INIT_5XX";
+  }
+  return "FACILITATOR_INIT_ERROR";
+}
+
+async function initializeWithRetry(resourceServer: x402ResourceServer): Promise<void> {
+  try {
+    await resourceServer.initialize();
+  } catch (firstErr) {
+    const kind = classifyFacilitatorInitError(firstErr);
+    if (kind === "FACILITATOR_INIT_401" || kind === "FACILITATOR_INIT_403") {
+      throw firstErr;
+    }
+    await new Promise((resolve) => setTimeout(resolve, FACILITATOR_RETRY_DELAY_MS));
+    await resourceServer.initialize();
+  }
+}
+
 async function ensureInitialized(instance: MemoizedX402Instance): Promise<void> {
   if (instance.initialized) {
     return;
   }
   if (!instance.initPromise) {
-    instance.initPromise = instance.resourceServer
-      .initialize()
+    instance.initPromise = initializeWithRetry(instance.resourceServer)
       .then(() => {
         instance.initialized = true;
       })
@@ -208,7 +275,7 @@ export const x402PaywallMiddleware: MiddlewareHandler<AppBindings> = async (c, n
   } catch (err) {
     const detail = err instanceof Error ? err.message : "Facilitator initialization failed";
     console.error("x402 facilitator error:", detail);
-    c.set("upstream_error", "FACILITATOR_INIT_ERROR");
+    c.set("upstream_error", classifyFacilitatorInitError(err));
     return c.json(
       {
         error: "FACILITATOR_UNAVAILABLE",
@@ -221,14 +288,17 @@ export const x402PaywallMiddleware: MiddlewareHandler<AppBindings> = async (c, n
   const response = await instance.middleware(c, next);
   const targetRes = response instanceof Response ? response : c.res;
   const contentType = targetRes.headers.get("content-type") || "";
-  if (targetRes.status === 402 && contentType.includes("text/html")) {
-    targetRes.headers.set("X-Content-Type-Options", "nosniff");
-    targetRes.headers.set("X-Frame-Options", "DENY");
-    targetRes.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-    targetRes.headers.set(
-      "Content-Security-Policy",
-      "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
-    );
+  if (targetRes.status === 402) {
+    targetRes.headers.set("Cache-Control", "no-store");
+    if (contentType.includes("text/html")) {
+      targetRes.headers.set("X-Content-Type-Options", "nosniff");
+      targetRes.headers.set("X-Frame-Options", "DENY");
+      targetRes.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+      targetRes.headers.set(
+        "Content-Security-Policy",
+        "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+      );
+    }
   }
   return response;
 };

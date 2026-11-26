@@ -11,11 +11,14 @@ export interface ServiceControlState {
 
 export async function getServiceControlState(
   db: D1Database | undefined,
-  cache: BoundedTtlCache = isolateCache
+  cache: BoundedTtlCache = isolateCache,
+  bypassCache: boolean = false
 ): Promise<ServiceControlState> {
-  const cached = cache.get<ServiceControlState>(PAUSE_CACHE_KEY);
-  if (cached.hit) {
-    return cached.value;
+  if (!bypassCache) {
+    const cached = cache.get<ServiceControlState>(PAUSE_CACHE_KEY);
+    if (cached.hit) {
+      return cached.value;
+    }
   }
 
   if (!db) {

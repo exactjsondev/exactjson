@@ -261,6 +261,23 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
       const sig = req.headers.get("PAYMENT-SIGNATURE");
       seenRequests.push({ url: req.url, transport, sig });
 
+      if (req.url.includes("coin=FAILSETTLE")) {
+        const failReceipt = {
+          success: false,
+          network: "eip155:8453",
+          payer: "0x2222222222222222222222222222222222222222",
+          transaction: "",
+          errorReason: "insufficient_funds",
+        };
+        return new Response(JSON.stringify({}), {
+          status: 402,
+          headers: {
+            "Content-Type": "application/json",
+            "PAYMENT-RESPONSE": encodeBase64Json(failReceipt),
+          },
+        });
+      }
+
       if (req.url.includes("coin=BAD")) {
         return new Response(JSON.stringify({ error: "NOT_FOUND" }), {
           status: 404,
@@ -382,6 +399,38 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
     };
     expect(errJson.result.isError).toBe(true);
     expect(errJson.result._meta).toBeUndefined();
+
+    // 4. Settlement failure returning 402 + PAYMENT-RESPONSE + "{}" body returns errorReason & _meta (not empty "{}")
+    const settleFailRes = await rpcCall(
+      {
+        jsonrpc: "2.0",
+        id: 24,
+        method: "tools/call",
+        params: {
+          name: "exactjson_perps_snapshot",
+          arguments: { coin: "FAILSETTLE" },
+          _meta: {
+            "x402/payment": { x402Version: 2, payload: { sig: "0xsigned" } },
+          },
+        },
+      },
+      env,
+      {},
+      testApp
+    );
+    const settleFailJson = (await settleFailRes.json()) as {
+      result: {
+        isError: boolean;
+        structuredContent: { error: string; payment_response?: { errorReason?: string } };
+        _meta?: { "x402/payment-response"?: { success: boolean; errorReason?: string } };
+      };
+    };
+    expect(settleFailJson.result.isError).toBe(true);
+    expect(settleFailJson.result.structuredContent.error).toBe("insufficient_funds");
+    expect(settleFailJson.result._meta?.["x402/payment-response"]?.success).toBe(false);
+    expect(settleFailJson.result._meta?.["x402/payment-response"]?.errorReason).toBe(
+      "insufficient_funds"
+    );
 
     expect(seenRequests.every((r) => r.transport === "mcp")).toBe(true);
   });
