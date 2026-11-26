@@ -4,10 +4,15 @@
   "mcpName": "io.github.exactjsondev/exactjson",
   "description": "ExactJSON — Live, deterministic x402 APIs for AI agents: 11 pay-per-call token safety, pre-trade slippage, perps funding/screener, prediction-market scanner & arb, options surface, and US macro endpoints on Base USDC.",
   "license": "MIT",
+  "author": "ExactJSON <hello@exactjson.com> (https://exactjson.com)",
   "type": "module",
+  "engines": {
+    "node": ">=18.18.0"
+  },
   "files": [
     "index.mjs",
-    "README.md"
+    "README.md",
+    "LICENSE"
   ],
   "keywords": [
     "exactjson",
@@ -32,6 +37,10 @@
     "type": "git",
     "url": "git+https://github.com/exactjsondev/exactjson.git",
     "directory": "mcp"
+  },
+  "bugs": {
+    "url": "https://github.com/exactjsondev/exactjson/issues",
+    "email": "hello@exactjson.com"
   },
   "homepage": "https://exactjson.com",
   "bin": {

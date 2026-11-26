@@ -143,6 +143,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(oa.info["x-guidance"]).not.toContain("/v1/predictions/scanner ($0.015");
     expect(oa.security).toEqual([]);
     const oaFull = oa as unknown as {
+      info?: { license?: { name: string; identifier: string } };
       externalDocs?: { url: string };
       components?: { schemas?: { ErrorResponse?: unknown; PaymentRequiredResponse?: unknown } };
       paths: Record<
@@ -154,6 +155,8 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
         }
       >;
     };
+    expect(oaFull.info?.license?.identifier).toBe("MIT");
+    expect(oaFull.info?.license?.name).toBe("MIT");
     expect(oaFull.externalDocs?.url).toBe("http://localhost:8787/docs");
     expect(oaFull.components?.schemas?.ErrorResponse).toBeDefined();
     expect(oaFull.components?.schemas?.PaymentRequiredResponse).toBeDefined();
@@ -183,6 +186,9 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(llmsText).toContain("http://localhost:8787/.well-known/agent-card.json");
     expect(llmsText).toContain("npx -y exactjson-mcp");
     expect(llmsText).toContain("https://github.com/exactjsondev/exactjson");
+    expect(llmsText).toContain("https://www.npmjs.com/package/exactjson-mcp");
+    expect(llmsText).toContain("https://glama.ai/mcp/servers/exactjsondev/exactjson");
+    expect(llmsText).toContain("https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc");
     expect(llmsText).toContain("## When to Use ExactJSON");
     expect(llmsText).toContain("## Recommended Agent Workflows");
     expect(llmsText).toContain("## Versioning & Deprecation Policy");
@@ -414,6 +420,12 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
       const body = await htmlPage.text();
       expect(body.length, pagePath).toBeGreaterThan(500);
       expect(body).toContain("apple-touch-icon.png");
+      expect(body).toContain('property="og:title"');
+      expect(body).toContain('property="og:image"');
+      expect(body).toContain('name="twitter:card"');
+      if (pagePath === "/docs") {
+        expect(body).toContain("https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc");
+      }
 
       const mdPage = await app.request(
         `http://localhost:8787${pagePath}`,

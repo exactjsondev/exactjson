@@ -25,6 +25,8 @@ const REPO_URL = "https://github.com/exactjsondev/exactjson";
 const CONTACT_EMAIL = "hello@exactjson.com";
 const MCP_PACKAGE = "exactjson-mcp";
 const MCP_REGISTRY_NAME = "io.github.exactjsondev/exactjson";
+const GLAMA_URL = "https://glama.ai/mcp/servers/exactjsondev/exactjson";
+const X402SCAN_URL = "https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc";
 const BRAND_HEADLINE = "ExactJSON — Live, deterministic x402 APIs for AI agents";
 
 export function resolveBaseUrl(c: Context<AppBindings>): string {
@@ -260,6 +262,11 @@ export function openApiHandler(c: Context<AppBindings>) {
         url: `${baseUrl}/contact`,
         email: CONTACT_EMAIL,
       },
+      license: {
+        name: "MIT",
+        identifier: "MIT",
+        url: `${REPO_URL}/blob/main/LICENSE`,
+      },
     },
     externalDocs: {
       description: "ExactJSON API Documentation & Versioning Policy",
@@ -361,6 +368,10 @@ export function buildLlmsTxt(baseUrl: string, network: string): string {
     `- Sitemap: ${baseUrl}/sitemap.xml`,
     `- Health Check: ${baseUrl}/health`,
     `- GitHub & Docs: ${REPO_URL}`,
+    `- npm MCP Package: https://www.npmjs.com/package/${MCP_PACKAGE}`,
+    `- Official MCP Registry: ${MCP_REGISTRY_NAME}`,
+    `- Glama MCP Listing: ${GLAMA_URL}`,
+    `- x402scan Listing: ${X402SCAN_URL}`,
     `- Contact: ${CONTACT_EMAIL}`,
     "",
     "## Disclaimer",
@@ -373,7 +384,7 @@ export function buildLlmsTxt(baseUrl: string, network: string): string {
 
 export function llmsTxtHandler(c: Context<AppBindings>) {
   const baseUrl = resolveBaseUrl(c);
-  const network = c.env.X402_NETWORK || "eip155:84532";
+  const network = c.env.X402_NETWORK || "eip155:8453";
 
   return c.text(buildLlmsTxt(baseUrl, network), 200, {
     "Content-Type": "text/plain; charset=utf-8",
@@ -535,6 +546,8 @@ export function mcpServerCardHandler(c: Context<AppBindings>) {
     },
     tools: buildMcpTools(),
     links: {
+      docs: `${baseUrl}/docs`,
+      pricing: `${baseUrl}/pricing`,
       mcp: `${baseUrl}/mcp`,
       x402: `${baseUrl}/.well-known/x402`,
       x402_json: `${baseUrl}/.well-known/x402.json`,
@@ -617,6 +630,9 @@ export function aboutPageHandler(c: Context<AppBindings>) {
     "",
     `- Fail-closed token safety: GoPlus + Honeypot.is (EVM) and RugCheck (Solana) return HTTP 502 if primary engines fail.`,
     `- Open source (MIT): ${REPO_URL}`,
+    `- npm MCP Package: https://www.npmjs.com/package/${MCP_PACKAGE} (${MCP_REGISTRY_NAME})`,
+    `- Glama MCP Listing: ${GLAMA_URL}`,
+    `- x402scan Listing: ${X402SCAN_URL}`,
     `- Contact: ${CONTACT_EMAIL}`,
     "",
     DISCLAIMER,
@@ -632,7 +648,9 @@ export function contactPageHandler(c: Context<AppBindings>) {
     "",
     `- Support Email: ${CONTACT_EMAIL}`,
     `- GitHub Issues: ${REPO_URL}/issues`,
-    `- npm MCP Package: https://www.npmjs.com/package/${MCP_PACKAGE}`,
+    `- npm MCP Package: https://www.npmjs.com/package/${MCP_PACKAGE} (${MCP_REGISTRY_NAME})`,
+    `- Glama MCP Listing: ${GLAMA_URL}`,
+    `- x402scan Listing: ${X402SCAN_URL}`,
     `- Live Status: ${baseUrl}/health`,
     "",
     "Never send private keys or seed phrases; EIP-3009 signing happens strictly client-side.",

@@ -1,0 +1,33 @@
+name: Publish exactjson-mcp
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "mcp-v*"
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: node --check mcp/index.mjs
+      - working-directory: mcp
+        run: npm pack --dry-run
+      # Note: NPM_TOKEN can be removed once npm Trusted Publishing (OIDC) is configured on npmjs.com.
+      - working-directory: mcp
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

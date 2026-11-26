@@ -36,6 +36,7 @@ describe("ExactJSON clean-slate brand hygiene and MCP contract parity", () => {
   it("contains zero legacy identifiers or legacy wallet addresses across the entire workspace", () => {
     const requiredFiles = [
       "LICENSE",
+      "SECURITY.md",
       "migrations/0001_init.sql",
       "migrations/0002_transport.sql",
       "package.json",
@@ -47,6 +48,7 @@ describe("ExactJSON clean-slate brand hygiene and MCP contract parity", () => {
       "mcp/server.json",
       "mcp/index.mjs",
       "mcp/README.md",
+      "mcp/LICENSE",
       "skills/exactjson/SKILL.md",
       "scripts/test-payment.ts",
     ];
@@ -54,6 +56,10 @@ describe("ExactJSON clean-slate brand hygiene and MCP contract parity", () => {
     for (const rel of requiredFiles) {
       expect(existsSync(resolve(ROOT, rel)), `Missing required file: ${rel}`).toBe(true);
     }
+
+    expect(readFileSync(resolve(ROOT, "mcp/LICENSE"), "utf8").trim()).toBe(
+      readFileSync(resolve(ROOT, "LICENSE"), "utf8").trim()
+    );
 
     const files = collectFiles(ROOT);
     const violations: string[] = [];
@@ -92,12 +98,20 @@ describe("ExactJSON clean-slate brand hygiene and MCP contract parity", () => {
       name: string;
       version: string;
       mcpName: string;
+      author: string;
+      bugs: { url: string };
+      engines: { node: string };
+      files: string[];
       homepage: string;
       bin: Record<string, string>;
     };
     expect(mcpPkg.name).toBe("exactjson-mcp");
     expect(mcpPkg.version).toBe("1.1.0");
     expect(mcpPkg.mcpName).toBe("io.github.exactjsondev/exactjson");
+    expect(mcpPkg.author).toContain("ExactJSON");
+    expect(mcpPkg.bugs.url).toBe("https://github.com/exactjsondev/exactjson/issues");
+    expect(mcpPkg.engines.node).toBe(">=18.18.0");
+    expect(mcpPkg.files).toContain("LICENSE");
     expect(mcpPkg.homepage).toBe("https://exactjson.com");
     expect(mcpPkg.bin["exactjson-mcp"]).toBe("index.mjs");
 

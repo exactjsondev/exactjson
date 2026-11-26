@@ -9,6 +9,8 @@ import {
 
 // IMPORTANT: Never import @x402/* or @coinbase/x402 in this file to keep GET / cold starts < 10ms.
 
+const X402SCAN_URL = "https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc";
+
 function escapeHtml(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -290,6 +292,7 @@ function renderBrandJsonLd(baseUrl: string, includeOffers = false): string {
       "https://github.com/exactjsondev/exactjson",
       "https://www.npmjs.com/package/exactjson-mcp",
       "https://glama.ai/mcp/servers/exactjsondev/exactjson",
+      X402SCAN_URL,
     ],
     contactPoint: {
       "@type": "ContactPoint",
@@ -358,7 +361,19 @@ function renderHtmlPageShell(opts: {
   <link rel="canonical" href="${escapeHtml(canonicalUrl)}">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="32x32">
-  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">${jsonLdScript}
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="${escapeHtml(opts.title)}">
+  <meta property="og:description" content="${escapeHtml(opts.description)}">
+  <meta property="og:url" content="${escapeHtml(canonicalUrl)}">
+  <meta property="og:image" content="${escapeHtml(opts.baseUrl)}/og-image.jpg">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${escapeHtml(opts.title)}">
+  <meta name="twitter:description" content="${escapeHtml(opts.description)}">
+  <meta name="twitter:image" content="${escapeHtml(opts.baseUrl)}/og-image.jpg">${jsonLdScript}
   <style>${SHARED_CSS}  </style>
 </head>
 <body>
@@ -386,7 +401,7 @@ function renderHtmlPageShell(opts: {
 
     <footer>
       <div>${escapeHtml(DISCLAIMER)}</div>
-      <div><a href="${escapeHtml(opts.baseUrl)}/docs">Docs</a> · <a href="${escapeHtml(opts.baseUrl)}/pricing">Pricing</a> · <a href="${escapeHtml(opts.baseUrl)}/about">About</a> · <a href="${escapeHtml(opts.baseUrl)}/contact">Contact</a> · <a href="${escapeHtml(opts.baseUrl)}/privacy">Privacy</a> · <a href="mailto:hello@exactjson.com">hello@exactjson.com</a></div>
+      <div><a href="${escapeHtml(opts.baseUrl)}/docs">Docs</a> · <a href="${escapeHtml(opts.baseUrl)}/pricing">Pricing</a> · <a href="${escapeHtml(opts.baseUrl)}/about">About</a> · <a href="${escapeHtml(opts.baseUrl)}/contact">Contact</a> · <a href="${escapeHtml(opts.baseUrl)}/privacy">Privacy</a> · <a href="mailto:hello@exactjson.com">hello@exactjson.com</a> · <a href="https://github.com/exactjsondev/exactjson">GitHub</a> · <a href="https://www.npmjs.com/package/exactjson-mcp">npm</a></div>
     </footer>
   </div>
 </body>
@@ -973,7 +988,7 @@ export function renderAboutHtml(baseUrl: string, network: string): string {
       </div>
       <div class="card">
         <h2>Open Source &amp; Machine Discovery</h2>
-        <p>Source code, tests, and the <code>exactjson-mcp</code> stdio package are published under the MIT license on <a href="https://github.com/exactjsondev/exactjson">GitHub</a> and <a href="https://www.npmjs.com/package/exactjson-mcp">npm</a>, with full discovery via OpenAPI 3.1, RFC 9727 API Catalog, A2A Agent Card, and MCP Server Card.</p>
+        <p>Source code, tests, and the <code>exactjson-mcp</code> stdio package are published under the MIT license on <a href="https://github.com/exactjsondev/exactjson">GitHub</a> and <a href="https://www.npmjs.com/package/exactjson-mcp">npm</a> (Official MCP Registry ID: <code>io.github.exactjsondev/exactjson</code>), listed on <a href="${escapeHtml(X402SCAN_URL)}">x402scan</a> and <a href="https://glama.ai/mcp/servers/exactjsondev/exactjson">Glama</a>, with full discovery via OpenAPI 3.1, RFC 9727 API Catalog, A2A Agent Card, and MCP Server Card.</p>
       </div>
     </section>`;
 
@@ -1005,7 +1020,7 @@ export function renderContactHtml(baseUrl: string): string {
       </div>
       <div class="card">
         <h2>Bug Reports &amp; Community</h2>
-        <p>Open technical issues or pull requests on <a href="https://github.com/exactjsondev/exactjson/issues">GitHub Issues</a>, inspect the stdio package on <a href="https://www.npmjs.com/package/exactjson-mcp">npm (exactjson-mcp)</a>, or view our <a href="https://glama.ai/mcp/servers/exactjsondev/exactjson">Glama MCP listing</a>.</p>
+        <p>Open technical issues or pull requests on <a href="https://github.com/exactjsondev/exactjson/issues">GitHub Issues</a>, inspect the stdio package on <a href="https://www.npmjs.com/package/exactjson-mcp">npm (exactjson-mcp)</a> (Official MCP Registry: <code>io.github.exactjsondev/exactjson</code>), or view our <a href="https://glama.ai/mcp/servers/exactjsondev/exactjson">Glama MCP</a> and <a href="${escapeHtml(X402SCAN_URL)}">x402scan</a> listings.</p>
       </div>
     </section>
 
@@ -1102,10 +1117,11 @@ export function renderNotFoundHtml(baseUrl: string, requestedPath: string): stri
       <span class="badge warn">HTTP 404</span>
       <h1 style="margin-top: 0.75rem;">Page not found</h1>
       <p class="lead">
-        No ${escapeHtml(SERVICE_NAME)} route matches <code>${escapeHtml(requestedPath)}</code>. All documentation, pricing, and quickstart guides live on the main page.
+        No ${escapeHtml(SERVICE_NAME)} route matches <code>${escapeHtml(requestedPath)}</code>. Browse our documentation, pricing, or machine discovery specs below.
       </p>
       <div class="hero-actions">
-        <a class="btn primary" href="${escapeHtml(baseUrl)}/">Go to ExactJSON Docs</a>
+        <a class="btn primary" href="${escapeHtml(baseUrl)}/docs">Go to ExactJSON Docs</a>
+        <a class="btn" href="${escapeHtml(baseUrl)}/pricing">Pricing</a>
         <a class="btn" href="${escapeHtml(baseUrl)}/#endpoints">View All ${CATALOG.length} Endpoints</a>
         <a class="btn" href="${escapeHtml(baseUrl)}/openapi.json">OpenAPI 3.1</a>
         <a class="btn" href="${escapeHtml(baseUrl)}/llms.txt">llms.txt</a>
