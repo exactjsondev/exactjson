@@ -8,6 +8,7 @@ import {
 } from "../config/catalog";
 import { negotiateContentType } from "../lib/contentNegotiation";
 import { buildMcpTools } from "../lib/mcpTools";
+import { applyHtmlSecurityHeaders, resolveBaseUrl } from "../lib/securityHeaders";
 import { getServiceControlState } from "../middleware/serviceControl";
 import type { AppBindings } from "../types";
 import {
@@ -29,13 +30,7 @@ const GLAMA_URL = "https://glama.ai/mcp/servers/exactjsondev/exactjson";
 const X402SCAN_URL = "https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc";
 const BRAND_HEADLINE = "ExactJSON — Live, deterministic x402 APIs for AI agents";
 
-export function resolveBaseUrl(c: Context<AppBindings>): string {
-  const configured = c.env.PUBLIC_BASE_URL?.trim();
-  if (configured && configured.length > 0) {
-    return configured.replace(/\/+$/, "");
-  }
-  return new URL(c.req.url).origin;
-}
+export { resolveBaseUrl };
 
 export async function indexHandler(c: Context<AppBindings>) {
   const baseUrl = resolveBaseUrl(c);
@@ -58,12 +53,7 @@ export async function indexHandler(c: Context<AppBindings>) {
   );
 
   if (format === "html") {
-    c.header("X-Frame-Options", "DENY");
-    c.header("Referrer-Policy", "strict-origin-when-cross-origin");
-    c.header(
-      "Content-Security-Policy",
-      "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
-    );
+    applyHtmlSecurityHeaders(c);
     return c.html(renderLandingHtml(baseUrl, network));
   }
 
@@ -583,12 +573,7 @@ function respondHtmlOrMarkdown(
     });
   }
 
-  c.header("X-Frame-Options", "DENY");
-  c.header("Referrer-Policy", "strict-origin-when-cross-origin");
-  c.header(
-    "Content-Security-Policy",
-    "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
-  );
+  applyHtmlSecurityHeaders(c);
   return c.html(htmlBody);
 }
 

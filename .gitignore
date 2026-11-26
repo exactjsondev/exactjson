@@ -9,6 +9,7 @@ node_modules/
 
 # Cloudflare Wrangler local state & build output
 .wrangler/
+.worktrees/
 dist/
 
 # Test & debug artifacts

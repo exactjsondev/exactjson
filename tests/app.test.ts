@@ -346,6 +346,8 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(htmlBrowser.headers.get("x-content-type-options")).toBe("nosniff");
     expect(htmlBrowser.headers.get("x-frame-options")).toBe("DENY");
     expect(htmlBrowser.headers.get("referrer-policy")).toBe("strict-origin-when-cross-origin");
+    expect(htmlBrowser.headers.get("permissions-policy")).toBe("camera=(), microphone=(), geolocation=()");
+    expect(htmlBrowser.headers.get("strict-transport-security")).toBe("max-age=31536000; includeSubDomains");
     expect(htmlBrowser.headers.get("content-security-policy")).toContain("default-src 'none'");
     expect(htmlBrowser.headers.get("link")).toContain('rel="api-catalog"');
     const html = await htmlBrowser.text();
@@ -587,6 +589,23 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(nullBodyRes.status).toBe(400);
     expect(((await nullBodyRes.json()) as { error: string }).error).toBe("INVALID_PAYLOAD");
 
+    // Oversized JSON body on /dashboard/api/control must return 413 PAYLOAD_TOO_LARGE
+    const hugeControlBody = JSON.stringify({ paused: false, pad: "x".repeat(5000) });
+    const hugeControlRes = await app.request(
+      "http://localhost:8787/dashboard/api/control",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.DASHBOARD_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: hugeControlBody,
+      },
+      env
+    );
+    expect(hugeControlRes.status).toBe(413);
+    expect(((await hugeControlRes.json()) as { error: string }).error).toBe("PAYLOAD_TOO_LARGE");
+
     const blocked = await app.request("http://localhost:8787/v1/perps/snapshot?coin=BTC", {}, env);
     expect(blocked.status).toBe(503);
     const blockedBody = (await blocked.json()) as { error: string; message: string };
@@ -802,10 +821,14 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(boundCalls.map((b) => b[0])).toEqual(["CHALLENGED_402", "VERIFY_FAILED"]);
   });
 
-  it("sets Cache-Control: no-cache on /dashboard, caches apple-touch-icon.png, and renders Verify Failed column in dashboard HTML", () => {
+  it("sets Cache-Control: no-cache and strict script-src 'self' CSP on /dashboard, caches apple-touch-icon.png, and uses external app.js", () => {
     const headersFile = readFileSync(resolve(process.cwd(), "public/_headers"), "utf8");
     expect(headersFile).toMatch(/\/dashboard\r?\n\s+Cache-Control:\s*no-cache/);
+    expect(headersFile).toMatch(/\/dashboard\/app\.js\r?\n\s+Cache-Control:\s*no-cache/);
     expect(headersFile).toMatch(/\/dashboard\/\*\r?\n\s+Cache-Control:\s*no-cache/);
+    expect(headersFile).toContain("script-src 'self'; style-src");
+    expect(headersFile).not.toContain("script-src 'self' 'unsafe-inline'");
+    expect(headersFile).toContain("Strict-Transport-Security: max-age=31536000; includeSubDomains");
     expect(headersFile).toMatch(/\/apple-touch-icon\.png\r?\n\s+Cache-Control:\s*public, max-age=86400/);
 
     const appleIcon = readFileSync(resolve(process.cwd(), "public/apple-touch-icon.png"));
@@ -816,7 +839,14 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
       "utf8"
     );
     expect(dashboardHtml).toContain("<th>Verify Failed</th>");
-    expect(dashboardHtml).toContain("verify_failed_count");
-    expect(dashboardHtml).toContain("loadRequestsOnly");
+    expect(dashboardHtml).toContain('<script src="/dashboard/app.js" defer></script>');
+    expect(dashboardHtml).not.toContain("<script>");
+
+    const dashboardAppJs = readFileSync(
+      resolve(process.cwd(), "public/dashboard/app.js"),
+      "utf8"
+    );
+    expect(dashboardAppJs).toContain("verify_failed_count");
+    expect(dashboardAppJs).toContain("loadRequestsOnly");
   });
 });

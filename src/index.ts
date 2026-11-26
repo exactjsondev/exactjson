@@ -30,6 +30,7 @@ import {
 } from "./routes/discovery";
 import { getEndpointByPath } from "./config/catalog";
 import { negotiateContentType } from "./lib/contentNegotiation";
+import { applyHtmlSecurityHeaders } from "./lib/securityHeaders";
 import { renderNotFoundHtml } from "./routes/landingHtml";
 import { evmSafetyHandler } from "./routes/evmSafety";
 import { executionQuoteCheckHandler } from "./routes/executionQuoteCheck";
@@ -176,12 +177,7 @@ app.notFound((c) => {
   c.header("X-Content-Type-Options", "nosniff");
 
   if (format === "html") {
-    c.header("X-Frame-Options", "DENY");
-    c.header("Referrer-Policy", "strict-origin-when-cross-origin");
-    c.header(
-      "Content-Security-Policy",
-      "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
-    );
+    applyHtmlSecurityHeaders(c);
     return c.html(renderNotFoundHtml(baseUrl, path), 404);
   }
 

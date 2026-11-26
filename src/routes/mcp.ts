@@ -12,6 +12,11 @@ import {
 } from "../lib/mcpTools";
 import { markMcpInternalRequest } from "../lib/transport";
 import { prefersHtml } from "../lib/contentNegotiation";
+import {
+  applyHtmlSecurityHeaders,
+  readJsonBodyWithLimit,
+  resolveBaseUrl,
+} from "../lib/securityHeaders";
 import { renderMcpGuideHtml } from "./landingHtml";
 import type { AppBindings, Env } from "../types";
 
@@ -74,13 +79,7 @@ function resolveProtocolVersion(
   return DEFAULT_PROTOCOL_VERSION;
 }
 
-function resolveInternalOrigin(c: Context<AppBindings>): string {
-  const configured = c.env.PUBLIC_BASE_URL?.trim();
-  if (configured && configured.length > 0) {
-    return configured.replace(/\/+$/, "");
-  }
-  return new URL(c.req.url).origin;
-}
+const MAX_MCP_BODY_BYTES = 16_384;
 
 function applyMcpHeaders(c: Context<AppBindings>, protocolVersion: string): void {
   c.header("Cache-Control", "no-store");
@@ -179,7 +178,7 @@ async function handleHealthToolCall(
   c: Context<AppBindings>,
   dispatchInternal: InternalRequestDispatcher
 ): Promise<Record<string, unknown>> {
-  const origin = resolveInternalOrigin(c);
+  const origin = resolveBaseUrl(c);
   const req = new Request(`${origin}/health`, {
     method: "GET",
     headers: { Accept: "application/json" },
@@ -202,7 +201,7 @@ async function handlePaidToolCall(
   meta: Record<string, unknown> | undefined,
   dispatchInternal: InternalRequestDispatcher
 ): Promise<Record<string, unknown>> {
-  const origin = resolveInternalOrigin(c);
+  const origin = resolveBaseUrl(c);
   const url = buildToolTargetUrl(origin, entry.path, args);
   const headers = resolvePaymentHeaders(c, meta);
   const internalReq = markMcpInternalRequest(
@@ -270,12 +269,25 @@ export function createMcpHandler(dispatchInternal: InternalRequestDispatcher) {
   const mcpPostHandler = async (c: Context<AppBindings>) => {
     const defaultVersion = resolveProtocolVersion(c);
 
-    let payload: unknown;
-    try {
-      payload = await c.req.json();
-    } catch {
+    const parsedBody = await readJsonBodyWithLimit(c.req.raw, MAX_MCP_BODY_BYTES);
+    if (!parsedBody.ok) {
+      if (parsedBody.reason === "too_large") {
+        applyMcpHeaders(c, defaultVersion);
+        return c.json(
+          {
+            jsonrpc: "2.0",
+            id: null,
+            error: {
+              code: -32600,
+              message: `Request body exceeds ${MAX_MCP_BODY_BYTES} byte limit.`,
+            },
+          },
+          413
+        );
+      }
       return jsonRpcErrorResponse(c, 400, null, -32700, "Parse error", defaultVersion);
     }
+    const payload = parsedBody.data;
 
     if (
       !isPlainObject(payload) ||
@@ -420,13 +432,8 @@ export function createMcpHandler(dispatchInternal: InternalRequestDispatcher) {
     c.header("X-Content-Type-Options", "nosniff");
 
     if (c.req.method === "GET" && prefersHtml(c.req.header("accept"))) {
-      c.header("X-Frame-Options", "DENY");
-      c.header("Referrer-Policy", "strict-origin-when-cross-origin");
-      c.header(
-        "Content-Security-Policy",
-        "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
-      );
-      return c.html(renderMcpGuideHtml(resolveInternalOrigin(c)), 405);
+      applyHtmlSecurityHeaders(c);
+      return c.html(renderMcpGuideHtml(resolveBaseUrl(c)), 405);
     }
 
     return c.json(

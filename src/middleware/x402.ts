@@ -2,6 +2,7 @@ import type { MiddlewareHandler } from "hono";
 import type { Network, PaymentRequired } from "@x402/core/types";
 import type { PaywallProvider, RoutesConfig, x402ResourceServer } from "@x402/core/server";
 import { CATALOG, SERVICE_NAME, getEndpointByPath } from "../config/catalog";
+import { applyHtmlSecurityHeaders } from "../lib/securityHeaders";
 import { renderPaywallHtml } from "../routes/landingHtml";
 import type { AppBindings } from "../types";
 
@@ -291,13 +292,7 @@ export const x402PaywallMiddleware: MiddlewareHandler<AppBindings> = async (c, n
   if (targetRes.status === 402) {
     targetRes.headers.set("Cache-Control", "no-store");
     if (contentType.includes("text/html")) {
-      targetRes.headers.set("X-Content-Type-Options", "nosniff");
-      targetRes.headers.set("X-Frame-Options", "DENY");
-      targetRes.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-      targetRes.headers.set(
-        "Content-Security-Policy",
-        "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
-      );
+      applyHtmlSecurityHeaders(targetRes.headers);
     }
   }
   return response;

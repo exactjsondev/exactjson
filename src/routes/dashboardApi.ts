@@ -1,6 +1,7 @@
 import type { Context } from "hono";
 import { CATALOG, SERVICE_NAME, SERVICE_VERSION } from "../config/catalog";
 import { TTL_MS, isolateCache } from "../lib/cache";
+import { readJsonBodyWithLimit } from "../lib/securityHeaders";
 import { clampLimit } from "../lib/validation";
 import {
   getServiceControlState,
@@ -330,13 +331,23 @@ export async function dashboardGetControlHandler(c: Context<AppBindings>) {
   }
 }
 
+const MAX_CONTROL_BODY_BYTES = 4_096;
+
 export async function dashboardSetControlHandler(c: Context<AppBindings>) {
-  let body: unknown;
-  try {
-    body = await c.req.json();
-  } catch {
+  const parsedBody = await readJsonBodyWithLimit(c.req.raw, MAX_CONTROL_BODY_BYTES);
+  if (!parsedBody.ok) {
+    if (parsedBody.reason === "too_large") {
+      return c.json(
+        {
+          error: "PAYLOAD_TOO_LARGE",
+          message: `Request body exceeds ${MAX_CONTROL_BODY_BYTES} byte limit.`,
+        },
+        413
+      );
+    }
     return c.json({ error: "INVALID_JSON", message: "Expected JSON body { paused: boolean }." }, 400);
   }
+  const body = parsedBody.data;
 
   if (
     body === null ||

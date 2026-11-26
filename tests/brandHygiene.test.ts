@@ -16,7 +16,7 @@ const FORBIDDEN_PATTERNS: readonly RegExp[] = [
   ),
 ];
 
-const IGNORED_DIRS = new Set([".git", "node_modules", ".wrangler", "dist", "coverage"]);
+const IGNORED_DIRS = new Set([".git", "node_modules", ".wrangler", ".worktrees", "dist", "coverage"]);
 
 function collectFiles(targetPath: string, out: string[] = []): string[] {
   if (!existsSync(targetPath)) return out;

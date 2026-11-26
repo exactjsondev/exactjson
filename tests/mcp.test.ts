@@ -234,6 +234,35 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
     const delRes = await app.request("http://localhost:8787/mcp", { method: "DELETE" }, env);
     expect(delRes.status).toBe(405);
 
+    // Oversized JSON-RPC body must return 413 (both with Content-Length and streaming without Content-Length)
+    const oversizedPayload = JSON.stringify({
+      jsonrpc: "2.0",
+      id: 12,
+      method: "ping",
+      params: { pad: "a".repeat(17_000) },
+    });
+    const tooBigRes = await rpcCall(oversizedPayload, env);
+    expect(tooBigRes.status).toBe(413);
+    expect(((await tooBigRes.json()) as { error: { code: number } }).error.code).toBe(-32600);
+
+    const streamBody = new ReadableStream<Uint8Array>({
+      start(controller) {
+        const bytes = new TextEncoder().encode(oversizedPayload);
+        controller.enqueue(bytes.subarray(0, 9_000));
+        controller.enqueue(bytes.subarray(9_000));
+        controller.close();
+      },
+    });
+    const streamReq = new Request("http://localhost:8787/mcp", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: streamBody,
+      // @ts-expect-error duplex required by Node Request for ReadableStream bodies
+      duplex: "half",
+    });
+    const streamTooBigRes = await app.fetch(streamReq, env);
+    expect(streamTooBigRes.status).toBe(413);
+
     const optRes = await app.request(
       "http://localhost:8787/mcp",
       {

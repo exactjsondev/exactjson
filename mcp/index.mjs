@@ -10,6 +10,17 @@ const BASE_URL = (process.env.EXACTJSON_BASE_URL?.trim() || "https://exactjson.c
   /\/+$/,
   ""
 );
+const parsedBaseUrl = new URL(BASE_URL);
+const isLocalHost =
+  parsedBaseUrl.hostname === "localhost" ||
+  parsedBaseUrl.hostname === "127.0.0.1" ||
+  parsedBaseUrl.hostname === "::1" ||
+  parsedBaseUrl.hostname === "[::1]";
+if (parsedBaseUrl.protocol !== "https:" && !(parsedBaseUrl.protocol === "http:" && isLocalHost)) {
+  throw new Error(
+    `Unsafe EXACTJSON_BASE_URL protocol '${parsedBaseUrl.protocol}': HTTPS is required for non-localhost hosts.`
+  );
+}
 const MAX_PAYMENT = process.env.MAX_PAYMENT_USD?.trim() || "$0.05";
 const REQUEST_TIMEOUT_MS = 20_000;
 

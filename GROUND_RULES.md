@@ -21,5 +21,6 @@ Every engineer and AI assistant working in this repository MUST follow these rul
 ## 3. Brand & Quality Discipline
 - Always pair **ExactJSON** with its positioning descriptor (`"Live, deterministic x402 APIs for AI agents"`) in public titles and directory listings.
 - Keep endpoint prices in `src/config/catalog.ts` as the single source of truth; derive discovery prose from `CATALOG`.
-- Every change must pass `npx tsc --noEmit` and `npm test` (including `tests/brandHygiene.test.ts`) with zero errors before `npx wrangler deploy` or `git push`.
+- Use short-lived feature branches or isolated worktrees (sibling `..\exactjson-wt\<task>` or `.worktrees/`) for changes—never run two concurrent editing sessions directly on `main`.
+- Every change must pass `npm run verify` (`typecheck`, `lint`, `test` incl. `tests/brandHygiene.test.ts`, `sync:check`, `node --check mcp/index.mjs`, and `wrangler deploy --dry-run`) with zero errors before `npx wrangler deploy` or `git push`.
 - **Secrets hygiene:** Never paste, print, or commit `.dev.vars`, `CDP_API_KEY_ID`, `CDP_API_KEY_SECRET`, `DASHBOARD_TOKEN`, or wallet private keys.
