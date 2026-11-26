@@ -17,8 +17,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npm run typecheck
@@ -26,8 +25,5 @@ jobs:
       - run: node --check mcp/index.mjs
       - working-directory: mcp
         run: npm pack --dry-run
-      # Note: NPM_TOKEN can be removed once npm Trusted Publishing (OIDC) is configured on npmjs.com.
       - working-directory: mcp
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
