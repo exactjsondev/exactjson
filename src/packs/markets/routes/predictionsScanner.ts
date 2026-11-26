@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { BoundedTtlCache, isolateCache } from "../../../lib/cache";
+import { type BoundedTtlCache, referenceCache } from "../../../lib/cache";
 import { UpstreamError } from "../../../lib/http";
 import { fetchKalshiMarkets } from "../providers/kalshi";
 import { fetchPolymarketMarkets } from "../providers/polymarket";
@@ -39,7 +39,7 @@ function parseOptionalNumber(
 }
 
 export function createPredictionsScannerHandler(deps: PredictionsScannerDeps = {}) {
-  const cache = deps.cache ?? isolateCache;
+  const cache = deps.cache ?? referenceCache;
   const fetchImpl = deps.fetchImpl ?? fetch;
 
   return async (c: Context<AppBindings>) => {

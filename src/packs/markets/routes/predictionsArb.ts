@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { BoundedTtlCache, isolateCache } from "../../../lib/cache";
+import { type BoundedTtlCache, referenceCache } from "../../../lib/cache";
 import { UpstreamError } from "../../../lib/http";
 import { fetchKalshiMarkets } from "../providers/kalshi";
 import { fetchPolymarketMarkets } from "../providers/polymarket";
@@ -33,7 +33,7 @@ function parseOptionalNumber(
 }
 
 export function createPredictionsArbHandler(deps: PredictionsArbDeps = {}) {
-  const cache = deps.cache ?? isolateCache;
+  const cache = deps.cache ?? referenceCache;
   const fetchImpl = deps.fetchImpl ?? fetch;
   const nowProvider = deps.nowMs ?? (() => Date.now());
 

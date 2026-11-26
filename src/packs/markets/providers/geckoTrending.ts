@@ -1,4 +1,4 @@
-import { type BoundedTtlCache, TTL_MS, isolateCache, withTwoTierCache } from "../../../lib/cache";
+import { type BoundedTtlCache, TTL_MS, referenceCache, withTwoTierCache } from "../../../lib/cache";
 import { UpstreamError, fetchJsonWithTimeout } from "../../../lib/http";
 import { roundTo, toFiniteNumber } from "../../../lib/numbers";
 import type { TrendingSolanaPool } from "../../../types";
@@ -106,7 +106,7 @@ export function parseTrendingSolanaPools(raw: unknown): TrendingSolanaPool[] {
 }
 
 export async function fetchTrendingSolanaPools(
-  cache: BoundedTtlCache = isolateCache,
+  cache: BoundedTtlCache = referenceCache,
   fetchImpl: typeof fetch = fetch,
   waitUntil?: (promise: Promise<unknown>) => void
 ): Promise<{ pools: TrendingSolanaPool[]; cacheHit: boolean }> {

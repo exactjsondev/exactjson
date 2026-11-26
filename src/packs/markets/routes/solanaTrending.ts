@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { BoundedTtlCache, isolateCache } from "../../../lib/cache";
+import { type BoundedTtlCache, isolateCache, referenceCache } from "../../../lib/cache";
 import { UpstreamError } from "../../../lib/http";
 import { fetchTrendingSolanaPools } from "../providers/geckoTrending";
 import { fetchRugCheckSummary } from "../providers/rugcheck";
@@ -33,6 +33,7 @@ function parseOptionalInt(
 
 export function createSolanaTrendingHandler(deps: SolanaTrendingDeps = {}) {
   const cache = deps.cache ?? isolateCache;
+  const trendingCache = deps.cache ?? referenceCache;
   const fetchImpl = deps.fetchImpl ?? fetch;
 
   return async (c: Context<AppBindings>) => {
@@ -61,7 +62,7 @@ export function createSolanaTrendingHandler(deps: SolanaTrendingDeps = {}) {
     const waitUntil = createWaitUntil(c);
     let poolsResult: Awaited<ReturnType<typeof fetchTrendingSolanaPools>>;
     try {
-      poolsResult = await fetchTrendingSolanaPools(cache, fetchImpl, waitUntil);
+      poolsResult = await fetchTrendingSolanaPools(trendingCache, fetchImpl, waitUntil);
     } catch (err) {
       const code = err instanceof UpstreamError ? err.code : "GECKOTERMINAL_ERROR";
       c.set("cache_status", "MISS");

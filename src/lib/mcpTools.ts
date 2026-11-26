@@ -76,7 +76,7 @@ export function toMcpToolInputSchema(inputSchema: EndpointInputSchema): Record<s
 
     if (rawProp.example !== undefined) {
       if (resolvedType === "integer" && Number.isFinite(Number(rawProp.example))) {
-        nextProp.example = Number.parseInt(rawProp.example, 10);
+        nextProp.example = Math.trunc(Number(rawProp.example));
       } else if (resolvedType === "number" && Number.isFinite(Number(rawProp.example))) {
         nextProp.example = Number(rawProp.example);
       } else if (resolvedType === "boolean") {

@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { BoundedTtlCache, isolateCache } from "../../../lib/cache";
+import { type BoundedTtlCache, referenceCache } from "../../../lib/cache";
 import { UpstreamError } from "../../../lib/http";
 import {
   fetchNyFedEffr,
@@ -32,7 +32,7 @@ function parseLookbackObs(raw: string | undefined): { ok: true; value: number } 
 }
 
 export function createMacroLiquidityHandler(deps: MacroLiquidityDeps = {}) {
-  const cache = deps.cache ?? isolateCache;
+  const cache = deps.cache ?? referenceCache;
   const fetchImpl = deps.fetchImpl ?? fetch;
 
   return async (c: Context<AppBindings>) => {

@@ -158,10 +158,10 @@ function buildZodShape(inputSchema) {
   return shape;
 }
 
+let paidFetchKey = null;
 let paidFetchPromise = null;
 
 async function getPaidFetch() {
-  if (paidFetchPromise) return paidFetchPromise;
   const rawKey = process.env.BUYER_PRIVATE_KEY?.trim();
   if (!rawKey) {
     throw new Error(
@@ -175,19 +175,28 @@ async function getPaidFetch() {
     );
   }
 
+  const cacheIdentity = `${normalizedKey}|${MAX_PAYMENT}`;
+  if (paidFetchPromise && paidFetchKey === cacheIdentity) {
+    return paidFetchPromise;
+  }
+
+  paidFetchKey = cacheIdentity;
   paidFetchPromise = Promise.all([
     import("@x402/evm/exact/client"),
     import("@x402/fetch"),
     import("viem/accounts"),
   ])
-    .then(([{ registerExactEvmScheme }, { wrapFetchWithPayment, x402Client }, { privateKeyToAccount }]) => {
-      const account = privateKeyToAccount(normalizedKey);
-      const client = new x402Client().setSpendControls({ maxAmountPerPayment: MAX_PAYMENT });
-      registerExactEvmScheme(client, { signer: account });
-      return wrapFetchWithPayment(fetch, client);
-    })
+    .then(
+      ([{ registerExactEvmScheme }, { wrapFetchWithPayment, x402Client }, { privateKeyToAccount }]) => {
+        const account = privateKeyToAccount(normalizedKey);
+        const client = new x402Client().setSpendControls({ maxAmountPerPayment: MAX_PAYMENT });
+        registerExactEvmScheme(client, { signer: account });
+        return wrapFetchWithPayment(fetch, client);
+      }
+    )
     .catch((err) => {
       paidFetchPromise = null;
+      paidFetchKey = null;
       throw err;
     });
 
@@ -197,8 +206,11 @@ async function getPaidFetch() {
 function buildUrl(path, params) {
   const url = new URL(`${BASE_URL}${path}`);
   for (const [k, v] of Object.entries(params)) {
-    if (v !== undefined && v !== null && String(v).trim().length > 0) {
-      url.searchParams.set(k, String(v));
+    if (v === undefined || v === null) continue;
+    if (typeof v === "number" && !Number.isFinite(v)) continue;
+    const str = String(v).trim();
+    if (str.length > 0) {
+      url.searchParams.set(k, str);
     }
   }
   return url.toString();

@@ -1,4 +1,4 @@
-import { type BoundedTtlCache, TTL_MS, isolateCache, withTwoTierCache } from "../../../lib/cache";
+import { type BoundedTtlCache, TTL_MS, referenceCache, withTwoTierCache } from "../../../lib/cache";
 import { UpstreamError, fetchJsonWithTimeout } from "../../../lib/http";
 import { toFiniteNumber } from "../../../lib/numbers";
 import type { VenuePerpMarket } from "../../../types";
@@ -83,7 +83,7 @@ export function parseDydxMarkets(raw: unknown): Map<string, VenuePerpMarket> {
 }
 
 export async function fetchDydxMarketsMap(
-  cache: BoundedTtlCache = isolateCache,
+  cache: BoundedTtlCache = referenceCache,
   fetchImpl: typeof fetch = fetch,
   waitUntil?: (promise: Promise<unknown>) => void
 ): Promise<{ map: Map<string, VenuePerpMarket>; cacheHit: boolean }> {

@@ -130,6 +130,7 @@ export const ENDPOINTS = [
           "type": "string",
           "mcpType": "number",
           "minimum": 0,
+          "maximum": 1000000000000,
           "description": "Optional minimum open interest USD filter (default 1000000).",
           "example": "1000000"
         },
@@ -157,6 +158,7 @@ export const ENDPOINTS = [
           "type": "string",
           "mcpType": "number",
           "minimum": 0,
+          "maximum": 1000000000000,
           "description": "Optional minimum per-venue open interest USD filter applied to each participating leg (default 100000; ignored when coin is set).",
           "example": "100000"
         },
@@ -170,6 +172,8 @@ export const ENDPOINTS = [
         },
         "coin": {
           "type": "string",
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9]{1,16}(?:-[Pp][Ee][Rr][Pp])?$",
           "description": "Optional base asset symbol filter (e.g., BTC, ETH, SOL).",
           "example": "BTC"
         }
@@ -197,6 +201,7 @@ export const ENDPOINTS = [
         },
         "query": {
           "type": "string",
+          "minLength": 1,
           "maxLength": 64,
           "description": "Optional keyword search across market titles, tickers, and categories (1-64 chars).",
           "example": "bitcoin"
@@ -205,6 +210,7 @@ export const ENDPOINTS = [
           "type": "string",
           "mcpType": "number",
           "minimum": 0,
+          "maximum": 1000000000000,
           "description": "Optional minimum 24h USD volume filter (default 1000; default 0 when query is set).",
           "example": "1000"
         },
@@ -314,11 +320,13 @@ export const ENDPOINTS = [
           "type": "string",
           "mcpType": "number",
           "minimum": 0,
+          "maximum": 1000000000000,
           "description": "Optional minimum per-venue liquidity USD filter (default 5000).",
           "example": "5000"
         },
         "query": {
           "type": "string",
+          "minLength": 1,
           "maxLength": 64,
           "description": "Optional keyword search across matched market titles/categories (1-64 chars).",
           "example": "bitcoin"
@@ -354,6 +362,8 @@ export const ENDPOINTS = [
         },
         "coin": {
           "type": "string",
+          "minLength": 1,
+          "pattern": "^[A-Za-z0-9]{1,16}(?:-[Pp][Ee][Rr][Pp])?$",
           "description": "Required when mode=perps: Hyperliquid ticker symbol (e.g., BTC, ETH, SOL).",
           "example": "BTC"
         },
@@ -382,11 +392,13 @@ export const ENDPOINTS = [
         },
         "token_out": {
           "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$",
           "description": "Required when mode=evm: destination ERC-20 token address (0x...).",
           "example": "0x4200000000000000000000000000000000000006"
         },
         "token_in": {
           "type": "string",
+          "pattern": "^0x[0-9a-fA-F]{40}$",
           "description": "Optional when mode=evm: source ERC-20 token address (defaults to native USDC on chain).",
           "example": "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
         },

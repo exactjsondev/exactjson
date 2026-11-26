@@ -643,6 +643,11 @@ export function renderPaywallHtml(
 ): string {
   const networkLabel = formatNetworkLabel(network);
   const sampleJson = JSON.stringify(entry.outputExample, null, 2);
+  const packDisclaimer = PACKS[entry.pack].disclaimer;
+  const stdioArgsJson =
+    entry.pack === "markets"
+      ? '["-y", "exactjson-mcp"]'
+      : `["-y", "exactjson-mcp", "--pack", "${escapeHtml(entry.pack)}"]`;
 
   return `<!doctype html>
 <html lang="en">
@@ -694,7 +699,7 @@ export function renderPaywallHtml(
   "mcpServers": {
     "exactjson": {
       "command": "npx",
-      "args": ["-y", "exactjson-mcp"],
+      "args": ${stdioArgsJson},
       "env": {
         "BUYER_PRIVATE_KEY": "0xYOUR_LOW_BALANCE_KEY",
         "MAX_PAYMENT_USD": "$0.05"
@@ -723,7 +728,7 @@ curl -s ${escapeHtml(baseUrl)}/openapi.json</pre>
     </main>
 
     <footer>
-      <div>${escapeHtml(DISCLAIMER)}</div>
+      <div>${escapeHtml(packDisclaimer)}</div>
       <div><a href="${escapeHtml(baseUrl)}/">← Back to ${escapeHtml(SERVICE_NAME)} Docs</a> · <a href="mailto:hello@exactjson.com">hello@exactjson.com</a></div>
     </footer>
   </div>
@@ -736,6 +741,16 @@ export function renderMcpGuideHtml(
   mcpPath = "/mcp",
   toolCount = 1 + getPackEndpoints(["markets"]).length
 ): string {
+  const packSuffix = mcpPath.startsWith("/mcp/")
+    ? mcpPath.slice("/mcp/".length)
+    : mcpPath.startsWith("/mcp?pack=")
+      ? mcpPath.slice("/mcp?pack=".length)
+      : "";
+  const stdioArgsJson =
+    !packSuffix || packSuffix === "markets"
+      ? '["-y", "exactjson-mcp"]'
+      : `["-y", "exactjson-mcp", "--pack", "${escapeHtml(packSuffix)}"]`;
+
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -788,7 +803,7 @@ export function renderMcpGuideHtml(
   "mcpServers": {
     "exactjson": {
       "command": "npx",
-      "args": ["-y", "exactjson-mcp"],
+      "args": ${stdioArgsJson},
       "env": {
         "BUYER_PRIVATE_KEY": "0xYOUR_LOW_BALANCE_KEY",
         "MAX_PAYMENT_USD": "$0.05"
