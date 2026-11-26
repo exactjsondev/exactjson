@@ -10,6 +10,10 @@
   Cache-Control: public, max-age=86400
   X-Content-Type-Options: nosniff
 
+/apple-touch-icon.png
+  Cache-Control: public, max-age=86400
+  X-Content-Type-Options: nosniff
+
 /dashboard
   Cache-Control: no-cache
   X-Frame-Options: DENY

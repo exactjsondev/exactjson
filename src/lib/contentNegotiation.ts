@@ -1,14 +1,19 @@
+export type NegotiatedFormat = "html" | "markdown" | "json";
+
 /**
- * Determines whether an HTTP Accept header explicitly prefers text/html over application/json.
- * Defaults to false for missing Accept, wildcard (*\/*), or application/json so CLI tools,
- * SDKs, and x402 discovery crawlers always receive machine-readable JSON.
+ * Negotiates response format from an HTTP Accept header among text/markdown,
+ * text/html, and application/json.
+ * Defaults to "json" for missing Accept, wildcard (*\/*), application/json,
+ * and ties between text/html and application/json so CLI tools, SDKs, and
+ * x402 discovery crawlers always receive machine-readable JSON.
  */
-export function prefersHtml(acceptHeader: string | undefined): boolean {
+export function negotiateContentType(acceptHeader: string | undefined): NegotiatedFormat {
   if (!acceptHeader || !acceptHeader.trim()) {
-    return false;
+    return "json";
   }
 
   let htmlQuality = -1;
+  let markdownQuality = -1;
   let jsonQuality = -1;
 
   for (const rawRange of acceptHeader.split(",")) {
@@ -37,19 +42,26 @@ export function prefersHtml(acceptHeader: string | undefined): boolean {
 
     if (mediaType === "text/html") {
       htmlQuality = Math.max(htmlQuality, q);
+    } else if (mediaType === "text/markdown" || mediaType === "text/x-markdown") {
+      markdownQuality = Math.max(markdownQuality, q);
     } else if (mediaType === "application/json") {
       jsonQuality = Math.max(jsonQuality, q);
     }
   }
 
-  if (htmlQuality <= 0) {
-    return false;
+  if (markdownQuality > 0 && markdownQuality >= htmlQuality && markdownQuality >= jsonQuality) {
+    return "markdown";
   }
-  if (jsonQuality > htmlQuality) {
-    return false;
+  if (htmlQuality > 0 && htmlQuality > jsonQuality) {
+    return "html";
   }
-  if (jsonQuality === htmlQuality && jsonQuality > 0) {
-    return false;
-  }
-  return true;
+  return "json";
+}
+
+/**
+ * Determines whether an HTTP Accept header explicitly prefers text/html over
+ * text/markdown and application/json.
+ */
+export function prefersHtml(acceptHeader: string | undefined): boolean {
+  return negotiateContentType(acceptHeader) === "html";
 }

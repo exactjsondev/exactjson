@@ -6,11 +6,18 @@ import {
   SERVICE_VERSION,
   getEndpointById,
 } from "../config/catalog";
-import { prefersHtml } from "../lib/contentNegotiation";
+import { negotiateContentType } from "../lib/contentNegotiation";
 import { buildMcpTools } from "../lib/mcpTools";
 import { getServiceControlState } from "../middleware/serviceControl";
 import type { AppBindings } from "../types";
-import { renderLandingHtml } from "./landingHtml";
+import {
+  renderAboutHtml,
+  renderContactHtml,
+  renderDocsHtml,
+  renderLandingHtml,
+  renderPricingHtml,
+  renderPrivacyHtml,
+} from "./landingHtml";
 
 // IMPORTANT: Never import @x402/hono or @coinbase/x402 in this file to keep discovery cold starts < 10ms.
 
@@ -31,6 +38,7 @@ export function resolveBaseUrl(c: Context<AppBindings>): string {
 export async function indexHandler(c: Context<AppBindings>) {
   const baseUrl = resolveBaseUrl(c);
   const network = c.env.X402_NETWORK || "eip155:8453";
+  const format = negotiateContentType(c.req.header("accept"));
 
   c.header("Cache-Control", "public, max-age=300");
   c.header("Vary", "Accept");
@@ -47,7 +55,7 @@ export async function indexHandler(c: Context<AppBindings>) {
     ].join(", ")
   );
 
-  if (prefersHtml(c.req.header("accept"))) {
+  if (format === "html") {
     c.header("X-Frame-Options", "DENY");
     c.header("Referrer-Policy", "strict-origin-when-cross-origin");
     c.header(
@@ -55,6 +63,12 @@ export async function indexHandler(c: Context<AppBindings>) {
       "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
     );
     return c.html(renderLandingHtml(baseUrl, network));
+  }
+
+  if (format === "markdown") {
+    return c.text(buildLlmsTxt(baseUrl, network), 200, {
+      "Content-Type": "text/markdown; charset=utf-8",
+    });
   }
 
   return c.json({
@@ -73,6 +87,11 @@ export async function indexHandler(c: Context<AppBindings>) {
       server_card: `${baseUrl}/.well-known/mcp/server-card.json`,
     },
     discovery: {
+      docs: `${baseUrl}/docs`,
+      pricing: `${baseUrl}/pricing`,
+      about: `${baseUrl}/about`,
+      contact: `${baseUrl}/contact`,
+      privacy: `${baseUrl}/privacy`,
       x402: `${baseUrl}/.well-known/x402`,
       x402_json: `${baseUrl}/.well-known/x402.json`,
       api_catalog: `${baseUrl}/.well-known/api-catalog`,
@@ -173,13 +192,7 @@ export function openApiHandler(c: Context<AppBindings>) {
             description: "Invalid query parameter (payment NOT settled).",
             content: {
               "application/json": {
-                schema: {
-                  type: "object",
-                  properties: {
-                    error: { type: "string" },
-                    message: { type: "string" },
-                  },
-                },
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
               },
             },
           },
@@ -193,18 +206,41 @@ export function openApiHandler(c: Context<AppBindings>) {
             },
             content: {
               "application/json": {
-                schema: { type: "object" },
+                schema: { $ref: "#/components/schemas/PaymentRequiredResponse" },
               },
             },
           },
           "404": {
             description: "Requested token or perpetual market not found (payment NOT settled).",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+          "405": {
+            description: "Method not allowed; use HTTP GET (payment NOT settled).",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
           "502": {
             description: "Upstream data provider unavailable (payment NOT settled).",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
           "503": {
             description: "Service temporarily paused by operator (payment NOT charged).",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
           },
         },
       },
@@ -221,25 +257,65 @@ export function openApiHandler(c: Context<AppBindings>) {
         `Pay per request via x402 V2 (exact EVM USDC in PAYMENT-SIGNATURE header), Remote Streamable HTTP MCP (${baseUrl}/mcp), or stdio MCP (\`npx -y ${MCP_PACKAGE}\`). Unpaid probes return HTTP 402 with PAYMENT-REQUIRED terms. Only HTTP 200 settles; 400/404/502/503 never settle. Recommended chains: call /v1/evm/safety (${p("evm_safety")}) + /v1/execution/quote-check?mode=evm (${p("execution_quote_check")}) before swapping unfamiliar EVM tokens; verify settlement rules when /v1/predictions/arb (${p("predictions_arb")}) returns resolution_risk_warning=true. Scanners & Arb: /v1/perps/screener (${p("perps_screener")}), /v1/perps/funding-arb (${p("perps_funding_arb")}, HL/dYdX/Kraken), /v1/predictions/scanner (${p("predictions_scanner")}, Polymarket+Kalshi), /v1/predictions/arb (${p("predictions_arb")}, Polymarket vs Kalshi net arb), /v1/solana/trending (${p("solana_trending")}, RugCheck-scored). Deep Dives, Safety & Execution: /v1/evm/safety?address=<0x>&chain=base (${p("evm_safety")}, GoPlus+Honeypot.is), /v1/execution/quote-check?mode=perps&coin=BTC (${p("execution_quote_check")}, multi-tier EVM/Perps slippage), /v1/options/surface?currency=BTC (${p("options_surface")}, Deribit IV/skew/max-pain), /v1/macro/liquidity (${p("macro_liquidity")}, US Treasury & NY Fed), /v1/perps/snapshot?coin=BTC (${p("perps_snapshot")}), /v1/solana/safety?mint=<MINT> (${p("solana_safety")}). ${DISCLAIMER}`,
       contact: {
         name: `${SERVICE_NAME} Support`,
-        url: baseUrl,
+        url: `${baseUrl}/contact`,
         email: CONTACT_EMAIL,
       },
+    },
+    externalDocs: {
+      description: "ExactJSON API Documentation & Versioning Policy",
+      url: `${baseUrl}/docs`,
     },
     servers: [{ url: baseUrl }],
     security: [],
     paths,
+    components: {
+      schemas: {
+        ErrorResponse: {
+          type: "object",
+          required: ["error", "message"],
+          properties: {
+            error: {
+              type: "string",
+              description: "Machine-readable error code",
+            },
+            message: {
+              type: "string",
+              description: "Human-readable error explanation",
+            },
+          },
+        },
+        PaymentRequiredResponse: {
+          type: "object",
+          required: ["error", "protocol", "endpoint", "price_usd", "network", "asset"],
+          properties: {
+            error: { type: "string" },
+            protocol: { type: "string" },
+            endpoint: { type: "string" },
+            price_usd: { type: "string" },
+            network: { type: "string" },
+            asset: { type: "string" },
+            pay_only_on_success: { type: "boolean" },
+            how_to_pay: { type: "string" },
+            docs: { type: "string" },
+            openapi: { type: "string" },
+          },
+        },
+      },
+    },
   });
 }
 
-export function llmsTxtHandler(c: Context<AppBindings>) {
-  const baseUrl = resolveBaseUrl(c);
-  const network = c.env.X402_NETWORK || "eip155:84532";
+export function buildLlmsTxt(baseUrl: string, network: string): string {
   const p = (id: Parameters<typeof getEndpointById>[0]) => getEndpointById(id).priceFormatted;
 
   const lines = [
     `# ${BRAND_HEADLINE} (v${SERVICE_VERSION})`,
     "",
     `> ${BRAND_HEADLINE}. ${CATALOG.length} pay-per-call x402 V2 endpoints delivering compact, deterministic JSON: Hyperliquid screener & L2 slippage, 3-venue funding arb (Hyperliquid/dYdX v4/Kraken), Polymarket + Kalshi prediction-market scanner & cross-venue arbitrage detector, Deribit BTC/ETH options volatility surface & max pain, official US Treasury & NY Fed macro liquidity pulse, multi-chain EVM & Solana token safety, and multi-tier EVM/Perps execution quote checks. ${DISCLAIMER}`,
+    "",
+    "## When to Use ExactJSON",
+    "- **Use ExactJSON when** an AI agent needs pre-computed, deterministic, ~2 KB JSON answers for token safety (before swapping ERC-20 or Solana SPL tokens), multi-tier DEX/perps execution slippage, cross-venue perp funding or prediction-market arbitrage, options volatility surface/max pain, or US macro liquidity — without managing API keys or burning context tokens on raw 200 KB dumps.",
+    "- **Do NOT use ExactJSON for** executing trades directly (ExactJSON is read-only intelligence), private wallet portfolio balances, historical multi-year OHLCV backtests, or custodial order routing.",
     "",
     "## Quickstart for AI Agents",
     `- Remote Streamable HTTP MCP (x402 V2 native clients): \`${baseUrl}/mcp\``,
@@ -260,6 +336,9 @@ export function llmsTxtHandler(c: Context<AppBindings>) {
     '- Set a client spend cap (e.g. `maxAmountPerPayment: "$0.05"`).',
     "- Do not retry `400` or `404` without fixing query parameters; back off on `502`/`503`. None of `400`/`404`/`502`/`503` settle payment.",
     "",
+    "## Versioning & Deprecation Policy",
+    "- Paid endpoints are path-versioned (`/v1/*`). Additive fields within `v1` are non-breaking; breaking changes ship under `/v2/*` with at least 90 days notice via HTTP `Deprecation` and `Sunset` headers.",
+    "",
     "## Paid Endpoints",
     ...CATALOG.map(
       (entry) =>
@@ -267,6 +346,11 @@ export function llmsTxtHandler(c: Context<AppBindings>) {
     ),
     "",
     "## Discovery & Metadata",
+    `- API Documentation: ${baseUrl}/docs`,
+    `- Pricing Table: ${baseUrl}/pricing`,
+    `- About ExactJSON: ${baseUrl}/about`,
+    `- Contact & Support: ${baseUrl}/contact`,
+    `- Privacy Policy: ${baseUrl}/privacy`,
     `- Remote Streamable HTTP MCP: ${baseUrl}/mcp`,
     `- x402 Manifest: ${baseUrl}/.well-known/x402`,
     `- x402 Manifest (JSON alias): ${baseUrl}/.well-known/x402.json`,
@@ -284,7 +368,14 @@ export function llmsTxtHandler(c: Context<AppBindings>) {
     "",
   ];
 
-  return c.text(lines.join("\n"), 200, {
+  return lines.join("\n");
+}
+
+export function llmsTxtHandler(c: Context<AppBindings>) {
+  const baseUrl = resolveBaseUrl(c);
+  const network = c.env.X402_NETWORK || "eip155:84532";
+
+  return c.text(buildLlmsTxt(baseUrl, network), 200, {
     "Content-Type": "text/plain; charset=utf-8",
     "Cache-Control": "public, max-age=300",
   });
@@ -464,12 +555,117 @@ function escapeXml(value: string): string {
     .replace(/'/g, "&apos;");
 }
 
+function respondHtmlOrMarkdown(
+  c: Context<AppBindings>,
+  htmlBody: string,
+  markdownBody: string
+) {
+  c.header("Cache-Control", "public, max-age=300");
+  c.header("Vary", "Accept");
+  c.header("X-Content-Type-Options", "nosniff");
+
+  if (negotiateContentType(c.req.header("accept")) === "markdown") {
+    return c.text(markdownBody, 200, {
+      "Content-Type": "text/markdown; charset=utf-8",
+    });
+  }
+
+  c.header("X-Frame-Options", "DENY");
+  c.header("Referrer-Policy", "strict-origin-when-cross-origin");
+  c.header(
+    "Content-Security-Policy",
+    "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+  );
+  return c.html(htmlBody);
+}
+
+export function docsPageHandler(c: Context<AppBindings>) {
+  const baseUrl = resolveBaseUrl(c);
+  const network = c.env.X402_NETWORK || "eip155:8453";
+  return respondHtmlOrMarkdown(
+    c,
+    renderDocsHtml(baseUrl, network),
+    buildLlmsTxt(baseUrl, network)
+  );
+}
+
+export function pricingPageHandler(c: Context<AppBindings>) {
+  const baseUrl = resolveBaseUrl(c);
+  const network = c.env.X402_NETWORK || "eip155:8453";
+  const markdown = [
+    `# ExactJSON Pricing — Pay-Per-Call Base USDC (${network})`,
+    "",
+    "Zero subscriptions, zero API keys. Only HTTP 200 responses settle payment.",
+    "",
+    "| Endpoint | Price (USDC) | Summary |",
+    "| --- | --- | --- |",
+    ...CATALOG.map((e) => `| \`${e.method} ${e.path}\` | ${e.priceFormatted} | ${e.summary} |`),
+    "",
+    `Full documentation: ${baseUrl}/docs · OpenAPI: ${baseUrl}/openapi.json`,
+    "",
+  ].join("\n");
+  return respondHtmlOrMarkdown(c, renderPricingHtml(baseUrl, network), markdown);
+}
+
+export function aboutPageHandler(c: Context<AppBindings>) {
+  const baseUrl = resolveBaseUrl(c);
+  const network = c.env.X402_NETWORK || "eip155:8453";
+  const markdown = [
+    `# About ExactJSON (v${SERVICE_VERSION})`,
+    "",
+    `ExactJSON provides ${CATALOG.length} live, deterministic, compact JSON APIs and MCP tools for AI agents on Base USDC (${network}) via Cloudflare Workers + D1.`,
+    "",
+    `- Fail-closed token safety: GoPlus + Honeypot.is (EVM) and RugCheck (Solana) return HTTP 502 if primary engines fail.`,
+    `- Open source (MIT): ${REPO_URL}`,
+    `- Contact: ${CONTACT_EMAIL}`,
+    "",
+    DISCLAIMER,
+    "",
+  ].join("\n");
+  return respondHtmlOrMarkdown(c, renderAboutHtml(baseUrl, network), markdown);
+}
+
+export function contactPageHandler(c: Context<AppBindings>) {
+  const baseUrl = resolveBaseUrl(c);
+  const markdown = [
+    "# Contact ExactJSON",
+    "",
+    `- Support Email: ${CONTACT_EMAIL}`,
+    `- GitHub Issues: ${REPO_URL}/issues`,
+    `- npm MCP Package: https://www.npmjs.com/package/${MCP_PACKAGE}`,
+    `- Live Status: ${baseUrl}/health`,
+    "",
+    "Never send private keys or seed phrases; EIP-3009 signing happens strictly client-side.",
+    "",
+  ].join("\n");
+  return respondHtmlOrMarkdown(c, renderContactHtml(baseUrl), markdown);
+}
+
+export function privacyPageHandler(c: Context<AppBindings>) {
+  const baseUrl = resolveBaseUrl(c);
+  const markdown = [
+    "# Privacy Policy — ExactJSON",
+    "",
+    "- **No accounts, no cookies, no tracking scripts:** ExactJSON requires zero signups or API keys.",
+    "- **Operational telemetry:** Paid `/v1/*` and bridged MCP calls log endpoint path, status, outcome, transport (`http`/`mcp`), latency, and public on-chain payer wallet + settlement tx hash for settled calls in Cloudflare D1.",
+    "- **Retention:** Unpaid `402` challenges are pruned after 7 days and verification failures after 14 days.",
+    `- **Questions:** ${CONTACT_EMAIL} · Docs: ${baseUrl}/docs`,
+    "",
+  ].join("\n");
+  return respondHtmlOrMarkdown(c, renderPrivacyHtml(baseUrl), markdown);
+}
+
 export function sitemapXmlHandler(c: Context<AppBindings>) {
   const safeBaseUrl = escapeXml(resolveBaseUrl(c));
   const xml = [
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     `  <url><loc>${safeBaseUrl}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>`,
+    `  <url><loc>${safeBaseUrl}/docs</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>`,
+    `  <url><loc>${safeBaseUrl}/pricing</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>`,
+    `  <url><loc>${safeBaseUrl}/about</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>`,
+    `  <url><loc>${safeBaseUrl}/contact</loc><changefreq>monthly</changefreq><priority>0.6</priority></url>`,
+    `  <url><loc>${safeBaseUrl}/privacy</loc><changefreq>monthly</changefreq><priority>0.5</priority></url>`,
     `  <url><loc>${safeBaseUrl}/llms.txt</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>`,
     `  <url><loc>${safeBaseUrl}/openapi.json</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>`,
     "</urlset>",

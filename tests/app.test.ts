@@ -142,6 +142,26 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(oa.info["x-guidance"]).toContain("/v1/predictions/scanner ($0.01");
     expect(oa.info["x-guidance"]).not.toContain("/v1/predictions/scanner ($0.015");
     expect(oa.security).toEqual([]);
+    const oaFull = oa as unknown as {
+      externalDocs?: { url: string };
+      components?: { schemas?: { ErrorResponse?: unknown; PaymentRequiredResponse?: unknown } };
+      paths: Record<
+        string,
+        {
+          get: {
+            responses: Record<string, { content?: { "application/json"?: { schema?: { $ref?: string } } } }>;
+          };
+        }
+      >;
+    };
+    expect(oaFull.externalDocs?.url).toBe("http://localhost:8787/docs");
+    expect(oaFull.components?.schemas?.ErrorResponse).toBeDefined();
+    expect(oaFull.components?.schemas?.PaymentRequiredResponse).toBeDefined();
+    for (const code of ["400", "404", "405", "502", "503"]) {
+      expect(
+        oaFull.paths["/v1/solana/safety"]?.get.responses[code]?.content?.["application/json"]?.schema?.$ref
+      ).toBe("#/components/schemas/ErrorResponse");
+    }
     expect(oa.paths["/v1/solana/safety"]?.get["x-payment-info"].protocols).toEqual([{ x402: {} }]);
     expect(oa.paths["/v1/solana/safety"]?.get["x-payment-info"].price.amount).toBe("0.01");
     expect(oa.paths["/v1/perps/snapshot"]?.get["x-payment-info"].price.amount).toBe("0.005");
@@ -163,7 +183,9 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(llmsText).toContain("http://localhost:8787/.well-known/agent-card.json");
     expect(llmsText).toContain("npx -y exactjson-mcp");
     expect(llmsText).toContain("https://github.com/exactjsondev/exactjson");
+    expect(llmsText).toContain("## When to Use ExactJSON");
     expect(llmsText).toContain("## Recommended Agent Workflows");
+    expect(llmsText).toContain("## Versioning & Deprecation Policy");
 
     const cardRes = await app.request("http://localhost:8787/.well-known/agent-card.json", {}, env);
     expect(cardRes.status).toBe(200);
@@ -232,6 +254,11 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(sitemapRes.headers.get("content-type")).toContain("application/xml");
     const sitemapXml = await sitemapRes.text();
     expect(sitemapXml).toContain("<loc>http://localhost:8787/</loc>");
+    expect(sitemapXml).toContain("<loc>http://localhost:8787/docs</loc>");
+    expect(sitemapXml).toContain("<loc>http://localhost:8787/pricing</loc>");
+    expect(sitemapXml).toContain("<loc>http://localhost:8787/about</loc>");
+    expect(sitemapXml).toContain("<loc>http://localhost:8787/contact</loc>");
+    expect(sitemapXml).toContain("<loc>http://localhost:8787/privacy</loc>");
     expect(sitemapXml).toContain("<loc>http://localhost:8787/llms.txt</loc>");
 
     const robotsRes = await app.request("http://localhost:8787/robots.txt", {}, env);
@@ -331,8 +358,72 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(html).toContain("@x402/fetch");
     expect(html).toContain("<details class=\"sample-details\">");
     expect(html).toContain("og-image.jpg");
+    expect(html).toContain("apple-touch-icon.png");
+    expect(html).toContain('"@type":"Organization"');
+    expect(html).toContain('"@type":"ContactPoint"');
+    expect(html).toContain('"sameAs"');
+    expect(html).toContain('"@type":"Offer"');
     expect(html).toContain("minmax(0,");
     expect(html).toContain("Base Sepolia (eip155:84532)");
+
+    // Markdown negotiation on GET / -> text/markdown with Vary: Accept
+    const mdRoot = await app.request(
+      "http://localhost:8787/",
+      { headers: { Accept: "text/markdown" } },
+      env
+    );
+    expect(mdRoot.status).toBe(200);
+    expect(mdRoot.headers.get("content-type")).toContain("text/markdown");
+    expect(mdRoot.headers.get("vary")).toContain("Accept");
+    const mdRootText = await mdRoot.text();
+    expect(mdRootText.startsWith("# ExactJSON")).toBe(true);
+    expect(mdRootText).toContain("## When to Use ExactJSON");
+
+    const mdOverHtml = await app.request(
+      "http://localhost:8787/",
+      { headers: { Accept: "text/markdown, text/html;q=0.9" } },
+      env
+    );
+    expect(mdOverHtml.headers.get("content-type")).toContain("text/markdown");
+
+    const htmlOverMd = await app.request(
+      "http://localhost:8787/",
+      { headers: { Accept: "text/html, text/markdown;q=0.5" } },
+      env
+    );
+    expect(htmlOverMd.headers.get("content-type")).toContain("text/html");
+
+    const jsonOverMd = await app.request(
+      "http://localhost:8787/",
+      { headers: { Accept: "application/json, text/markdown;q=0.5" } },
+      env
+    );
+    expect(jsonOverMd.headers.get("content-type")).toContain("application/json");
+
+    // Dedicated docs, pricing, and trust pages (HTML + Markdown negotiation)
+    for (const pagePath of ["/docs", "/pricing", "/about", "/contact", "/privacy"]) {
+      const htmlPage = await app.request(
+        `http://localhost:8787${pagePath}`,
+        { headers: { Accept: "text/html" } },
+        env
+      );
+      expect(htmlPage.status, pagePath).toBe(200);
+      expect(htmlPage.headers.get("content-type")).toContain("text/html");
+      expect(htmlPage.headers.get("vary")).toContain("Accept");
+      expect(htmlPage.headers.get("content-security-policy")).toContain("default-src 'none'");
+      const body = await htmlPage.text();
+      expect(body.length, pagePath).toBeGreaterThan(500);
+      expect(body).toContain("apple-touch-icon.png");
+
+      const mdPage = await app.request(
+        `http://localhost:8787${pagePath}`,
+        { headers: { Accept: "text/markdown" } },
+        env
+      );
+      expect(mdPage.status, `${pagePath} md`).toBe(200);
+      expect(mdPage.headers.get("content-type")).toContain("text/markdown");
+      expect((await mdPage.text()).startsWith("# ")).toBe(true);
+    }
 
     // CORS on / (JSON), /health, and /llms-full.txt alias
     expect(jsonDefault.headers.get("access-control-allow-origin")).toBe("*");
@@ -361,7 +452,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
 
     // Browser unknown path -> branded HTML 404 with strict CSP
     const html404 = await app.request(
-      "http://localhost:8787/docs",
+      "http://localhost:8787/this-route-does-not-exist",
       { headers: { Accept: "text/html,application/xhtml+xml,*/*;q=0.8" } },
       env
     );
@@ -371,6 +462,20 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     const html404Body = await html404.text();
     expect(html404Body).toContain("Page not found");
     expect(html404Body).toContain("Go to ExactJSON Docs");
+
+    // Agent Markdown unknown path -> 404 text/markdown with docs/llms/sitemap links
+    const md404 = await app.request(
+      "http://localhost:8787/this-route-does-not-exist",
+      { headers: { Accept: "text/markdown" } },
+      env
+    );
+    expect(md404.status).toBe(404);
+    expect(md404.headers.get("content-type")).toContain("text/markdown");
+    expect(md404.headers.get("vary")).toContain("Accept");
+    const md404Body = await md404.text();
+    expect(md404Body).toContain("http://localhost:8787/docs");
+    expect(md404Body).toContain("http://localhost:8787/llms.txt");
+    expect(md404Body).toContain("http://localhost:8787/sitemap.xml");
 
     // API/agent unknown path -> structured JSON 404 with discovery links
     const json404 = await app.request("http://localhost:8787/v1/does-not-exist", {}, env);
@@ -685,10 +790,14 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(boundCalls.map((b) => b[0])).toEqual(["CHALLENGED_402", "VERIFY_FAILED"]);
   });
 
-  it("sets Cache-Control: no-cache on /dashboard and renders Verify Failed column in dashboard HTML", () => {
+  it("sets Cache-Control: no-cache on /dashboard, caches apple-touch-icon.png, and renders Verify Failed column in dashboard HTML", () => {
     const headersFile = readFileSync(resolve(process.cwd(), "public/_headers"), "utf8");
     expect(headersFile).toMatch(/\/dashboard\r?\n\s+Cache-Control:\s*no-cache/);
     expect(headersFile).toMatch(/\/dashboard\/\*\r?\n\s+Cache-Control:\s*no-cache/);
+    expect(headersFile).toMatch(/\/apple-touch-icon\.png\r?\n\s+Cache-Control:\s*public, max-age=86400/);
+
+    const appleIcon = readFileSync(resolve(process.cwd(), "public/apple-touch-icon.png"));
+    expect(Array.from(appleIcon.subarray(0, 4))).toEqual([0x89, 0x50, 0x4e, 0x47]);
 
     const dashboardHtml = readFileSync(
       resolve(process.cwd(), "public/dashboard/index.html"),

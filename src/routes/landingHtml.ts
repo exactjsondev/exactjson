@@ -276,6 +276,123 @@ const SHARED_CSS = `
     }
 `;
 
+function renderBrandJsonLd(baseUrl: string, includeOffers = false): string {
+  const organization = {
+    "@type": "Organization",
+    "@id": `${baseUrl}/#organization`,
+    name: SERVICE_NAME,
+    url: baseUrl,
+    logo: `${baseUrl}/favicon.svg`,
+    description:
+      "ExactJSON builds live, deterministic, token-optimized x402 V2 pay-per-call JSON APIs and MCP servers for AI agents on Base Mainnet USDC.",
+    email: "hello@exactjson.com",
+    sameAs: [
+      "https://github.com/exactjsondev/exactjson",
+      "https://www.npmjs.com/package/exactjson-mcp",
+      "https://glama.ai/mcp/servers/exactjsondev/exactjson",
+    ],
+    contactPoint: {
+      "@type": "ContactPoint",
+      contactType: "technical support",
+      email: "hello@exactjson.com",
+      url: `${baseUrl}/contact`,
+      availableLanguage: "English",
+    },
+  };
+
+  const webApi: Record<string, unknown> = {
+    "@type": "WebAPI",
+    "@id": `${baseUrl}/#api`,
+    name: "ExactJSON x402 API",
+    serviceType: "x402 pay-per-call market and token safety JSON API",
+    url: baseUrl,
+    documentation: `${baseUrl}/docs`,
+    keywords:
+      "x402 API, AI agent API, MCP server, Base USDC micropayments, EVM token safety, Solana safety, Hyperliquid perpetuals, Polymarket Kalshi arbitrage, Deribit options surface, US macro liquidity",
+    description:
+      "Pre-computed, deterministic, compact JSON endpoints for AI agents via x402 V2 Base Mainnet USDC micro-payments ($0.005-$0.02/call). Pay-only-on-success with zero API keys or subscriptions.",
+    provider: { "@id": `${baseUrl}/#organization` },
+  };
+
+  if (includeOffers) {
+    webApi.offers = CATALOG.map((entry) => ({
+      "@type": "Offer",
+      name: `${entry.method} ${entry.path} — ${entry.summary}`,
+      description: entry.summary,
+      price: entry.priceAmount,
+      priceCurrency: "USD",
+      url: `${baseUrl}/pricing`,
+    }));
+  }
+
+  return JSON.stringify({
+    "@context": "https://schema.org",
+    "@graph": [organization, webApi],
+  }).replace(/</g, "\\u003c");
+}
+
+function renderHtmlPageShell(opts: {
+  baseUrl: string;
+  title: string;
+  description: string;
+  canonicalPath: string;
+  badgesHtml?: string;
+  jsonLd?: string;
+  noindex?: boolean;
+  mainHtml: string;
+}): string {
+  const canonicalUrl = `${opts.baseUrl}${opts.canonicalPath}`;
+  const robotsMeta = opts.noindex ? '\n  <meta name="robots" content="noindex, nofollow">' : "";
+  const jsonLdScript = opts.jsonLd
+    ? `\n  <script type="application/ld+json">${opts.jsonLd}</script>`
+    : "";
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">${robotsMeta}
+  <title>${escapeHtml(opts.title)}</title>
+  <meta name="description" content="${escapeHtml(opts.description)}">
+  <link rel="canonical" href="${escapeHtml(canonicalUrl)}">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">${jsonLdScript}
+  <style>${SHARED_CSS}  </style>
+</head>
+<body>
+  <a href="#main-content" class="skip-link visually-hidden">Skip to main content</a>
+  <div class="wrap">
+    <header>
+      <div class="logo">
+        <a class="logo-brand" href="${escapeHtml(opts.baseUrl)}/">${escapeHtml(SERVICE_NAME)}</a>
+        <span class="badge">v${escapeHtml(SERVICE_VERSION)}</span>
+        ${opts.badgesHtml ?? ""}
+      </div>
+      <nav aria-label="Primary">
+        <a href="${escapeHtml(opts.baseUrl)}/">Home</a>
+        <a href="${escapeHtml(opts.baseUrl)}/docs">Docs</a>
+        <a href="${escapeHtml(opts.baseUrl)}/pricing">Pricing</a>
+        <a href="${escapeHtml(opts.baseUrl)}/openapi.json">OpenAPI</a>
+        <a href="${escapeHtml(opts.baseUrl)}/llms.txt">llms.txt</a>
+        <a href="https://github.com/exactjsondev/exactjson">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="main-content">
+      ${opts.mainHtml}
+    </main>
+
+    <footer>
+      <div>${escapeHtml(DISCLAIMER)}</div>
+      <div><a href="${escapeHtml(opts.baseUrl)}/docs">Docs</a> · <a href="${escapeHtml(opts.baseUrl)}/pricing">Pricing</a> · <a href="${escapeHtml(opts.baseUrl)}/about">About</a> · <a href="${escapeHtml(opts.baseUrl)}/contact">Contact</a> · <a href="${escapeHtml(opts.baseUrl)}/privacy">Privacy</a> · <a href="mailto:hello@exactjson.com">hello@exactjson.com</a></div>
+    </footer>
+  </div>
+</body>
+</html>`;
+}
+
 export function renderLandingHtml(baseUrl: string, network: string): string {
   const byId = new Map<EndpointId, EndpointCatalogEntry>(
     CATALOG.map((entry) => [entry.id, entry])
@@ -310,21 +427,7 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
     </section>`;
   }).join("\n");
 
-  const structuredData = JSON.stringify({
-    "@context": "https://schema.org",
-    "@type": "WebAPI",
-    name: `${SERVICE_NAME} — Live, deterministic x402 APIs for AI agents`,
-    url: baseUrl,
-    documentation: `${baseUrl}/llms.txt`,
-    description:
-      "Pre-computed, deterministic, compact JSON endpoints for AI agents via x402 V2 Base Mainnet USDC micro-payments ($0.005-$0.02/call). Pay-only-on-success with zero API keys or subscriptions.",
-    provider: {
-      "@type": "Organization",
-      name: SERVICE_NAME,
-      url: baseUrl,
-      email: "hello@exactjson.com",
-    },
-  }).replace(/</g, "\\u003c");
+  const structuredData = renderBrandJsonLd(baseUrl, true);
 
   return `<!doctype html>
 <html lang="en">
@@ -337,6 +440,7 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
   <link rel="canonical" href="${escapeHtml(baseUrl)}/">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <meta property="og:type" content="website">
   <meta property="og:title" content="${escapeHtml(SERVICE_NAME)} — Live, deterministic x402 APIs for AI agents">
   <meta property="og:description" content="${CATALOG.length} deterministic x402 V2 endpoints for AI agents on Base USDC ($0.005-$0.02/call) plus native MCP (npx -y exactjson-mcp).">
@@ -364,7 +468,8 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
       <nav aria-label="Primary">
         <a href="#endpoints">Endpoints (${CATALOG.length})</a>
         <a href="#quickstart">Quickstart</a>
-        <a href="#discovery">Discovery</a>
+        <a href="${escapeHtml(baseUrl)}/docs">Docs</a>
+        <a href="${escapeHtml(baseUrl)}/pricing">Pricing</a>
         <a href="${escapeHtml(baseUrl)}/openapi.json">OpenAPI</a>
         <a href="${escapeHtml(baseUrl)}/llms.txt">llms.txt</a>
         <a href="https://github.com/exactjsondev/exactjson">GitHub</a>
@@ -497,7 +602,7 @@ console.log(await res.json());</pre>
 
     <footer>
       <div>${escapeHtml(DISCLAIMER)}</div>
-      <div>Contact: <a href="mailto:hello@exactjson.com">hello@exactjson.com</a> · <a href="https://github.com/exactjsondev/exactjson">github.com/exactjsondev/exactjson</a> · <a href="https://www.npmjs.com/package/exactjson-mcp">npm: exactjson-mcp</a></div>
+      <div><a href="${escapeHtml(baseUrl)}/docs">Docs</a> · <a href="${escapeHtml(baseUrl)}/pricing">Pricing</a> · <a href="${escapeHtml(baseUrl)}/about">About</a> · <a href="${escapeHtml(baseUrl)}/contact">Contact</a> · <a href="${escapeHtml(baseUrl)}/privacy">Privacy</a> · <a href="mailto:hello@exactjson.com">hello@exactjson.com</a> · <a href="https://github.com/exactjsondev/exactjson">GitHub</a> · <a href="https://www.npmjs.com/package/exactjson-mcp">npm</a></div>
     </footer>
   </div>
 </body>
@@ -523,6 +628,7 @@ export function renderPaywallHtml(
   <title>HTTP 402 Payment Required · ${escapeHtml(entry.path)} | ${escapeHtml(SERVICE_NAME)}</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <style>${SHARED_CSS}  </style>
 </head>
 <body>
@@ -610,6 +716,7 @@ export function renderMcpGuideHtml(baseUrl: string): string {
   <title>Remote MCP Endpoint (POST /mcp) | ${escapeHtml(SERVICE_NAME)}</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <style>${SHARED_CSS}  </style>
 </head>
 <body>
@@ -678,6 +785,290 @@ export function renderMcpGuideHtml(baseUrl: string): string {
 </html>`;
 }
 
+export function renderDocsHtml(baseUrl: string, network: string): string {
+  const networkLabel = formatNetworkLabel(network);
+  const endpointRows = CATALOG.map((entry) => {
+    const sampleUrl = `${baseUrl}${entry.path}?${new URLSearchParams(entry.exampleQueryParams).toString()}`;
+    return `<tr>
+      <th scope="row" class="ep-cell"><code>GET ${escapeHtml(entry.path)}</code></th>
+      <td class="price">${escapeHtml(entry.priceFormatted)}</td>
+      <td>
+        <strong>${escapeHtml(entry.summary)}</strong>
+        <div class="desc">${escapeHtml(entry.description.replace(DISCLAIMER, "").trim())}</div>
+        <div class="sample"><a href="${escapeHtml(sampleUrl)}"><code>${escapeHtml(sampleUrl)}</code></a></div>
+      </td>
+    </tr>`;
+  }).join("\n");
+
+  const mainHtml = `
+    <section style="padding: 2rem 0 1.25rem;">
+      <h1>ExactJSON API &amp; MCP Documentation</h1>
+      <p class="lead">
+        ExactJSON exposes ${CATALOG.length} live, deterministic, pay-per-call JSON endpoints over <strong>x402 V2</strong> (${escapeHtml(networkLabel)}, USDC) and <strong>Model Context Protocol (MCP)</strong>. No API keys, no account registration, and strict Pay-Only-On-Success settlement.
+      </p>
+      <div class="hero-actions">
+        <a class="btn primary" href="${escapeHtml(baseUrl)}/openapi.json">OpenAPI 3.1 Spec</a>
+        <a class="btn" href="${escapeHtml(baseUrl)}/llms.txt">llms.txt Guide</a>
+        <a class="btn" href="${escapeHtml(baseUrl)}/pricing">Pricing (${CATALOG.length} Endpoints)</a>
+      </div>
+    </section>
+
+    <section class="grid-2">
+      <div class="card">
+        <h2>Authentication &amp; x402 V2 Payment Flow</h2>
+        <p>Every paid <code>/v1/*</code> route requires zero API keys. Send an unpaid <code>GET</code> request to receive HTTP <code>402 Payment Required</code> with a base64-encoded <code>PAYMENT-REQUIRED</code> header containing exact Base USDC terms, then retry with <code>PAYMENT-SIGNATURE</code> via <code>@x402/fetch</code>. Only HTTP <code>200</code> responses settle; <code>400</code>, <code>404</code>, <code>405</code>, <code>502</code>, and <code>503</code> never charge your wallet.</p>
+      </div>
+      <div class="card">
+        <h2>MCP Server (Remote HTTP &amp; Stdio)</h2>
+        <p>Connect x402-native MCP clients directly to <code>${escapeHtml(baseUrl)}/mcp</code> (Streamable HTTP, JSON-RPC 2.0, 12 tools), or run the local stdio bridge <code>npx -y exactjson-mcp</code> with <code>BUYER_PRIVATE_KEY</code> and <code>MAX_PAYMENT_USD=$0.05</code>. Official MCP Registry ID: <code>io.github.exactjsondev/exactjson</code>.</p>
+      </div>
+    </section>
+
+    <section style="margin-top: 2rem;">
+      <h2 class="section-title">Endpoint Reference (${CATALOG.length} Paid Routes + Free Health)</h2>
+      <p class="section-sub">Check <code>GET ${escapeHtml(baseUrl)}/health</code> for free before batch workflows to verify <code>paused: false</code>.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Endpoint</th>
+              <th scope="col">USDC</th>
+              <th scope="col">Summary &amp; Sample Request</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${endpointRows}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="grid-2" style="margin-top: 2rem;">
+      <div class="card">
+        <h2>Error Model &amp; Retry Discipline</h2>
+        <p>Errors return structured JSON with machine-readable <code>error</code> and human-readable <code>message</code> fields. Do not retry <code>400</code> (bad query parameter) or <code>404</code> (unknown token/market) without fixing inputs. Back off on <code>502</code> (fail-closed upstream outage) and <code>503</code> (operator pause).</p>
+      </div>
+      <div class="card" id="versioning">
+        <h2>API Versioning &amp; Deprecation Policy</h2>
+        <p>All paid endpoints are versioned in the URL path under <code>/v1/*</code>. Additive fields within <code>v1</code> are non-breaking. Any breaking contract change ships under a new path prefix (e.g. <code>/v2/*</code>) with at least 90 days of advance notice via standard HTTP <code>Deprecation</code> and <code>Sunset</code> headers before retirement.</p>
+      </div>
+    </section>`;
+
+  return renderHtmlPageShell({
+    baseUrl,
+    title: "ExactJSON API Documentation — x402 V2 & MCP Guide",
+    description:
+      "Complete API and MCP documentation for ExactJSON: x402 V2 Base USDC payment flow, Remote Streamable HTTP /mcp, stdio CLI, endpoint schemas, error model, and v1 versioning policy.",
+    canonicalPath: "/docs",
+    badgesHtml: `<span class="badge live">Docs · x402 V2</span>`,
+    jsonLd: renderBrandJsonLd(baseUrl, false),
+    mainHtml,
+  });
+}
+
+export function renderPricingHtml(baseUrl: string, network: string): string {
+  const networkLabel = formatNetworkLabel(network);
+  const rows = CATALOG.map(
+    (entry) => `<tr>
+      <th scope="row" class="ep-cell"><code>${escapeHtml(entry.method)} ${escapeHtml(entry.path)}</code></th>
+      <td class="price">${escapeHtml(entry.priceFormatted)} USD</td>
+      <td>${escapeHtml(entry.summary)}<div class="desc">Asset: USDC on ${escapeHtml(networkLabel)} · Settles on HTTP 200 only</div></td>
+    </tr>`
+  ).join("\n");
+
+  const offerCatalogJsonLd = JSON.stringify({
+    "@context": "https://schema.org",
+    "@type": "OfferCatalog",
+    name: "ExactJSON Pay-Per-Call x402 API Pricing",
+    url: `${baseUrl}/pricing`,
+    numberOfItems: CATALOG.length,
+    itemListElement: CATALOG.map((entry) => ({
+      "@type": "Offer",
+      name: `${entry.method} ${entry.path} — ${entry.summary}`,
+      description: entry.description,
+      price: entry.priceAmount,
+      priceCurrency: "USD",
+      availability: "https://schema.org/InStock",
+      url: `${baseUrl}/pricing`,
+    })),
+  }).replace(/</g, "\\u003c");
+
+  const mainHtml = `
+    <section style="padding: 2rem 0 1.25rem;">
+      <h1>ExactJSON Pricing — Pay-Per-Call Base USDC</h1>
+      <p class="lead">
+        Simple, transparent micropayments from <strong>$0.005 to $0.02 USDC</strong> per successful request on <strong>${escapeHtml(networkLabel)}</strong>. Zero subscriptions, zero monthly minimums, zero API keys, and free machine discovery endpoints.
+      </p>
+      <div class="pills">
+        <span class="badge live">Pay-Only-On-Success (HTTP 200)</span>
+        <span class="badge">Free /health &amp; Discovery</span>
+        <span class="badge">Client Spend Caps (MAX_PAYMENT_USD)</span>
+      </div>
+    </section>
+
+    <section>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Endpoint</th>
+              <th scope="col">Price</th>
+              <th scope="col">Description &amp; Settlement</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="grid-2" style="margin-top: 2rem;">
+      <div class="card">
+        <h2>Free Endpoints ($0.00)</h2>
+        <p><code>GET /health</code>, <code>GET /</code>, <code>GET /docs</code>, <code>GET /pricing</code>, <code>GET /openapi.json</code>, <code>GET /llms.txt</code>, <code>/.well-known/*</code>, and MCP <code>initialize</code> / <code>tools/list</code> / <code>exactjson_health</code> are always free.</p>
+      </div>
+      <div class="card">
+        <h2>Non-200 Never Settles</h2>
+        <p>If you send invalid parameters (<code>400</code>), query an unlisted asset (<code>404</code>), or hit a fail-closed upstream outage (<code>502</code>) or pause (<code>503</code>), the x402 facilitator does not settle payment.</p>
+      </div>
+    </section>`;
+
+  return renderHtmlPageShell({
+    baseUrl,
+    title: "ExactJSON Pricing — Pay-Per-Call Base USDC ($0.005–$0.02)",
+    description:
+      "Transparent pay-per-call x402 V2 pricing for all 11 ExactJSON endpoints on Base Mainnet USDC ($0.005 to $0.02/call). Pay only on HTTP 200 success.",
+    canonicalPath: "/pricing",
+    badgesHtml: `<span class="badge live">Base USDC · $0.005–$0.02</span>`,
+    jsonLd: offerCatalogJsonLd,
+    mainHtml,
+  });
+}
+
+export function renderAboutHtml(baseUrl: string, network: string): string {
+  const mainHtml = `
+    <section style="padding: 2rem 0 1.25rem;">
+      <h1>About ExactJSON</h1>
+      <p class="lead">
+        ExactJSON builds live, deterministic, token-optimized JSON APIs and Model Context Protocol (MCP) tools designed specifically for autonomous AI agents and quantitative trading pipelines.
+      </p>
+    </section>
+
+    <section class="grid-2">
+      <div class="card">
+        <h2>Why ExactJSON Exists</h2>
+        <p>Raw DeFi, derivatives, and market feeds routinely return 200 KB+ payloads across hundreds of contracts or orderbook levels. Feeding raw dumps into an LLM wastes $0.02–$0.15 in context tokens and triggers arithmetic hallucinations. ExactJSON computes safety checks, slippage ladders, implied volatility surfaces, and cross-venue spreads deterministically at the edge and returns compact ~2 KB JSON.</p>
+      </div>
+      <div class="card">
+        <h2>Fail-Closed Engineering</h2>
+        <p>ExactJSON runs on Cloudflare Workers and D1 with x402 V2 settlement on ${escapeHtml(formatNetworkLabel(network))}. Security endpoints combine dual engines (GoPlus + Honeypot.is on EVM; RugCheck on Solana) and fail closed with HTTP <code>502</code> if primary engines are unavailable, rather than falsely reporting a token as safe. Informational data only; not financial advice.</p>
+      </div>
+    </section>
+
+    <section class="grid-2" style="margin-top: 1rem;">
+      <div class="card">
+        <h2>Data Sources &amp; Coverage</h2>
+        <p>Coverage spans EVM chains (Base, Ethereum, Arbitrum, Optimism, Polygon, BSC via GoPlus, Honeypot.is, KyberSwap, DEX Screener), Solana (RugCheck, DEX Screener, GeckoTerminal), Perpetuals (Hyperliquid, dYdX v4, Kraken Futures), Prediction Markets (Polymarket, Kalshi), Options (Deribit), and US Macro Liquidity (US Treasury Fiscal Data &amp; NY Fed).</p>
+      </div>
+      <div class="card">
+        <h2>Open Source &amp; Machine Discovery</h2>
+        <p>Source code, tests, and the <code>exactjson-mcp</code> stdio package are published under the MIT license on <a href="https://github.com/exactjsondev/exactjson">GitHub</a> and <a href="https://www.npmjs.com/package/exactjson-mcp">npm</a>, with full discovery via OpenAPI 3.1, RFC 9727 API Catalog, A2A Agent Card, and MCP Server Card.</p>
+      </div>
+    </section>`;
+
+  return renderHtmlPageShell({
+    baseUrl,
+    title: "About ExactJSON — Live x402 APIs for AI Agents",
+    description:
+      "Learn how ExactJSON delivers compact, deterministic, fail-closed JSON endpoints and MCP tools for AI agents on Cloudflare Workers and Base Mainnet USDC.",
+    canonicalPath: "/about",
+    badgesHtml: `<span class="badge">Open Source · MIT</span>`,
+    jsonLd: renderBrandJsonLd(baseUrl, false),
+    mainHtml,
+  });
+}
+
+export function renderContactHtml(baseUrl: string): string {
+  const mainHtml = `
+    <section style="padding: 2rem 0 1.25rem;">
+      <h1>Contact ExactJSON</h1>
+      <p class="lead">
+        Questions about x402 V2 integration, MCP server setup, enterprise rate needs, or responsible vulnerability disclosure? Reach the ExactJSON engineering team directly.
+      </p>
+    </section>
+
+    <section class="grid-2">
+      <div class="card">
+        <h2>Direct Support &amp; Inquiries</h2>
+        <p>Email: <a href="mailto:hello@exactjson.com">hello@exactjson.com</a><br>Canonical website: <a href="${escapeHtml(baseUrl)}/">${escapeHtml(baseUrl)}</a><br>Live service status: <a href="${escapeHtml(baseUrl)}/health">GET /health</a></p>
+      </div>
+      <div class="card">
+        <h2>Bug Reports &amp; Community</h2>
+        <p>Open technical issues or pull requests on <a href="https://github.com/exactjsondev/exactjson/issues">GitHub Issues</a>, inspect the stdio package on <a href="https://www.npmjs.com/package/exactjson-mcp">npm (exactjson-mcp)</a>, or view our <a href="https://glama.ai/mcp/servers/exactjsondev/exactjson">Glama MCP listing</a>.</p>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top: 1rem;">
+      <h2>Wallet &amp; Key Security Reminder</h2>
+      <p>Never send private keys, seed phrases, or signing secrets in support emails or GitHub issues. ExactJSON signs EIP-3009 authorizations strictly client-side in your own wallet or local <code>exactjson-mcp</code> process; we never custody user funds or ask for private keys.</p>
+    </section>`;
+
+  return renderHtmlPageShell({
+    baseUrl,
+    title: "Contact ExactJSON — Support & Technical Inquiries",
+    description:
+      "Contact the ExactJSON team at hello@exactjson.com or via GitHub Issues for x402 V2 API integration, MCP server support, and security inquiries.",
+    canonicalPath: "/contact",
+    badgesHtml: `<span class="badge">Support</span>`,
+    jsonLd: renderBrandJsonLd(baseUrl, false),
+    mainHtml,
+  });
+}
+
+export function renderPrivacyHtml(baseUrl: string): string {
+  const mainHtml = `
+    <section style="padding: 2rem 0 1.25rem;">
+      <h1>Privacy Policy — ExactJSON</h1>
+      <p class="lead">
+        ExactJSON is built for permissionless machine-to-machine requests with minimal data collection: no user accounts, no login credentials, no tracking cookies, and no third-party ad or analytics scripts.
+      </p>
+    </section>
+
+    <section class="grid-2">
+      <div class="card">
+        <h2>What We Do Not Collect</h2>
+        <p>ExactJSON does not require API keys, emails, passwords, names, or billing profiles to call any endpoint. Our web pages set no advertising or analytics cookies and load no third-party tracking scripts under strict <code>Content-Security-Policy</code> headers.</p>
+      </div>
+      <div class="card">
+        <h2>Operational API Telemetry</h2>
+        <p>For paid <code>/v1/*</code> calls and bridged MCP tool executions, ExactJSON logs minimal operational telemetry in Cloudflare D1: requested endpoint path, sanitized query target, HTTP status, outcome classification, transport (<code>http</code> or <code>mcp</code>), latency, and—for settled x402 payments—the public on-chain payer wallet address and Base settlement transaction hash.</p>
+      </div>
+    </section>
+
+    <section class="grid-2" style="margin-top: 1rem;">
+      <div class="card">
+        <h2>Retention &amp; Edge Processing</h2>
+        <p>Unpaid <code>402</code> challenge logs are automatically pruned after 7 days and failed verification logs after 14 days via a daily scheduled job. Settled transaction records are retained for accounting and debugging against public Base blockchain receipts. Traffic is routed through Cloudflare Workers infrastructure.</p>
+      </div>
+      <div class="card">
+        <h2>Privacy Questions</h2>
+        <p>For privacy inquiries or data questions regarding ExactJSON operational logs, contact <a href="mailto:hello@exactjson.com">hello@exactjson.com</a> or review our open-source telemetry middleware on <a href="https://github.com/exactjsondev/exactjson">GitHub</a>.</p>
+      </div>
+    </section>`;
+
+  return renderHtmlPageShell({
+    baseUrl,
+    title: "Privacy Policy — ExactJSON",
+    description:
+      "ExactJSON privacy policy: zero user accounts, zero tracking cookies, minimal operational telemetry in Cloudflare D1, and automatic pruning of unpaid challenge logs.",
+    canonicalPath: "/privacy",
+    badgesHtml: `<span class="badge">Privacy</span>`,
+    jsonLd: renderBrandJsonLd(baseUrl, false),
+    mainHtml,
+  });
+}
+
 export function renderNotFoundHtml(baseUrl: string, requestedPath: string): string {
   return `<!doctype html>
 <html lang="en">
@@ -689,6 +1080,7 @@ export function renderNotFoundHtml(baseUrl: string, requestedPath: string): stri
   <title>404 Not Found | ${escapeHtml(SERVICE_NAME)}</title>
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="icon" href="/favicon.ico" sizes="32x32">
+  <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
   <style>${SHARED_CSS}  </style>
 </head>
 <body>

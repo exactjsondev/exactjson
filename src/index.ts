@@ -11,20 +11,25 @@ import {
   dashboardSetControlHandler,
 } from "./routes/dashboardApi";
 import {
+  aboutPageHandler,
   agentCardHandler,
   apiCatalogHandler,
+  contactPageHandler,
+  docsPageHandler,
   healthHandler,
   indexHandler,
   llmsTxtHandler,
   mcpServerCardHandler,
   openApiHandler,
+  pricingPageHandler,
+  privacyPageHandler,
   resolveBaseUrl,
   robotsTxtHandler,
   sitemapXmlHandler,
   wellKnownX402Handler,
 } from "./routes/discovery";
 import { getEndpointByPath } from "./config/catalog";
-import { prefersHtml } from "./lib/contentNegotiation";
+import { negotiateContentType } from "./lib/contentNegotiation";
 import { renderNotFoundHtml } from "./routes/landingHtml";
 import { evmSafetyHandler } from "./routes/evmSafety";
 import { executionQuoteCheckHandler } from "./routes/executionQuoteCheck";
@@ -93,6 +98,11 @@ const { mcpPostHandler, mcpMethodNotAllowedHandler } = createMcpHandler(
 
 // Free discovery & health routes (never load x402 middleware)
 app.get("/", indexHandler);
+app.get("/docs", docsPageHandler);
+app.get("/pricing", pricingPageHandler);
+app.get("/about", aboutPageHandler);
+app.get("/contact", contactPageHandler);
+app.get("/privacy", privacyPageHandler);
 app.get("/health", healthHandler);
 app.get("/robots.txt", robotsTxtHandler);
 app.get("/sitemap.xml", sitemapXmlHandler);
@@ -157,13 +167,15 @@ app.get("/dashboard/api/requests", dashboardRequestsHandler);
 app.get("/dashboard/api/control", dashboardGetControlHandler);
 app.post("/dashboard/api/control", dashboardSetControlHandler);
 
-// Branded HTML 404 for browsers and structured JSON 404 with discovery links for APIs/agents
+// Branded HTML/Markdown/JSON 404 with discovery links for browsers and agents
 app.notFound((c) => {
   const baseUrl = resolveBaseUrl(c);
   const path = c.req.path;
+  const format = negotiateContentType(c.req.header("accept"));
+  c.header("Vary", "Accept");
   c.header("X-Content-Type-Options", "nosniff");
 
-  if (prefersHtml(c.req.header("accept"))) {
+  if (format === "html") {
     c.header("X-Frame-Options", "DENY");
     c.header("Referrer-Policy", "strict-origin-when-cross-origin");
     c.header(
@@ -173,6 +185,23 @@ app.notFound((c) => {
     return c.html(renderNotFoundHtml(baseUrl, path), 404);
   }
 
+  if (format === "markdown") {
+    const md = [
+      `# 404 Not Found — ${path}`,
+      "",
+      `No ExactJSON route matches \`${path}\`. All paid endpoints live under \`/v1/*\`.`,
+      "",
+      "## Helpful Links",
+      `- [API Docs](${baseUrl}/docs)`,
+      `- [Pricing](${baseUrl}/pricing)`,
+      `- [llms.txt](${baseUrl}/llms.txt)`,
+      `- [OpenAPI 3.1](${baseUrl}/openapi.json)`,
+      `- [Sitemap](${baseUrl}/sitemap.xml)`,
+      "",
+    ].join("\n");
+    return c.text(md, 404, { "Content-Type": "text/markdown; charset=utf-8" });
+  }
+
   return c.json(
     {
       error: "NOT_FOUND",
@@ -180,6 +209,8 @@ app.notFound((c) => {
       path,
       discovery: {
         index: `${baseUrl}/`,
+        docs: `${baseUrl}/docs`,
+        pricing: `${baseUrl}/pricing`,
         x402: `${baseUrl}/.well-known/x402`,
         openapi: `${baseUrl}/openapi.json`,
         llms: `${baseUrl}/llms.txt`,
