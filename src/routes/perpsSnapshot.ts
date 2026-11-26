@@ -6,17 +6,20 @@ import {
   fetchHyperliquidL2Book,
   fetchHyperliquidMetaMap,
 } from "../providers/hyperliquid";
+import { createWaitUntil } from "../middleware/telemetry";
 import { computePerpsSnapshot } from "../services/perpMetrics";
 import type { AppBindings, CacheStatus, PerpsSnapshotResponse } from "../types";
 
 export interface PerpsSnapshotDeps {
   cache?: BoundedTtlCache;
   fetchImpl?: typeof fetch;
+  sleepImpl?: (ms: number) => Promise<void>;
 }
 
 export function createPerpsSnapshotHandler(deps: PerpsSnapshotDeps = {}) {
   const cache = deps.cache ?? isolateCache;
   const fetchImpl = deps.fetchImpl ?? fetch;
+  const sleepImpl = deps.sleepImpl;
 
   return async (c: Context<AppBindings>) => {
     const parsedCoin = parsePerpCoin(c.req.query("coin"));
@@ -44,8 +47,14 @@ export function createPerpsSnapshotHandler(deps: PerpsSnapshotDeps = {}) {
       return c.json(cachedSnapshot.value, 200);
     }
 
+    const waitUntil = createWaitUntil(c);
     try {
-      const { map, cacheHit: metaHit } = await fetchHyperliquidMetaMap(cache, fetchImpl);
+      const { map, cacheHit: metaHit } = await fetchHyperliquidMetaMap(
+        cache,
+        fetchImpl,
+        waitUntil,
+        sleepImpl
+      );
       const entry = map.get(lookupKey);
 
       if (!entry) {
@@ -65,7 +74,9 @@ export function createPerpsSnapshotHandler(deps: PerpsSnapshotDeps = {}) {
       const { book, cacheHit: bookHit } = await fetchHyperliquidL2Book(
         entry.canonicalName,
         cache,
-        fetchImpl
+        fetchImpl,
+        waitUntil,
+        sleepImpl
       );
 
       const cacheStatus: CacheStatus =

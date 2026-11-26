@@ -1,11 +1,11 @@
 import {
-  BoundedTtlCache,
+  type BoundedTtlCache,
   TTL_MS,
   isolateCache,
-  readEdgeCache,
-  writeEdgeCache,
+  withTwoTierCache,
 } from "../lib/cache";
 import { UpstreamError, fetchJsonWithTimeout } from "../lib/http";
+import { roundTo, toFiniteNumber } from "../lib/numbers";
 import type { HoneypotIsResult } from "../types";
 
 const HONEYPOT_IS_BASE_URL = "https://api.honeypot.is/v2/IsHoneypot";
@@ -34,15 +34,6 @@ interface RawHoneypotResponse {
   };
 }
 
-function toFiniteNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return null;
-}
-
 function toNonEmptyString(value: unknown): string | null {
   if (typeof value === "string" && value.trim().length > 0) {
     return value.trim();
@@ -53,11 +44,6 @@ function toNonEmptyString(value: unknown): string | null {
 function toOptionalBool(value: unknown): boolean | null {
   if (typeof value === "boolean") return value;
   return null;
-}
-
-function roundTo(value: number, decimals: number): number {
-  const factor = 10 ** decimals;
-  return Math.round(value * factor) / factor;
 }
 
 /**
@@ -140,45 +126,39 @@ export async function fetchHoneypotIsResult(
   chainId: number,
   address: string,
   cache: BoundedTtlCache = isolateCache,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  waitUntil?: (promise: Promise<unknown>) => void
 ): Promise<HoneypotIsProviderResult> {
   const normalizedAddr = address.toLowerCase();
   const cacheKey = `honeypotis:v2:${chainId}:${normalizedAddr}`;
-  const useEdgeCache = cache === isolateCache;
+  type CachedVal = { status: "ok"; data: HoneypotIsResult } | { status: "not_found" };
 
-  const cached = cache.get<HoneypotIsResult>(cacheKey);
-  if (cached.hit) {
-    return { status: "ok", data: cached.value, cacheHit: true };
-  }
+  const { value, cacheHit } = await withTwoTierCache<CachedVal, HoneypotIsResult>({
+    key: cacheKey,
+    ttlMs: TTL_MS.HONEYPOT_IS,
+    cache,
+    waitUntil,
+    shouldCache: (v) => v.status === "ok",
+    serializeEdge: (v) => (v as { status: "ok"; data: HoneypotIsResult }).data,
+    deserializeEdge: (data) => ({ status: "ok", data }),
+    fetcher: async () => {
+      const url = `${HONEYPOT_IS_BASE_URL}?address=${encodeURIComponent(normalizedAddr)}&chainID=${encodeURIComponent(String(chainId))}`;
+      const res = await fetchJsonWithTimeout<unknown>(url, {
+        provider: "HONEYPOT_IS",
+        method: "GET",
+        allow404: true,
+        fetchImpl,
+      });
 
-  if (useEdgeCache) {
-    const edge = await readEdgeCache<HoneypotIsResult>(cacheKey);
-    if (edge.hit) {
-      cache.set(cacheKey, edge.value, TTL_MS.HONEYPOT_IS);
-      return { status: "ok", data: edge.value, cacheHit: true };
-    }
-  }
+      if (res.status === "not_found") {
+        return { status: "not_found" };
+      }
 
-  const url = `${HONEYPOT_IS_BASE_URL}?address=${encodeURIComponent(normalizedAddr)}&chainID=${encodeURIComponent(String(chainId))}`;
-  const res = await fetchJsonWithTimeout<unknown>(url, {
-    provider: "HONEYPOT_IS",
-    method: "GET",
-    allow404: true,
-    fetchImpl,
+      return parseHoneypotIsResult(chainId, normalizedAddr, res.data);
+    },
   });
 
-  if (res.status === "not_found") {
-    return { status: "not_found", cacheHit: false };
-  }
-
-  const parsed = parseHoneypotIsResult(chainId, normalizedAddr, res.data);
-  if (parsed.status === "not_found") {
-    return { status: "not_found", cacheHit: false };
-  }
-
-  cache.set(cacheKey, parsed.data, TTL_MS.HONEYPOT_IS);
-  if (useEdgeCache) {
-    await writeEdgeCache(cacheKey, parsed.data, TTL_MS.HONEYPOT_IS);
-  }
-  return { status: "ok", data: parsed.data, cacheHit: false };
+  return value.status === "ok"
+    ? { status: "ok", data: value.data, cacheHit }
+    : { status: "not_found", cacheHit };
 }

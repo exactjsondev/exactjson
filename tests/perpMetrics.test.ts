@@ -157,7 +157,10 @@ describe("perpMetrics", () => {
 describe("perpsSnapshotHandler", () => {
   function buildApp(fetchImpl: typeof fetch, cache = new BoundedTtlCache()) {
     const app = new Hono<AppBindings>();
-    app.get("/v1/perps/snapshot", createPerpsSnapshotHandler({ cache, fetchImpl }));
+    app.get(
+      "/v1/perps/snapshot",
+      createPerpsSnapshotHandler({ cache, fetchImpl, sleepImpl: async () => {} })
+    );
     return app;
   }
 

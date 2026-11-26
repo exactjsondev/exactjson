@@ -2,6 +2,7 @@ import type { Context } from "hono";
 import { BoundedTtlCache, isolateCache } from "../lib/cache";
 import { UpstreamError } from "../lib/http";
 import { fetchHyperliquidMetaMap } from "../providers/hyperliquid";
+import { createWaitUntil } from "../middleware/telemetry";
 import { computePerpsScreener } from "../services/perpScreener";
 import type { AppBindings } from "../types";
 
@@ -54,7 +55,11 @@ export function createPerpsScreenerHandler(deps: PerpsScreenerDeps = {}) {
     c.set("upstream_source", "hyperliquid");
 
     try {
-      const { map, cacheHit } = await fetchHyperliquidMetaMap(cache, fetchImpl);
+      const { map, cacheHit } = await fetchHyperliquidMetaMap(
+        cache,
+        fetchImpl,
+        createWaitUntil(c)
+      );
       c.set("cache_status", cacheHit ? "HIT" : "MISS");
       const payload = computePerpsScreener(map, { minOiUsd, limit });
       return c.json(payload, 200);

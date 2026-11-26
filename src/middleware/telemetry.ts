@@ -42,6 +42,12 @@ export function safeWaitUntil(c: Context<AppBindings>, promise: Promise<unknown>
   });
 }
 
+export function createWaitUntil(
+  c: Context<AppBindings>
+): (promise: Promise<unknown>) => void {
+  return (promise) => safeWaitUntil(c, promise);
+}
+
 function generateRequestId(): string {
   try {
     return crypto.randomUUID();
@@ -97,7 +103,7 @@ export function extractTelemetryError(
  * Logs strictly 1 D1 row per matched paid endpoint asynchronously via safeWaitUntil().
  */
 export const telemetryMiddleware: MiddlewareHandler<AppBindings> = async (c, next) => {
-  const endpoint = getEndpointByPath(c.req.path);
+  const endpoint = c.get("matched_endpoint") ?? getEndpointByPath(c.req.path);
   const methodMatches =
     endpoint !== undefined &&
     (c.req.method === endpoint.method ||
@@ -106,6 +112,7 @@ export const telemetryMiddleware: MiddlewareHandler<AppBindings> = async (c, nex
     await next();
     return;
   }
+  c.set("matched_endpoint", endpoint);
 
   const startMs = Date.now();
   const transport = detectRequestTransport(c.req.raw);

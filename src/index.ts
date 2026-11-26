@@ -139,7 +139,7 @@ app.get("/v1/execution/quote-check", executionQuoteCheckHandler);
 
 // Return 405 Method Not Allowed when a known /v1/* endpoint is called with a non-GET/HEAD method
 app.all("/v1/*", (c, next) => {
-  const endpoint = getEndpointByPath(c.req.path);
+  const endpoint = c.get("matched_endpoint") ?? getEndpointByPath(c.req.path);
   if (endpoint && c.req.method !== "GET" && c.req.method !== "HEAD" && c.req.method !== "OPTIONS") {
     c.header("Allow", "GET, HEAD, OPTIONS");
     return c.json(

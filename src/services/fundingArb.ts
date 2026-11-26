@@ -1,4 +1,5 @@
 import { DISCLAIMER } from "../config/catalog";
+import { roundToOrNull as roundTo } from "../lib/numbers";
 import { normalizeBaseAsset } from "../providers/dydx";
 import type {
   FundingArbOpportunity,
@@ -10,13 +11,6 @@ import type {
 } from "../types";
 
 const HOURS_PER_YEAR = 24 * 365;
-
-function roundTo(value: number, decimals: number): number | null {
-  if (!Number.isFinite(value)) return null;
-  const factor = 10 ** decimals;
-  const rounded = Math.round(value * factor) / factor;
-  return Number.isFinite(rounded) ? rounded : null;
-}
 
 export function hyperliquidToVenueMap(
   hlMap: Map<string, HyperliquidAssetEntry>

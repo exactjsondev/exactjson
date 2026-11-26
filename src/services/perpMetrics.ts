@@ -1,4 +1,5 @@
 import { DISCLAIMER } from "../config/catalog";
+import { roundToOrNull as roundTo } from "../lib/numbers";
 import type {
   FundingRegime,
   HyperliquidAssetEntry,
@@ -10,13 +11,6 @@ import type {
 const TOP_LEVELS_COUNT = 5;
 const HOURS_PER_YEAR = 24 * 365;
 const NEUTRAL_FUNDING_THRESHOLD = 0.000005;
-
-function roundTo(value: number, decimals: number): number | null {
-  if (!Number.isFinite(value)) return null;
-  const factor = 10 ** decimals;
-  const rounded = Math.round(value * factor) / factor;
-  return Number.isFinite(rounded) ? rounded : null;
-}
 
 function safeDivide(numerator: number | null, denominator: number | null): number | null {
   if (

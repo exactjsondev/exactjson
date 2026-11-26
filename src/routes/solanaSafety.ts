@@ -4,6 +4,7 @@ import { UpstreamError } from "../lib/http";
 import { parseSolanaMint } from "../lib/validation";
 import { fetchDexScreenerSolanaPairs } from "../providers/dexscreener";
 import { fetchRugCheckSummary } from "../providers/rugcheck";
+import { createWaitUntil } from "../middleware/telemetry";
 import { computeSolanaSafety } from "../services/safetyScoring";
 import type { AppBindings, CacheStatus } from "../types";
 
@@ -34,9 +35,10 @@ export function createSolanaSafetyHandler(deps: SolanaSafetyDeps = {}) {
     c.set("query_target", mint);
     c.set("upstream_source", "rugcheck,dexscreener");
 
+    const waitUntil = createWaitUntil(c);
     const [rugResult, dexResult] = await Promise.allSettled([
-      fetchRugCheckSummary(mint, cache, fetchImpl),
-      fetchDexScreenerSolanaPairs(mint, cache, fetchImpl),
+      fetchRugCheckSummary(mint, cache, fetchImpl, waitUntil),
+      fetchDexScreenerSolanaPairs(mint, cache, fetchImpl, waitUntil),
     ]);
 
     if (rugResult.status === "rejected") {

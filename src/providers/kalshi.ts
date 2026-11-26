@@ -1,11 +1,10 @@
 import {
-  BoundedTtlCache,
+  type BoundedTtlCache,
   TTL_MS,
-  isolateCache,
-  readEdgeCache,
-  writeEdgeCache,
+  withTwoTierCache,
 } from "../lib/cache";
 import { UpstreamError, fetchJsonWithTimeout } from "../lib/http";
+import { toFiniteNumber } from "../lib/numbers";
 import type { RawPredictionMarket } from "../types";
 
 const KALSHI_CACHE_KEY = "kalshi:active:top200";
@@ -40,17 +39,6 @@ interface RawKalshiMarket {
 
 interface RawKalshiResponse {
   markets?: RawKalshiMarket[];
-}
-
-function toFiniteNumber(val: unknown): number | null {
-  if (typeof val === "number") {
-    return Number.isFinite(val) ? val : null;
-  }
-  if (typeof val === "string" && val.trim().length > 0) {
-    const parsed = Number(val);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
 }
 
 function parseKalshiProb(dollarsVal: unknown, legacyVal: unknown): number | null {
@@ -190,49 +178,41 @@ export function parseKalshiMarkets(raw: unknown): RawPredictionMarket[] {
 
 export async function fetchKalshiMarkets(
   cache: BoundedTtlCache,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  waitUntil?: (promise: Promise<unknown>) => void
 ): Promise<{ markets: RawPredictionMarket[]; cacheHit: boolean }> {
-  const useEdgeCache = cache === isolateCache;
-  const cached = cache.get<RawPredictionMarket[]>(KALSHI_CACHE_KEY);
-  if (cached.hit) {
-    return { markets: cached.value, cacheHit: true };
-  }
+  const { value, cacheHit } = await withTwoTierCache<RawPredictionMarket[]>({
+    key: KALSHI_CACHE_KEY,
+    ttlMs: TTL_MS.KALSHI_MARKETS,
+    cache,
+    waitUntil,
+    fetcher: async () => {
+      let data: unknown;
+      try {
+        const primaryRes = await fetchJsonWithTimeout<unknown>(KALSHI_PRIMARY_URL, {
+          provider: "KALSHI",
+          fetchImpl,
+        });
+        if (primaryRes.status !== "ok") {
+          throw new UpstreamError("KALSHI", "KALSHI_UNAVAILABLE", "Kalshi primary unavailable");
+        }
+        data = primaryRes.data;
+      } catch (primaryErr) {
+        const fallbackRes = await fetchJsonWithTimeout<unknown>(KALSHI_FALLBACK_URL, {
+          provider: "KALSHI",
+          fetchImpl,
+        }).catch(() => {
+          throw primaryErr;
+        });
+        if (fallbackRes.status !== "ok") {
+          throw primaryErr;
+        }
+        data = fallbackRes.data;
+      }
 
-  if (useEdgeCache) {
-    const edgeCached = await readEdgeCache<RawPredictionMarket[]>(KALSHI_CACHE_KEY);
-    if (edgeCached.hit) {
-      cache.set(KALSHI_CACHE_KEY, edgeCached.value, TTL_MS.KALSHI_MARKETS);
-      return { markets: edgeCached.value, cacheHit: true };
-    }
-  }
+      return parseKalshiMarkets(data);
+    },
+  });
 
-  let data: unknown;
-  try {
-    const primaryRes = await fetchJsonWithTimeout<unknown>(KALSHI_PRIMARY_URL, {
-      provider: "KALSHI",
-      fetchImpl,
-    });
-    if (primaryRes.status !== "ok") {
-      throw new UpstreamError("KALSHI", "KALSHI_UNAVAILABLE", "Kalshi primary unavailable");
-    }
-    data = primaryRes.data;
-  } catch (primaryErr) {
-    const fallbackRes = await fetchJsonWithTimeout<unknown>(KALSHI_FALLBACK_URL, {
-      provider: "KALSHI",
-      fetchImpl,
-    }).catch(() => {
-      throw primaryErr;
-    });
-    if (fallbackRes.status !== "ok") {
-      throw primaryErr;
-    }
-    data = fallbackRes.data;
-  }
-
-  const markets = parseKalshiMarkets(data);
-  cache.set(KALSHI_CACHE_KEY, markets, TTL_MS.KALSHI_MARKETS);
-  if (useEdgeCache) {
-    await writeEdgeCache(KALSHI_CACHE_KEY, markets, TTL_MS.KALSHI_MARKETS);
-  }
-  return { markets, cacheHit: false };
+  return { markets: value, cacheHit };
 }

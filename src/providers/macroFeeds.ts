@@ -1,11 +1,10 @@
 import {
-  BoundedTtlCache,
+  type BoundedTtlCache,
   TTL_MS,
-  isolateCache,
-  readEdgeCache,
-  writeEdgeCache,
+  withTwoTierCache,
 } from "../lib/cache";
 import { UpstreamError, fetchJsonWithTimeout } from "../lib/http";
+import { toFiniteNumber as parseNumber } from "../lib/numbers";
 import type {
   NyFedRateObservation,
   NyFedRrpObservation,
@@ -30,16 +29,7 @@ const KEYS = {
 } as const;
 
 function toFiniteNumber(val: unknown): number | null {
-  if (typeof val === "number") {
-    return Number.isFinite(val) ? val : null;
-  }
-  if (typeof val === "string") {
-    const cleaned = val.trim().replace(/,/g, "");
-    if (!cleaned || cleaned.toLowerCase() === "null") return null;
-    const parsed = Number(cleaned);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
+  return parseNumber(val, { allowCommas: true });
 }
 
 export function parseTreasuryDebt(raw: unknown): TreasuryDebtObservation[] {
@@ -225,124 +215,150 @@ async function cachedFetch<T>(
   cacheKey: string,
   ttlMs: number,
   cache: BoundedTtlCache,
-  fetcher: () => Promise<T>
+  fetcher: () => Promise<T>,
+  waitUntil?: (promise: Promise<unknown>) => void
 ): Promise<{ data: T; cacheHit: boolean }> {
-  const useEdgeCache = cache === isolateCache;
-  const cached = cache.get<T>(cacheKey);
-  if (cached.hit) {
-    return { data: cached.value, cacheHit: true };
-  }
-  if (useEdgeCache) {
-    const edgeCached = await readEdgeCache<T>(cacheKey);
-    if (edgeCached.hit) {
-      cache.set(cacheKey, edgeCached.value, ttlMs);
-      return { data: edgeCached.value, cacheHit: true };
-    }
-  }
-  const data = await fetcher();
-  cache.set(cacheKey, data, ttlMs);
-  if (useEdgeCache) {
-    await writeEdgeCache(cacheKey, data, ttlMs);
-  }
-  return { data, cacheHit: false };
+  const { value, cacheHit } = await withTwoTierCache<T>({
+    key: cacheKey,
+    ttlMs,
+    cache,
+    waitUntil,
+    fetcher,
+  });
+  return { data: value, cacheHit };
 }
 
 export async function fetchTreasuryDebt(
   cache: BoundedTtlCache,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  waitUntil?: (promise: Promise<unknown>) => void
 ): Promise<{ data: TreasuryDebtObservation[]; cacheHit: boolean }> {
-  return cachedFetch(KEYS.DEBT, TTL_MS.MACRO_TREASURY, cache, async () => {
-    const res = await fetchJsonWithTimeout<unknown>(TREASURY_DEBT_URL, {
-      provider: "TREASURY",
-      fetchImpl,
-    });
-    if (res.status !== "ok") {
-      throw new UpstreamError("TREASURY", "TREASURY_UNAVAILABLE", "Treasury debt feed unavailable");
-    }
-    const parsed = parseTreasuryDebt(res.data);
-    if (parsed.length === 0) {
-      throw new UpstreamError("TREASURY", "TREASURY_EMPTY", "Treasury debt feed returned 0 rows");
-    }
-    return parsed;
-  });
+  return cachedFetch(
+    KEYS.DEBT,
+    TTL_MS.MACRO_TREASURY,
+    cache,
+    async () => {
+      const res = await fetchJsonWithTimeout<unknown>(TREASURY_DEBT_URL, {
+        provider: "TREASURY",
+        fetchImpl,
+      });
+      if (res.status !== "ok") {
+        throw new UpstreamError("TREASURY", "TREASURY_UNAVAILABLE", "Treasury debt feed unavailable");
+      }
+      const parsed = parseTreasuryDebt(res.data);
+      if (parsed.length === 0) {
+        throw new UpstreamError("TREASURY", "TREASURY_EMPTY", "Treasury debt feed returned 0 rows");
+      }
+      return parsed;
+    },
+    waitUntil
+  );
 }
 
 export async function fetchTreasuryTga(
   cache: BoundedTtlCache,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  waitUntil?: (promise: Promise<unknown>) => void
 ): Promise<{ data: TreasuryTgaObservation[]; cacheHit: boolean }> {
-  return cachedFetch(KEYS.TGA, TTL_MS.MACRO_TREASURY, cache, async () => {
-    const res = await fetchJsonWithTimeout<unknown>(TREASURY_TGA_URL, {
-      provider: "TREASURY",
-      fetchImpl,
-    });
-    if (res.status !== "ok") {
-      throw new UpstreamError("TREASURY", "TREASURY_UNAVAILABLE", "Treasury TGA feed unavailable");
-    }
-    const parsed = parseTreasuryTga(res.data);
-    if (parsed.length === 0) {
-      throw new UpstreamError("TREASURY", "TREASURY_EMPTY", "Treasury TGA feed returned 0 rows");
-    }
-    return parsed;
-  });
+  return cachedFetch(
+    KEYS.TGA,
+    TTL_MS.MACRO_TREASURY,
+    cache,
+    async () => {
+      const res = await fetchJsonWithTimeout<unknown>(TREASURY_TGA_URL, {
+        provider: "TREASURY",
+        fetchImpl,
+      });
+      if (res.status !== "ok") {
+        throw new UpstreamError("TREASURY", "TREASURY_UNAVAILABLE", "Treasury TGA feed unavailable");
+      }
+      const parsed = parseTreasuryTga(res.data);
+      if (parsed.length === 0) {
+        throw new UpstreamError("TREASURY", "TREASURY_EMPTY", "Treasury TGA feed returned 0 rows");
+      }
+      return parsed;
+    },
+    waitUntil
+  );
 }
 
 export async function fetchNyFedSofr(
   cache: BoundedTtlCache,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  waitUntil?: (promise: Promise<unknown>) => void
 ): Promise<{ data: NyFedRateObservation[]; cacheHit: boolean }> {
-  return cachedFetch(KEYS.SOFR, TTL_MS.MACRO_NYFED, cache, async () => {
-    const res = await fetchJsonWithTimeout<unknown>(NYFED_SOFR_URL, {
-      provider: "NYFED",
-      fetchImpl,
-    });
-    if (res.status !== "ok") {
-      throw new UpstreamError("NYFED", "NYFED_UNAVAILABLE", "NY Fed SOFR feed unavailable");
-    }
-    const parsed = parseNyFedRates(res.data);
-    if (parsed.length === 0) {
-      throw new UpstreamError("NYFED", "NYFED_EMPTY", "NY Fed SOFR feed returned 0 rows");
-    }
-    return parsed;
-  });
+  return cachedFetch(
+    KEYS.SOFR,
+    TTL_MS.MACRO_NYFED,
+    cache,
+    async () => {
+      const res = await fetchJsonWithTimeout<unknown>(NYFED_SOFR_URL, {
+        provider: "NYFED",
+        fetchImpl,
+      });
+      if (res.status !== "ok") {
+        throw new UpstreamError("NYFED", "NYFED_UNAVAILABLE", "NY Fed SOFR feed unavailable");
+      }
+      const parsed = parseNyFedRates(res.data);
+      if (parsed.length === 0) {
+        throw new UpstreamError("NYFED", "NYFED_EMPTY", "NY Fed SOFR feed returned 0 rows");
+      }
+      return parsed;
+    },
+    waitUntil
+  );
 }
 
 export async function fetchNyFedEffr(
   cache: BoundedTtlCache,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  waitUntil?: (promise: Promise<unknown>) => void
 ): Promise<{ data: NyFedRateObservation[]; cacheHit: boolean }> {
-  return cachedFetch(KEYS.EFFR, TTL_MS.MACRO_NYFED, cache, async () => {
-    const res = await fetchJsonWithTimeout<unknown>(NYFED_EFFR_URL, {
-      provider: "NYFED",
-      fetchImpl,
-    });
-    if (res.status !== "ok") {
-      throw new UpstreamError("NYFED", "NYFED_UNAVAILABLE", "NY Fed EFFR feed unavailable");
-    }
-    const parsed = parseNyFedRates(res.data);
-    if (parsed.length === 0) {
-      throw new UpstreamError("NYFED", "NYFED_EMPTY", "NY Fed EFFR feed returned 0 rows");
-    }
-    return parsed;
-  });
+  return cachedFetch(
+    KEYS.EFFR,
+    TTL_MS.MACRO_NYFED,
+    cache,
+    async () => {
+      const res = await fetchJsonWithTimeout<unknown>(NYFED_EFFR_URL, {
+        provider: "NYFED",
+        fetchImpl,
+      });
+      if (res.status !== "ok") {
+        throw new UpstreamError("NYFED", "NYFED_UNAVAILABLE", "NY Fed EFFR feed unavailable");
+      }
+      const parsed = parseNyFedRates(res.data);
+      if (parsed.length === 0) {
+        throw new UpstreamError("NYFED", "NYFED_EMPTY", "NY Fed EFFR feed returned 0 rows");
+      }
+      return parsed;
+    },
+    waitUntil
+  );
 }
 
 export async function fetchNyFedRrp(
   cache: BoundedTtlCache,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  waitUntil?: (promise: Promise<unknown>) => void
 ): Promise<{ data: NyFedRrpObservation[]; cacheHit: boolean }> {
-  return cachedFetch(KEYS.RRP, TTL_MS.MACRO_NYFED, cache, async () => {
-    const res = await fetchJsonWithTimeout<unknown>(NYFED_RRP_URL, {
-      provider: "NYFED",
-      fetchImpl,
-    });
-    if (res.status !== "ok") {
-      throw new UpstreamError("NYFED", "NYFED_UNAVAILABLE", "NY Fed ON RRP feed unavailable");
-    }
-    const parsed = parseNyFedRrp(res.data);
-    if (parsed.length === 0) {
-      throw new UpstreamError("NYFED", "NYFED_EMPTY", "NY Fed ON RRP feed returned 0 rows");
-    }
-    return parsed;
-  });
+  return cachedFetch(
+    KEYS.RRP,
+    TTL_MS.MACRO_NYFED,
+    cache,
+    async () => {
+      const res = await fetchJsonWithTimeout<unknown>(NYFED_RRP_URL, {
+        provider: "NYFED",
+        fetchImpl,
+      });
+      if (res.status !== "ok") {
+        throw new UpstreamError("NYFED", "NYFED_UNAVAILABLE", "NY Fed ON RRP feed unavailable");
+      }
+      const parsed = parseNyFedRrp(res.data);
+      if (parsed.length === 0) {
+        throw new UpstreamError("NYFED", "NYFED_EMPTY", "NY Fed ON RRP feed returned 0 rows");
+      }
+      return parsed;
+    },
+    waitUntil
+  );
 }

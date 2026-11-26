@@ -1,4 +1,3 @@
-import { z } from "zod";
 import type { EvmChainConfig, EvmChainKey } from "../types";
 
 const SOLANA_MINT_REGEX = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -72,24 +71,6 @@ const EVM_CHAIN_ALIASES: Record<string, EvmChainKey> = {
   "56": "bsc",
 };
 
-export const solanaMintSchema = z
-  .string()
-  .trim()
-  .regex(SOLANA_MINT_REGEX, "Invalid Solana SPL mint address (expected 32-44 Base58 characters).");
-
-export const perpCoinSchema = z
-  .string()
-  .trim()
-  .regex(
-    PERP_COIN_REGEX,
-    "Invalid coin symbol (expected 1-16 alphanumeric characters, optional -PERP suffix)."
-  );
-
-export const evmAddressSchema = z
-  .string()
-  .trim()
-  .regex(EVM_ADDRESS_REGEX, "Invalid EVM token address (expected 0x followed by 40 hex characters).");
-
 export type ValidationResult<T> =
   | { ok: true; value: T }
   | { ok: false; error: string };
@@ -101,14 +82,14 @@ export function parseSolanaMint(raw: string | undefined): ValidationResult<strin
   if (raw.length > 128) {
     return { ok: false, error: "Invalid Solana SPL mint address (input too long)." };
   }
-  const result = solanaMintSchema.safeParse(raw);
-  if (!result.success) {
+  const trimmed = raw.trim();
+  if (!SOLANA_MINT_REGEX.test(trimmed)) {
     return {
       ok: false,
-      error: result.error.issues[0]?.message ?? "Invalid Solana SPL mint address.",
+      error: "Invalid Solana SPL mint address (expected 32-44 Base58 characters).",
     };
   }
-  return { ok: true, value: result.data };
+  return { ok: true, value: trimmed };
 }
 
 export function parseEvmAddress(
@@ -121,14 +102,14 @@ export function parseEvmAddress(
   if (raw.length > 128) {
     return { ok: false, error: "Invalid EVM token address (input too long)." };
   }
-  const result = evmAddressSchema.safeParse(raw);
-  if (!result.success) {
+  const trimmed = raw.trim();
+  if (!EVM_ADDRESS_REGEX.test(trimmed)) {
     return {
       ok: false,
-      error: result.error.issues[0]?.message ?? "Invalid EVM token address.",
+      error: "Invalid EVM token address (expected 0x followed by 40 hex characters).",
     };
   }
-  return { ok: true, value: result.data.toLowerCase() };
+  return { ok: true, value: trimmed.toLowerCase() };
 }
 
 export function parseEvmChain(raw: string | undefined): ValidationResult<EvmChainConfig> {
@@ -138,11 +119,12 @@ export function parseEvmChain(raw: string | undefined): ValidationResult<EvmChai
   if (raw.length > 32) {
     return {
       ok: false,
-      error: "Invalid chain parameter (input too long). Supported chains: base, ethereum, arbitrum, optimism, polygon, bsc.",
+      error:
+        "Invalid chain parameter (input too long). Supported chains: base, ethereum, arbitrum, optimism, polygon, bsc.",
     };
   }
   const normalized = raw.trim().toLowerCase();
-  const key = Object.prototype.hasOwnProperty.call(EVM_CHAIN_ALIASES, normalized)
+  const key = Object.hasOwn(EVM_CHAIN_ALIASES, normalized)
     ? EVM_CHAIN_ALIASES[normalized]
     : undefined;
   if (!key) {
@@ -167,18 +149,18 @@ export function parsePerpCoin(raw: string | undefined): ValidationResult<ParsedP
   if (raw.length > 64) {
     return { ok: false, error: "Invalid coin symbol (input too long)." };
   }
-  const result = perpCoinSchema.safeParse(raw);
-  if (!result.success) {
+  const trimmed = raw.trim();
+  if (!PERP_COIN_REGEX.test(trimmed)) {
     return {
       ok: false,
-      error: result.error.issues[0]?.message ?? "Invalid coin symbol.",
+      error: "Invalid coin symbol (expected 1-16 alphanumeric characters, optional -PERP suffix).",
     };
   }
-  const stripped = result.data.replace(/-perp$/i, "");
+  const stripped = trimmed.replace(/-perp$/i, "");
   return {
     ok: true,
     value: {
-      raw: result.data,
+      raw: trimmed,
       stripped,
       lookupKey: stripped.toLowerCase(),
     },

@@ -1,11 +1,10 @@
 import {
-  BoundedTtlCache,
+  type BoundedTtlCache,
   TTL_MS,
-  isolateCache,
-  readEdgeCache,
-  writeEdgeCache,
+  withTwoTierCache,
 } from "../lib/cache";
 import { UpstreamError, fetchJsonWithTimeout } from "../lib/http";
+import { toFiniteNumber } from "../lib/numbers";
 import type { DeribitOptionContract, OptionsCurrency } from "../types";
 
 const DERIBIT_API_BASE = "https://www.deribit.com/api/v2/public/get_book_summary_by_currency";
@@ -38,17 +37,6 @@ interface RawDeribitSummary {
 
 interface RawDeribitResponse {
   result?: RawDeribitSummary[];
-}
-
-function toFiniteNumber(val: unknown): number | null {
-  if (typeof val === "number") {
-    return Number.isFinite(val) ? val : null;
-  }
-  if (typeof val === "string" && val.trim().length > 0) {
-    const parsed = Number(val);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
 }
 
 export function parseDeribitExpiryMs(dayStr: string, monStr: string, yrStr: string): number | null {
@@ -140,41 +128,34 @@ export function parseDeribitOptions(
 export async function fetchDeribitOptions(
   currency: OptionsCurrency,
   cache: BoundedTtlCache,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  waitUntil?: (promise: Promise<unknown>) => void
 ): Promise<{ contracts: DeribitOptionContract[]; cacheHit: boolean }> {
   const cacheKey = `deribit:options:${currency}`;
-  const useEdgeCache = cache === isolateCache;
-  const cached = cache.get<DeribitOptionContract[]>(cacheKey);
-  if (cached.hit) {
-    return { contracts: cached.value, cacheHit: true };
-  }
+  const { value, cacheHit } = await withTwoTierCache<DeribitOptionContract[]>({
+    key: cacheKey,
+    ttlMs: TTL_MS.DERIBIT_OPTIONS,
+    cache,
+    waitUntil,
+    fetcher: async () => {
+      const url = `${DERIBIT_API_BASE}?currency=${encodeURIComponent(currency)}&kind=option`;
+      const res = await fetchJsonWithTimeout<unknown>(url, {
+        provider: "DERIBIT",
+        fetchImpl,
+      });
 
-  if (useEdgeCache) {
-    const edgeCached = await readEdgeCache<DeribitOptionContract[]>(cacheKey);
-    if (edgeCached.hit) {
-      cache.set(cacheKey, edgeCached.value, TTL_MS.DERIBIT_OPTIONS);
-      return { contracts: edgeCached.value, cacheHit: true };
-    }
-  }
+      if (res.status !== "ok") {
+        throw new UpstreamError("DERIBIT", "DERIBIT_UNAVAILABLE", "Deribit options unavailable");
+      }
 
-  const url = `${DERIBIT_API_BASE}?currency=${encodeURIComponent(currency)}&kind=option`;
-  const res = await fetchJsonWithTimeout<unknown>(url, {
-    provider: "DERIBIT",
-    fetchImpl,
+      const contracts = parseDeribitOptions(res.data, currency);
+      if (contracts.length === 0) {
+        throw new UpstreamError("DERIBIT", "DERIBIT_EMPTY", `No Deribit ${currency} options returned`);
+      }
+
+      return contracts;
+    },
   });
 
-  if (res.status !== "ok") {
-    throw new UpstreamError("DERIBIT", "DERIBIT_UNAVAILABLE", "Deribit options unavailable");
-  }
-
-  const contracts = parseDeribitOptions(res.data, currency);
-  if (contracts.length === 0) {
-    throw new UpstreamError("DERIBIT", "DERIBIT_EMPTY", `No Deribit ${currency} options returned`);
-  }
-
-  cache.set(cacheKey, contracts, TTL_MS.DERIBIT_OPTIONS);
-  if (useEdgeCache) {
-    await writeEdgeCache(cacheKey, contracts, TTL_MS.DERIBIT_OPTIONS);
-  }
-  return { contracts, cacheHit: false };
+  return { contracts: value, cacheHit };
 }

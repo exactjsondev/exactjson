@@ -1,11 +1,11 @@
 import {
-  BoundedTtlCache,
+  type BoundedTtlCache,
   TTL_MS,
   isolateCache,
-  readEdgeCache,
-  writeEdgeCache,
+  withTwoTierCache,
 } from "../lib/cache";
 import { UpstreamError, fetchJsonWithTimeout } from "../lib/http";
+import { toFiniteNumber } from "../lib/numbers";
 import type { EvmChainKey, KyberSwapRouteQuote } from "../types";
 
 const KYBERSWAP_API_BASE = "https://aggregator-api.kyberswap.com";
@@ -272,15 +272,6 @@ interface RawKyberResponse {
   };
 }
 
-function toFiniteNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return null;
-}
-
 function isPositiveIntegerString(value: unknown): value is string {
   return typeof value === "string" && /^[1-9]\d*$/.test(value.trim());
 }
@@ -391,6 +382,7 @@ export async function fetchKyberSwapRoute(params: {
   amountInRaw: string;
   cache?: BoundedTtlCache;
   fetchImpl?: typeof fetch;
+  waitUntil?: (promise: Promise<unknown>) => void;
 }): Promise<KyberSwapProviderResult> {
   const {
     chain,
@@ -399,83 +391,62 @@ export async function fetchKyberSwapRoute(params: {
     amountInRaw,
     cache = isolateCache,
     fetchImpl = fetch,
+    waitUntil,
   } = params;
 
   const normIn = tokenIn.toLowerCase();
   const normOut = tokenOut.toLowerCase();
   const cacheKey = `kyberswap:route:${chain}:${normIn}:${normOut}:${amountInRaw}`;
-  const useEdgeCache = cache === isolateCache;
 
-  const cached = cache.get<CachedKyberEntry>(cacheKey);
-  if (cached.hit) {
-    if (cached.value.status === "ok" && cached.value.quote) {
-      return { status: "ok", quote: cached.value.quote, cacheHit: true };
-    }
-    return {
-      status: "no_route",
-      reason: cached.value.reason ?? "No executable swap route found",
-      cacheHit: true,
-    };
-  }
+  const { value, cacheHit } = await withTwoTierCache<CachedKyberEntry>({
+    key: cacheKey,
+    ttlMs: TTL_MS.KYBERSWAP_QUOTE,
+    cache,
+    waitUntil,
+    fetcher: async () => {
+      const url =
+        `${KYBERSWAP_API_BASE}/${encodeURIComponent(chain)}/api/v1/routes` +
+        `?tokenIn=${encodeURIComponent(normIn)}` +
+        `&tokenOut=${encodeURIComponent(normOut)}` +
+        `&amountIn=${encodeURIComponent(amountInRaw)}`;
 
-  if (useEdgeCache) {
-    const edge = await readEdgeCache<CachedKyberEntry>(cacheKey);
-    if (edge.hit) {
-      cache.set(cacheKey, edge.value, TTL_MS.KYBERSWAP_QUOTE);
-      if (edge.value.status === "ok" && edge.value.quote) {
-        return { status: "ok", quote: edge.value.quote, cacheHit: true };
+      let parsed: KyberSwapParsedOutcome;
+      try {
+        const res = await fetchJsonWithTimeout<unknown>(url, {
+          provider: "KYBERSWAP",
+          method: "GET",
+          headers: {
+            "x-client-id": KYBERSWAP_CLIENT_ID,
+          },
+          allow404: true,
+          fetchImpl,
+        });
+
+        if (res.status === "not_found") {
+          parsed = { status: "no_route", reason: "KyberSwap route not found (404)" };
+        } else {
+          parsed = parseKyberSwapResponse(chain, normIn, normOut, amountInRaw, res.data);
+        }
+      } catch (err) {
+        if (err instanceof UpstreamError && err.httpStatus === 422) {
+          parsed = { status: "no_route", reason: "KyberSwap route unexecutable (422)" };
+        } else {
+          throw err;
+        }
       }
-      return {
-        status: "no_route",
-        reason: edge.value.reason ?? "No executable swap route found",
-        cacheHit: true,
-      };
-    }
+
+      return parsed.status === "ok"
+        ? { status: "ok", quote: parsed.quote }
+        : { status: "no_route", reason: parsed.reason };
+    },
+  });
+
+  if (value.status === "ok" && value.quote) {
+    return { status: "ok", quote: value.quote, cacheHit };
   }
-
-  const url =
-    `${KYBERSWAP_API_BASE}/${encodeURIComponent(chain)}/api/v1/routes` +
-    `?tokenIn=${encodeURIComponent(normIn)}` +
-    `&tokenOut=${encodeURIComponent(normOut)}` +
-    `&amountIn=${encodeURIComponent(amountInRaw)}`;
-
-  let parsed: KyberSwapParsedOutcome;
-  try {
-    const res = await fetchJsonWithTimeout<unknown>(url, {
-      provider: "KYBERSWAP",
-      method: "GET",
-      headers: {
-        "x-client-id": KYBERSWAP_CLIENT_ID,
-      },
-      allow404: true,
-      fetchImpl,
-    });
-
-    if (res.status === "not_found") {
-      parsed = { status: "no_route", reason: "KyberSwap route not found (404)" };
-    } else {
-      parsed = parseKyberSwapResponse(chain, normIn, normOut, amountInRaw, res.data);
-    }
-  } catch (err) {
-    if (err instanceof UpstreamError && err.httpStatus === 422) {
-      parsed = { status: "no_route", reason: "KyberSwap route unexecutable (422)" };
-    } else {
-      throw err;
-    }
-  }
-
-  const entry: CachedKyberEntry =
-    parsed.status === "ok"
-      ? { status: "ok", quote: parsed.quote }
-      : { status: "no_route", reason: parsed.reason };
-
-  cache.set(cacheKey, entry, TTL_MS.KYBERSWAP_QUOTE);
-  if (useEdgeCache) {
-    await writeEdgeCache(cacheKey, entry, TTL_MS.KYBERSWAP_QUOTE);
-  }
-
-  if (parsed.status === "ok") {
-    return { status: "ok", quote: parsed.quote, cacheHit: false };
-  }
-  return { status: "no_route", reason: parsed.reason, cacheHit: false };
+  return {
+    status: "no_route",
+    reason: value.reason ?? "No executable swap route found",
+    cacheHit,
+  };
 }

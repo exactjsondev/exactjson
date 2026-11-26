@@ -234,7 +234,7 @@ async function ensureInitialized(instance: MemoizedX402Instance): Promise<void> 
  */
 export const x402PaywallMiddleware: MiddlewareHandler<AppBindings> = async (c, next) => {
   // Never import @x402/* or contact facilitator for unmatched /v1/* paths or unsupported methods
-  const endpoint = getEndpointByPath(c.req.path);
+  const endpoint = c.get("matched_endpoint") ?? getEndpointByPath(c.req.path);
   const methodMatches =
     endpoint !== undefined &&
     (c.req.method === endpoint.method ||

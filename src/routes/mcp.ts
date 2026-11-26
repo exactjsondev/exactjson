@@ -259,9 +259,11 @@ async function handlePaidToolCall(
     };
   }
 
+  const parsedObj = safeParseJsonObject(bodyText);
   return {
     isError: true,
     content: [{ type: "text", text: bodyText }],
+    ...(parsedObj ? { structuredContent: parsedObj } : {}),
   };
 }
 

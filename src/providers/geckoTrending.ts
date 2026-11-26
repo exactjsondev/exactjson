@@ -1,5 +1,6 @@
-import { BoundedTtlCache, TTL_MS, isolateCache, readEdgeCache, writeEdgeCache } from "../lib/cache";
+import { type BoundedTtlCache, TTL_MS, isolateCache, withTwoTierCache } from "../lib/cache";
 import { UpstreamError, fetchJsonWithTimeout } from "../lib/http";
+import { roundTo, toFiniteNumber } from "../lib/numbers";
 import type { TrendingSolanaPool } from "../types";
 
 const GECKO_TRENDING_URL =
@@ -35,20 +36,6 @@ interface RawTrendingPool {
     base_token?: { data?: { id?: unknown } };
     dex?: { data?: { id?: unknown } };
   };
-}
-
-function toFiniteNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return null;
-}
-
-function roundTo(value: number, decimals: number): number {
-  const factor = 10 ** decimals;
-  return Math.round(value * factor) / factor;
 }
 
 function roundPriceUsd(value: number, standardDecimals: number = 10): number {
@@ -120,36 +107,28 @@ export function parseTrendingSolanaPools(raw: unknown): TrendingSolanaPool[] {
 
 export async function fetchTrendingSolanaPools(
   cache: BoundedTtlCache = isolateCache,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  waitUntil?: (promise: Promise<unknown>) => void
 ): Promise<{ pools: TrendingSolanaPool[]; cacheHit: boolean }> {
-  const useEdgeCache = cache === isolateCache;
-  const cached = cache.get<TrendingSolanaPool[]>(CACHE_KEY);
-  if (cached.hit) {
-    return { pools: cached.value, cacheHit: true };
-  }
+  const { value, cacheHit } = await withTwoTierCache<TrendingSolanaPool[]>({
+    key: CACHE_KEY,
+    ttlMs: TTL_MS.GECKO_TRENDING,
+    cache,
+    waitUntil,
+    fetcher: async () => {
+      const result = await fetchJsonWithTimeout<unknown>(GECKO_TRENDING_URL, {
+        provider: "GECKOTERMINAL",
+        method: "GET",
+        fetchImpl,
+      });
 
-  if (useEdgeCache) {
-    const edgeCached = await readEdgeCache<TrendingSolanaPool[]>(CACHE_KEY);
-    if (edgeCached.hit) {
-      cache.set(CACHE_KEY, edgeCached.value, TTL_MS.GECKO_TRENDING);
-      return { pools: edgeCached.value, cacheHit: true };
-    }
-  }
+      if (result.status !== "ok") {
+        throw new UpstreamError("GECKOTERMINAL", "GECKOTERMINAL_EMPTY", "Empty trending pools response");
+      }
 
-  const result = await fetchJsonWithTimeout<unknown>(GECKO_TRENDING_URL, {
-    provider: "GECKOTERMINAL",
-    method: "GET",
-    fetchImpl,
+      return parseTrendingSolanaPools(result.data);
+    },
   });
 
-  if (result.status !== "ok") {
-    throw new UpstreamError("GECKOTERMINAL", "GECKOTERMINAL_EMPTY", "Empty trending pools response");
-  }
-
-  const pools = parseTrendingSolanaPools(result.data);
-  cache.set(CACHE_KEY, pools, TTL_MS.GECKO_TRENDING);
-  if (useEdgeCache) {
-    await writeEdgeCache(CACHE_KEY, pools, TTL_MS.GECKO_TRENDING);
-  }
-  return { pools, cacheHit: false };
+  return { pools: value, cacheHit };
 }

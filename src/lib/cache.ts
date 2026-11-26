@@ -157,3 +157,107 @@ export async function writeEdgeCache<T>(key: string, value: T, ttlMs: number): P
     // Non-fatal: in-isolate cache still protects the Worker
   }
 }
+
+export interface TwoTierCacheResult<T> {
+  value: T;
+  cacheHit: boolean;
+}
+
+export interface WithTwoTierCacheOptions<T, E = T> {
+  key: string;
+  ttlMs: number;
+  cache?: BoundedTtlCache;
+  useEdgeCache?: boolean;
+  waitUntil?: (promise: Promise<unknown>) => void;
+  shouldCache?: (value: T) => boolean;
+  serializeEdge?: (value: T) => E;
+  deserializeEdge?: (raw: E) => T | null;
+  readEdge?: (key: string) => Promise<{ hit: true; value: E } | { hit: false }>;
+  writeEdge?: (key: string, value: E, ttlMs: number) => Promise<void>;
+  fetcher: () => Promise<T>;
+}
+
+const inFlightByCache = new WeakMap<BoundedTtlCache, Map<string, Promise<TwoTierCacheResult<unknown>>>>();
+
+function getInFlightMap(cache: BoundedTtlCache): Map<string, Promise<TwoTierCacheResult<unknown>>> {
+  let map = inFlightByCache.get(cache);
+  if (!map) {
+    map = new Map();
+    inFlightByCache.set(cache, map);
+  }
+  return map;
+}
+
+/**
+ * Unified 2-tier cache (in-isolate BoundedTtlCache + Cloudflare Edge caches.default)
+ * with per-isolate singleflight coalescing and optional non-blocking waitUntil edge writes.
+ */
+export async function withTwoTierCache<T, E = T>(
+  options: WithTwoTierCacheOptions<T, E>
+): Promise<TwoTierCacheResult<T>> {
+  const {
+    key,
+    ttlMs,
+    cache = isolateCache,
+    useEdgeCache = cache === isolateCache,
+    waitUntil,
+    shouldCache,
+    serializeEdge,
+    deserializeEdge,
+    readEdge = readEdgeCache,
+    writeEdge = writeEdgeCache,
+    fetcher,
+  } = options;
+
+  const cached = cache.get<T>(key);
+  if (cached.hit) {
+    return { value: cached.value, cacheHit: true };
+  }
+
+  const inFlightMap = getInFlightMap(cache);
+  const existingFlight = inFlightMap.get(key);
+  if (existingFlight) {
+    return existingFlight as Promise<TwoTierCacheResult<T>>;
+  }
+
+  const flight = (async (): Promise<TwoTierCacheResult<T>> => {
+    if (useEdgeCache) {
+      const edge = await readEdge(key);
+      if (edge.hit) {
+        const value = deserializeEdge
+          ? deserializeEdge(edge.value)
+          : (edge.value as unknown as T);
+        if (value !== null) {
+          cache.set(key, value, ttlMs);
+          return { value, cacheHit: true };
+        }
+      }
+    }
+
+    const value = await fetcher();
+    const cacheable = shouldCache ? shouldCache(value) : true;
+    if (cacheable) {
+      cache.set(key, value, ttlMs);
+      if (useEdgeCache) {
+        const edgePayload = serializeEdge ? serializeEdge(value) : (value as unknown as E);
+        const writePromise = writeEdge(key, edgePayload, ttlMs);
+        if (waitUntil) {
+          waitUntil(writePromise);
+        } else {
+          await writePromise;
+        }
+      }
+    }
+
+    return { value, cacheHit: false };
+  })();
+
+  inFlightMap.set(key, flight as Promise<TwoTierCacheResult<unknown>>);
+  try {
+    return await flight;
+  } finally {
+    if (inFlightMap.get(key) === flight) {
+      inFlightMap.delete(key);
+    }
+  }
+}

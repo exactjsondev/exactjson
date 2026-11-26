@@ -8,6 +8,7 @@ import {
   type HoneypotIsProviderResult,
   fetchHoneypotIsResult,
 } from "../providers/honeypotIs";
+import { createWaitUntil } from "../middleware/telemetry";
 import { computeEvmSafety } from "../services/evmSafetyScoring";
 import type {
   AppBindings,
@@ -61,12 +62,13 @@ export function createEvmSafetyHandler(deps: EvmSafetyDeps = {}) {
       chain.honeypotSupported ? "goplus,honeypot_is,dexscreener" : "goplus,dexscreener"
     );
 
+    const waitUntil = createWaitUntil(c);
     const [goplusSettled, honeypotSettled, dexSettled] = await Promise.allSettled([
-      fetchGoPlusTokenSecurity(chain.chainId, address, cache, fetchImpl),
+      fetchGoPlusTokenSecurity(chain.chainId, address, cache, fetchImpl, waitUntil),
       chain.honeypotSupported
-        ? fetchHoneypotIsResult(chain.chainId, address, cache, fetchImpl)
+        ? fetchHoneypotIsResult(chain.chainId, address, cache, fetchImpl, waitUntil)
         : Promise.resolve<HoneypotIsProviderResult | null>(null),
-      fetchDexScreenerEvmPairs(chain, address, cache, fetchImpl),
+      fetchDexScreenerEvmPairs(chain, address, cache, fetchImpl, waitUntil),
     ]);
 
     if (dexSettled.status === "rejected") {

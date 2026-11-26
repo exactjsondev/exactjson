@@ -1,11 +1,11 @@
 import {
-  BoundedTtlCache,
+  type BoundedTtlCache,
   TTL_MS,
   isolateCache,
-  readEdgeCache,
-  writeEdgeCache,
+  withTwoTierCache,
 } from "../lib/cache";
 import { UpstreamError, fetchJsonWithTimeout } from "../lib/http";
+import { roundTo, toFiniteNumber } from "../lib/numbers";
 import type { GoPlusTokenSecurity } from "../types";
 
 const GOPLUS_BASE_URL = "https://api.gopluslabs.io/api/v1/token_security";
@@ -54,15 +54,6 @@ interface RawGoPlusResponse {
   result?: unknown;
 }
 
-function toFiniteNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return null;
-}
-
 function toGoPlusBool(value: unknown): boolean | null {
   if (value === true || value === 1 || value === "1") return true;
   if (value === false || value === 0 || value === "0") return false;
@@ -74,11 +65,6 @@ function toNonEmptyString(value: unknown): string | null {
     return value.trim();
   }
   return null;
-}
-
-function roundTo(value: number, decimals: number): number {
-  const factor = 10 ** decimals;
-  return Math.round(value * factor) / factor;
 }
 
 function isBurnAddress(address: unknown): boolean {
@@ -234,45 +220,39 @@ export async function fetchGoPlusTokenSecurity(
   chainId: number,
   address: string,
   cache: BoundedTtlCache = isolateCache,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  waitUntil?: (promise: Promise<unknown>) => void
 ): Promise<GoPlusProviderResult> {
   const normalizedAddr = address.toLowerCase();
   const cacheKey = `goplus:security:${chainId}:${normalizedAddr}`;
-  const useEdgeCache = cache === isolateCache;
+  type CachedVal = { status: "ok"; data: GoPlusTokenSecurity } | { status: "not_found" };
 
-  const cached = cache.get<GoPlusTokenSecurity>(cacheKey);
-  if (cached.hit) {
-    return { status: "ok", data: cached.value, cacheHit: true };
-  }
+  const { value, cacheHit } = await withTwoTierCache<CachedVal, GoPlusTokenSecurity>({
+    key: cacheKey,
+    ttlMs: TTL_MS.GOPLUS_SECURITY,
+    cache,
+    waitUntil,
+    shouldCache: (v) => v.status === "ok",
+    serializeEdge: (v) => (v as { status: "ok"; data: GoPlusTokenSecurity }).data,
+    deserializeEdge: (data) => ({ status: "ok", data }),
+    fetcher: async () => {
+      const url = `${GOPLUS_BASE_URL}/${encodeURIComponent(String(chainId))}?contract_addresses=${encodeURIComponent(normalizedAddr)}`;
+      const res = await fetchJsonWithTimeout<unknown>(url, {
+        provider: "GOPLUS",
+        method: "GET",
+        allow404: true,
+        fetchImpl,
+      });
 
-  if (useEdgeCache) {
-    const edge = await readEdgeCache<GoPlusTokenSecurity>(cacheKey);
-    if (edge.hit) {
-      cache.set(cacheKey, edge.value, TTL_MS.GOPLUS_SECURITY);
-      return { status: "ok", data: edge.value, cacheHit: true };
-    }
-  }
+      if (res.status === "not_found") {
+        return { status: "not_found" };
+      }
 
-  const url = `${GOPLUS_BASE_URL}/${encodeURIComponent(String(chainId))}?contract_addresses=${encodeURIComponent(normalizedAddr)}`;
-  const res = await fetchJsonWithTimeout<unknown>(url, {
-    provider: "GOPLUS",
-    method: "GET",
-    allow404: true,
-    fetchImpl,
+      return parseGoPlusTokenSecurity(chainId, normalizedAddr, res.data);
+    },
   });
 
-  if (res.status === "not_found") {
-    return { status: "not_found", cacheHit: false };
-  }
-
-  const parsed = parseGoPlusTokenSecurity(chainId, normalizedAddr, res.data);
-  if (parsed.status === "not_found") {
-    return { status: "not_found", cacheHit: false };
-  }
-
-  cache.set(cacheKey, parsed.data, TTL_MS.GOPLUS_SECURITY);
-  if (useEdgeCache) {
-    await writeEdgeCache(cacheKey, parsed.data, TTL_MS.GOPLUS_SECURITY);
-  }
-  return { status: "ok", data: parsed.data, cacheHit: false };
+  return value.status === "ok"
+    ? { status: "ok", data: value.data, cacheHit }
+    : { status: "not_found", cacheHit };
 }

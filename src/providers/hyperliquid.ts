@@ -1,11 +1,11 @@
 import {
-  BoundedTtlCache,
+  type BoundedTtlCache,
   TTL_MS,
   isolateCache,
-  readEdgeCache,
-  writeEdgeCache,
+  withTwoTierCache,
 } from "../lib/cache";
 import { UpstreamError, fetchJsonWithTimeout } from "../lib/http";
+import { toFiniteNumber } from "../lib/numbers";
 import type {
   HyperliquidAssetEntry,
   HyperliquidBookLevel,
@@ -22,7 +22,8 @@ function sleepMs(ms: number): Promise<void> {
 
 async function fetchHyperliquidInfo(
   body: Record<string, unknown>,
-  fetchImpl: typeof fetch
+  fetchImpl: typeof fetch,
+  sleepImpl: (ms: number) => Promise<void> = sleepMs
 ): Promise<unknown> {
   let lastErr: unknown;
 
@@ -48,7 +49,7 @@ async function fetchHyperliquidInfo(
       }
       const baseDelay = RETRY_429_DELAYS_MS[attempt] ?? 250;
       const jitter = Math.floor(Math.random() * 100);
-      await sleepMs(baseDelay + jitter);
+      await sleepImpl(baseDelay + jitter);
     }
   }
 
@@ -83,15 +84,6 @@ interface RawL2BookResponse {
   coin?: unknown;
   time?: unknown;
   levels?: unknown;
-}
-
-function toFiniteNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return null;
 }
 
 export function indexMetaAndAssetCtxs(raw: unknown): Map<string, HyperliquidAssetEntry> {
@@ -175,57 +167,51 @@ export function parseL2Book(canonicalCoin: string, raw: unknown): HyperliquidL2B
 
 export async function fetchHyperliquidMetaMap(
   cache: BoundedTtlCache = isolateCache,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  waitUntil?: (promise: Promise<unknown>) => void,
+  sleepImpl: (ms: number) => Promise<void> = sleepMs
 ): Promise<{ map: Map<string, HyperliquidAssetEntry>; cacheHit: boolean }> {
-  const useEdgeCache = cache === isolateCache;
-  const cached = cache.get<Map<string, HyperliquidAssetEntry>>(META_CACHE_KEY);
-  if (cached.hit) {
-    return { map: cached.value, cacheHit: true };
-  }
+  const { value, cacheHit } = await withTwoTierCache<
+    Map<string, HyperliquidAssetEntry>,
+    Array<[string, HyperliquidAssetEntry]>
+  >({
+    key: META_CACHE_KEY,
+    ttlMs: TTL_MS.HYPERLIQUID_META,
+    cache,
+    waitUntil,
+    serializeEdge: (map) => Array.from(map.entries()),
+    deserializeEdge: (raw) => (Array.isArray(raw) ? new Map(raw) : null),
+    fetcher: async () => {
+      const data = await fetchHyperliquidInfo({ type: "metaAndAssetCtxs" }, fetchImpl, sleepImpl);
+      return indexMetaAndAssetCtxs(data);
+    },
+  });
 
-  if (useEdgeCache) {
-    const edge = await readEdgeCache<Array<[string, HyperliquidAssetEntry]>>(META_CACHE_KEY);
-    if (edge.hit && Array.isArray(edge.value)) {
-      const rebuilt = new Map<string, HyperliquidAssetEntry>(edge.value);
-      cache.set(META_CACHE_KEY, rebuilt, TTL_MS.HYPERLIQUID_META);
-      return { map: rebuilt, cacheHit: true };
-    }
-  }
-
-  const data = await fetchHyperliquidInfo({ type: "metaAndAssetCtxs" }, fetchImpl);
-  const map = indexMetaAndAssetCtxs(data);
-  cache.set(META_CACHE_KEY, map, TTL_MS.HYPERLIQUID_META);
-  if (useEdgeCache) {
-    await writeEdgeCache(META_CACHE_KEY, Array.from(map.entries()), TTL_MS.HYPERLIQUID_META);
-  }
-  return { map, cacheHit: false };
+  return { map: value, cacheHit };
 }
 
 export async function fetchHyperliquidL2Book(
   canonicalCoin: string,
   cache: BoundedTtlCache = isolateCache,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  waitUntil?: (promise: Promise<unknown>) => void,
+  sleepImpl: (ms: number) => Promise<void> = sleepMs
 ): Promise<{ book: HyperliquidL2Book; cacheHit: boolean }> {
-  const useEdgeCache = cache === isolateCache;
   const cacheKey = `hyperliquid:l2book:${canonicalCoin}`;
-  const cached = cache.get<HyperliquidL2Book>(cacheKey);
-  if (cached.hit) {
-    return { book: cached.value, cacheHit: true };
-  }
+  const { value, cacheHit } = await withTwoTierCache<HyperliquidL2Book>({
+    key: cacheKey,
+    ttlMs: TTL_MS.HYPERLIQUID_SNAPSHOT,
+    cache,
+    waitUntil,
+    fetcher: async () => {
+      const data = await fetchHyperliquidInfo(
+        { type: "l2Book", coin: canonicalCoin },
+        fetchImpl,
+        sleepImpl
+      );
+      return parseL2Book(canonicalCoin, data);
+    },
+  });
 
-  if (useEdgeCache) {
-    const edge = await readEdgeCache<HyperliquidL2Book>(cacheKey);
-    if (edge.hit) {
-      cache.set(cacheKey, edge.value, TTL_MS.HYPERLIQUID_SNAPSHOT);
-      return { book: edge.value, cacheHit: true };
-    }
-  }
-
-  const data = await fetchHyperliquidInfo({ type: "l2Book", coin: canonicalCoin }, fetchImpl);
-  const book = parseL2Book(canonicalCoin, data);
-  cache.set(cacheKey, book, TTL_MS.HYPERLIQUID_SNAPSHOT);
-  if (useEdgeCache) {
-    await writeEdgeCache(cacheKey, book, TTL_MS.HYPERLIQUID_SNAPSHOT);
-  }
-  return { book, cacheHit: false };
+  return { book: value, cacheHit };
 }

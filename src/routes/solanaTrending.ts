@@ -3,6 +3,7 @@ import { BoundedTtlCache, isolateCache } from "../lib/cache";
 import { UpstreamError } from "../lib/http";
 import { fetchTrendingSolanaPools } from "../providers/geckoTrending";
 import { fetchRugCheckSummary } from "../providers/rugcheck";
+import { createWaitUntil } from "../middleware/telemetry";
 import { computeSolanaTrending } from "../services/solanaTrending";
 import type { AppBindings, CacheStatus, RugCheckSummary } from "../types";
 
@@ -57,9 +58,10 @@ export function createSolanaTrendingHandler(deps: SolanaTrendingDeps = {}) {
     );
     c.set("upstream_source", "geckoterminal,rugcheck");
 
+    const waitUntil = createWaitUntil(c);
     let poolsResult: Awaited<ReturnType<typeof fetchTrendingSolanaPools>>;
     try {
-      poolsResult = await fetchTrendingSolanaPools(cache, fetchImpl);
+      poolsResult = await fetchTrendingSolanaPools(cache, fetchImpl, waitUntil);
     } catch (err) {
       const code = err instanceof UpstreamError ? err.code : "GECKOTERMINAL_ERROR";
       c.set("cache_status", "MISS");
@@ -79,7 +81,7 @@ export function createSolanaTrendingHandler(deps: SolanaTrendingDeps = {}) {
     const candidates = poolsResult.pools.slice(0, scanCount);
 
     const rugResults = await Promise.allSettled(
-      candidates.map((pool) => fetchRugCheckSummary(pool.mint, cache, fetchImpl))
+      candidates.map((pool) => fetchRugCheckSummary(pool.mint, cache, fetchImpl, waitUntil))
     );
 
     const rugByMint = new Map<string, RugCheckSummary | null>();

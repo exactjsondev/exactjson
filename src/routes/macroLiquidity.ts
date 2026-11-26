@@ -8,6 +8,7 @@ import {
   fetchTreasuryDebt,
   fetchTreasuryTga,
 } from "../providers/macroFeeds";
+import { createWaitUntil } from "../middleware/telemetry";
 import { computeMacroLiquidity } from "../services/macroLiquidity";
 import type { AppBindings, CacheStatus } from "../types";
 
@@ -45,12 +46,13 @@ export function createMacroLiquidityHandler(deps: MacroLiquidityDeps = {}) {
     const lookbackObs = parsedLookback.value;
     c.set("query_target", `lookback=${lookbackObs}`);
 
+    const waitUntil = createWaitUntil(c);
     const [debtRes, tgaRes, rrpRes, sofrRes, effrRes] = await Promise.allSettled([
-      fetchTreasuryDebt(cache, fetchImpl),
-      fetchTreasuryTga(cache, fetchImpl),
-      fetchNyFedRrp(cache, fetchImpl),
-      fetchNyFedSofr(cache, fetchImpl),
-      fetchNyFedEffr(cache, fetchImpl),
+      fetchTreasuryDebt(cache, fetchImpl, waitUntil),
+      fetchTreasuryTga(cache, fetchImpl, waitUntil),
+      fetchNyFedRrp(cache, fetchImpl, waitUntil),
+      fetchNyFedSofr(cache, fetchImpl, waitUntil),
+      fetchNyFedEffr(cache, fetchImpl, waitUntil),
     ]);
 
     const hits: boolean[] = [];

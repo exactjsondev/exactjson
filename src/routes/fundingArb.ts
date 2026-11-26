@@ -5,6 +5,7 @@ import { parsePerpCoin } from "../lib/validation";
 import { fetchDydxMarketsMap } from "../providers/dydx";
 import { fetchHyperliquidMetaMap } from "../providers/hyperliquid";
 import { fetchKrakenPerpsMap } from "../providers/krakenFutures";
+import { createWaitUntil } from "../middleware/telemetry";
 import { computeFundingArb, hyperliquidToVenueMap } from "../services/fundingArb";
 import type { AppBindings, CacheStatus } from "../types";
 
@@ -67,10 +68,11 @@ export function createFundingArbHandler(deps: FundingArbDeps = {}) {
     const limit = Math.floor(parsedLimit.value);
     c.set("query_target", coinLookupKey ? `coin=${coinLookupKey}` : `minOi=${minOiUsd},limit=${limit}`);
 
+    const waitUntil = createWaitUntil(c);
     const [hlRes, dydxRes, krakenRes] = await Promise.allSettled([
-      fetchHyperliquidMetaMap(cache, fetchImpl),
-      fetchDydxMarketsMap(cache, fetchImpl),
-      fetchKrakenPerpsMap(cache, fetchImpl),
+      fetchHyperliquidMetaMap(cache, fetchImpl, waitUntil),
+      fetchDydxMarketsMap(cache, fetchImpl, waitUntil),
+      fetchKrakenPerpsMap(cache, fetchImpl, waitUntil),
     ]);
 
     const hits: boolean[] = [];

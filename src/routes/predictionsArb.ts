@@ -3,6 +3,7 @@ import { BoundedTtlCache, isolateCache } from "../lib/cache";
 import { UpstreamError } from "../lib/http";
 import { fetchKalshiMarkets } from "../providers/kalshi";
 import { fetchPolymarketMarkets } from "../providers/polymarket";
+import { createWaitUntil } from "../middleware/telemetry";
 import { computePredictionsArb } from "../services/predictionsArb";
 import type { AppBindings, CacheStatus } from "../types";
 
@@ -84,9 +85,10 @@ export function createPredictionsArbHandler(deps: PredictionsArbDeps = {}) {
         : `minSpread=${minSpreadBps},minLiq=${minLiquidityUsd},limit=${limit}`
     );
 
+    const waitUntil = createWaitUntil(c);
     const [polyRes, kalshiRes] = await Promise.allSettled([
-      fetchPolymarketMarkets(cache, fetchImpl),
-      fetchKalshiMarkets(cache, fetchImpl),
+      fetchPolymarketMarkets(cache, fetchImpl, waitUntil),
+      fetchKalshiMarkets(cache, fetchImpl, waitUntil),
     ]);
 
     // Fail closed: cross-venue arb requires BOTH Polymarket and Kalshi

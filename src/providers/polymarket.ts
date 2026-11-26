@@ -1,11 +1,10 @@
 import {
-  BoundedTtlCache,
+  type BoundedTtlCache,
   TTL_MS,
-  isolateCache,
-  readEdgeCache,
-  writeEdgeCache,
+  withTwoTierCache,
 } from "../lib/cache";
 import { UpstreamError, fetchJsonWithTimeout } from "../lib/http";
+import { roundTo, toFiniteNumber } from "../lib/numbers";
 import type { RawPredictionMarket } from "../types";
 
 const POLYMARKET_CACHE_KEY = "polymarket:active:top100";
@@ -36,17 +35,6 @@ interface RawGammaMarket {
   events?: Array<{ slug?: unknown; category?: unknown; title?: unknown }>;
 }
 
-function toFiniteNumber(val: unknown): number | null {
-  if (typeof val === "number") {
-    return Number.isFinite(val) ? val : null;
-  }
-  if (typeof val === "string" && val.trim().length > 0) {
-    const parsed = Number(val);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-}
-
 function parseJsonStringOrArray(val: unknown): unknown[] | null {
   if (Array.isArray(val)) return val;
   if (typeof val === "string" && val.trim().startsWith("[")) {
@@ -64,11 +52,6 @@ function clampProb(val: number | null): number | null {
   if (val === null || !Number.isFinite(val)) return null;
   if (val < 0 || val > 1) return null;
   return val;
-}
-
-function roundTo(val: number, decimals: number): number {
-  const factor = 10 ** decimals;
-  return Math.round(val * factor) / factor;
 }
 
 export function parsePolymarketMarkets(rawList: unknown): RawPredictionMarket[] {
@@ -207,35 +190,31 @@ export function parsePolymarketMarkets(rawList: unknown): RawPredictionMarket[] 
 
 export async function fetchPolymarketMarkets(
   cache: BoundedTtlCache,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  waitUntil?: (promise: Promise<unknown>) => void
 ): Promise<{ markets: RawPredictionMarket[]; cacheHit: boolean }> {
-  const useEdgeCache = cache === isolateCache;
-  const cached = cache.get<RawPredictionMarket[]>(POLYMARKET_CACHE_KEY);
-  if (cached.hit) {
-    return { markets: cached.value, cacheHit: true };
-  }
+  const { value, cacheHit } = await withTwoTierCache<RawPredictionMarket[]>({
+    key: POLYMARKET_CACHE_KEY,
+    ttlMs: TTL_MS.POLYMARKET_MARKETS,
+    cache,
+    waitUntil,
+    fetcher: async () => {
+      const res = await fetchJsonWithTimeout<unknown>(POLYMARKET_MARKETS_URL, {
+        provider: "POLYMARKET",
+        fetchImpl,
+      });
 
-  if (useEdgeCache) {
-    const edgeCached = await readEdgeCache<RawPredictionMarket[]>(POLYMARKET_CACHE_KEY);
-    if (edgeCached.hit) {
-      cache.set(POLYMARKET_CACHE_KEY, edgeCached.value, TTL_MS.POLYMARKET_MARKETS);
-      return { markets: edgeCached.value, cacheHit: true };
-    }
-  }
+      if (res.status !== "ok") {
+        throw new UpstreamError(
+          "POLYMARKET",
+          "POLYMARKET_UNAVAILABLE",
+          "Polymarket markets unavailable"
+        );
+      }
 
-  const res = await fetchJsonWithTimeout<unknown>(POLYMARKET_MARKETS_URL, {
-    provider: "POLYMARKET",
-    fetchImpl,
+      return parsePolymarketMarkets(res.data);
+    },
   });
 
-  if (res.status !== "ok") {
-    throw new UpstreamError("POLYMARKET", "POLYMARKET_UNAVAILABLE", "Polymarket markets unavailable");
-  }
-
-  const markets = parsePolymarketMarkets(res.data);
-  cache.set(POLYMARKET_CACHE_KEY, markets, TTL_MS.POLYMARKET_MARKETS);
-  if (useEdgeCache) {
-    await writeEdgeCache(POLYMARKET_CACHE_KEY, markets, TTL_MS.POLYMARKET_MARKETS);
-  }
-  return { markets, cacheHit: false };
+  return { markets: value, cacheHit };
 }

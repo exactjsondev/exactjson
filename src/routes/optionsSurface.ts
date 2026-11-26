@@ -2,6 +2,7 @@ import type { Context } from "hono";
 import { BoundedTtlCache, isolateCache } from "../lib/cache";
 import { UpstreamError } from "../lib/http";
 import { fetchDeribitOptions } from "../providers/deribit";
+import { createWaitUntil } from "../middleware/telemetry";
 import { computeOptionsSurface } from "../services/optionsSurface";
 import type { AppBindings, OptionsCurrency } from "../types";
 
@@ -34,7 +35,12 @@ export function createOptionsSurfaceHandler(deps: OptionsSurfaceDeps = {}) {
     c.set("query_target", `currency=${currency}`);
 
     try {
-      const { contracts, cacheHit } = await fetchDeribitOptions(currency, cache, fetchImpl);
+      const { contracts, cacheHit } = await fetchDeribitOptions(
+        currency,
+        cache,
+        fetchImpl,
+        createWaitUntil(c)
+      );
       c.set("cache_status", cacheHit ? "HIT" : "MISS");
       c.set("upstream_source", "deribit");
 

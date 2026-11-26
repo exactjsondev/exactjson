@@ -3,6 +3,7 @@ import { BoundedTtlCache, isolateCache } from "../lib/cache";
 import { UpstreamError } from "../lib/http";
 import { fetchKalshiMarkets } from "../providers/kalshi";
 import { fetchPolymarketMarkets } from "../providers/polymarket";
+import { createWaitUntil } from "../middleware/telemetry";
 import { computePredictionsScanner } from "../services/predictionsScanner";
 import type {
   AppBindings,
@@ -95,13 +96,14 @@ export function createPredictionsScannerHandler(deps: PredictionsScannerDeps = {
       query ? `venue=${venue},q=${query.slice(0, 32)}` : `venue=${venue},limit=${limit}`
     );
 
+    const waitUntil = createWaitUntil(c);
     const tasks: Array<
       Promise<{ venue: PredictionVenueName; markets: RawPredictionMarket[]; cacheHit: boolean }>
     > = [];
 
     if (venue === "all" || venue === "polymarket") {
       tasks.push(
-        fetchPolymarketMarkets(cache, fetchImpl).then((r) => ({
+        fetchPolymarketMarkets(cache, fetchImpl, waitUntil).then((r) => ({
           venue: "polymarket" as const,
           ...r,
         }))
@@ -109,7 +111,7 @@ export function createPredictionsScannerHandler(deps: PredictionsScannerDeps = {
     }
     if (venue === "all" || venue === "kalshi") {
       tasks.push(
-        fetchKalshiMarkets(cache, fetchImpl).then((r) => ({
+        fetchKalshiMarkets(cache, fetchImpl, waitUntil).then((r) => ({
           venue: "kalshi" as const,
           ...r,
         }))

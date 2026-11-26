@@ -1,11 +1,11 @@
 import {
-  BoundedTtlCache,
+  type BoundedTtlCache,
   TTL_MS,
   isolateCache,
-  readEdgeCache,
-  writeEdgeCache,
+  withTwoTierCache,
 } from "../lib/cache";
 import { UpstreamError, fetchJsonWithTimeout } from "../lib/http";
+import { roundTo, toFiniteNumber } from "../lib/numbers";
 import type { DexScreenerAggregated, EvmChainConfig } from "../types";
 
 const DEXSCREENER_V1_BASE = "https://api.dexscreener.com/token-pairs/v1";
@@ -68,20 +68,6 @@ interface RawGeckoTokenResponse {
     };
   };
   included?: unknown;
-}
-
-function toFiniteNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return null;
-}
-
-function roundTo(value: number, decimals: number): number {
-  const factor = 10 ** decimals;
-  return Math.round(value * factor) / factor;
 }
 
 function roundPriceUsd(value: number, standardDecimals: number = 8): number {
@@ -346,6 +332,7 @@ async function fetchDexScreenerWithFallback(params: {
   cache: BoundedTtlCache;
   fetchImpl: typeof fetch;
   useEdgeCache: boolean;
+  waitUntil?: (promise: Promise<unknown>) => void;
 }): Promise<DexScreenerProviderResult> {
   const {
     cacheKey,
@@ -356,39 +343,12 @@ async function fetchDexScreenerWithFallback(params: {
     cache,
     fetchImpl,
     useEdgeCache,
+    waitUntil,
   } = params;
 
-  const cached = cache.get<CachedMarketEntry>(cacheKey);
-  if (cached.hit) {
-    return {
-      data: cached.value.data,
-      source: cached.value.source,
-      cacheHit: true,
-    };
-  }
-
-  if (useEdgeCache) {
-    const edge = await readEdgeCache<CachedMarketEntry>(cacheKey);
-    if (edge.hit) {
-      cache.set(cacheKey, edge.value, TTL_MS.DEXSCREENER_PAIRS);
-      return {
-        data: edge.value.data,
-        source: edge.value.source,
-        cacheHit: true,
-      };
-    }
-  }
-
   const encodedAddr = encodeURIComponent(tokenAddress);
-  const storeResult = async (entry: CachedMarketEntry): Promise<DexScreenerProviderResult> => {
-    cache.set(cacheKey, entry, TTL_MS.DEXSCREENER_PAIRS);
-    if (useEdgeCache) {
-      await writeEdgeCache(cacheKey, entry, TTL_MS.DEXSCREENER_PAIRS);
-    }
-    return { data: entry.data, source: entry.source, cacheHit: false };
-  };
 
-  const fetchGeckoFallback = async (primaryErr: unknown): Promise<DexScreenerProviderResult> => {
+  const fetchGeckoFallback = async (primaryErr: unknown): Promise<CachedMarketEntry> => {
     try {
       const gecko = await fetchJsonWithTimeout<unknown>(
         `${GECKOTERMINAL_NETWORKS_BASE}/${encodeURIComponent(geckoTerminalNetwork)}/tokens/${encodedAddr}?include=top_pools`,
@@ -409,39 +369,22 @@ async function fetchDexScreenerWithFallback(params: {
             )
           : parseGeckoTerminalToken(gecko.data);
 
-      return storeResult({ data: aggregated, source: "geckoterminal" });
+      return { data: aggregated, source: "geckoterminal" };
     } catch {
       throw primaryErr;
     }
   };
 
-  try {
-    const primary = await fetchJsonWithTimeout<unknown>(
-      `${DEXSCREENER_V1_BASE}/${encodeURIComponent(dexScreenerChainId)}/${encodedAddr}`,
-      {
-        provider: "DEXSCREENER",
-        method: "GET",
-        allow404: true,
-        fetchImpl,
-      }
-    );
-    const aggregated =
-      primary.status === "not_found"
-        ? aggregateDexScreenerPairsForChain(tokenAddress, [], dexScreenerChainId, caseInsensitive)
-        : aggregateDexScreenerPairsForChain(
-            tokenAddress,
-            primary.data,
-            dexScreenerChainId,
-            caseInsensitive
-          );
-
-    return storeResult({ data: aggregated, source: "dexscreener" });
-  } catch (primaryErr) {
-    if (isRateLimitOrBlocked(primaryErr)) {
-      // Fallback 1: DEX Screener /latest/dex/tokens/{addr} (separate rate-limit bucket)
+  const { value, cacheHit } = await withTwoTierCache<CachedMarketEntry>({
+    key: cacheKey,
+    ttlMs: TTL_MS.DEXSCREENER_PAIRS,
+    cache,
+    useEdgeCache,
+    waitUntil,
+    fetcher: async () => {
       try {
-        const secondary = await fetchJsonWithTimeout<unknown>(
-          `${DEXSCREENER_LATEST_URL}/${encodedAddr}`,
+        const primary = await fetchJsonWithTimeout<unknown>(
+          `${DEXSCREENER_V1_BASE}/${encodeURIComponent(dexScreenerChainId)}/${encodedAddr}`,
           {
             provider: "DEXSCREENER",
             method: "GET",
@@ -450,35 +393,69 @@ async function fetchDexScreenerWithFallback(params: {
           }
         );
         const aggregated =
-          secondary.status === "not_found"
+          primary.status === "not_found"
             ? aggregateDexScreenerPairsForChain(tokenAddress, [], dexScreenerChainId, caseInsensitive)
             : aggregateDexScreenerPairsForChain(
                 tokenAddress,
-                secondary.data,
+                primary.data,
                 dexScreenerChainId,
                 caseInsensitive
               );
 
-        return storeResult({ data: aggregated, source: "dexscreener" });
-      } catch {
-        // Fallback 2: GeckoTerminal keyless token+pools API (resilient on shared CF Workers IPs)
-        return fetchGeckoFallback(primaryErr);
+        return { data: aggregated, source: "dexscreener" };
+      } catch (primaryErr) {
+        if (isRateLimitOrBlocked(primaryErr)) {
+          // Fallback 1: DEX Screener /latest/dex/tokens/{addr} (separate rate-limit bucket)
+          try {
+            const secondary = await fetchJsonWithTimeout<unknown>(
+              `${DEXSCREENER_LATEST_URL}/${encodedAddr}`,
+              {
+                provider: "DEXSCREENER",
+                method: "GET",
+                allow404: true,
+                fetchImpl,
+              }
+            );
+            const aggregated =
+              secondary.status === "not_found"
+                ? aggregateDexScreenerPairsForChain(
+                    tokenAddress,
+                    [],
+                    dexScreenerChainId,
+                    caseInsensitive
+                  )
+                : aggregateDexScreenerPairsForChain(
+                    tokenAddress,
+                    secondary.data,
+                    dexScreenerChainId,
+                    caseInsensitive
+                  );
+
+            return { data: aggregated, source: "dexscreener" };
+          } catch {
+            // Fallback 2: GeckoTerminal keyless token+pools API (resilient on shared CF Workers IPs)
+            return fetchGeckoFallback(primaryErr);
+          }
+        }
+
+        if (isTransientServerOrTimeout(primaryErr)) {
+          // DEX Screener 5xx/timeout: skip second DEX Screener host call and fall back directly to GeckoTerminal
+          return fetchGeckoFallback(primaryErr);
+        }
+
+        throw primaryErr;
       }
-    }
+    },
+  });
 
-    if (isTransientServerOrTimeout(primaryErr)) {
-      // DEX Screener 5xx/timeout: skip second DEX Screener host call and fall back directly to GeckoTerminal
-      return fetchGeckoFallback(primaryErr);
-    }
-
-    throw primaryErr;
-  }
+  return { data: value.data, source: value.source, cacheHit };
 }
 
 export async function fetchDexScreenerSolanaPairs(
   mint: string,
   cache: BoundedTtlCache = isolateCache,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  waitUntil?: (promise: Promise<unknown>) => void
 ): Promise<DexScreenerProviderResult> {
   return fetchDexScreenerWithFallback({
     cacheKey: `dexscreener:solana:${mint}`,
@@ -489,6 +466,7 @@ export async function fetchDexScreenerSolanaPairs(
     cache,
     fetchImpl,
     useEdgeCache: cache === isolateCache,
+    waitUntil,
   });
 }
 
@@ -496,7 +474,8 @@ export async function fetchDexScreenerEvmPairs(
   chain: EvmChainConfig,
   address: string,
   cache: BoundedTtlCache = isolateCache,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  waitUntil?: (promise: Promise<unknown>) => void
 ): Promise<DexScreenerProviderResult> {
   const normalizedAddr = address.toLowerCase();
   return fetchDexScreenerWithFallback({
@@ -508,5 +487,6 @@ export async function fetchDexScreenerEvmPairs(
     cache,
     fetchImpl,
     useEdgeCache: cache === isolateCache,
+    waitUntil,
   });
 }

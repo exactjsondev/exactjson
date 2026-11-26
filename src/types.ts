@@ -30,6 +30,7 @@ export interface AppVariables {
   upstream_source?: string;
   upstream_error?: string;
   query_target?: string;
+  matched_endpoint?: import("./config/catalog").EndpointCatalogEntry;
 }
 
 export type AppBindings = {

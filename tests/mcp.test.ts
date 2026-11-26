@@ -424,9 +424,14 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
       testApp
     );
     const errJson = (await errRes.json()) as {
-      result: { isError: boolean; _meta?: unknown };
+      result: {
+        isError: boolean;
+        structuredContent?: { error: string };
+        _meta?: unknown;
+      };
     };
     expect(errJson.result.isError).toBe(true);
+    expect(errJson.result.structuredContent).toEqual({ error: "NOT_FOUND" });
     expect(errJson.result._meta).toBeUndefined();
 
     // 4. Settlement failure returning 402 + PAYMENT-RESPONSE + "{}" body returns errorReason & _meta (not empty "{}")

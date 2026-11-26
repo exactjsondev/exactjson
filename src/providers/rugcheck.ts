@@ -1,11 +1,11 @@
 import {
-  BoundedTtlCache,
+  type BoundedTtlCache,
   TTL_MS,
   isolateCache,
-  readEdgeCache,
-  writeEdgeCache,
+  withTwoTierCache,
 } from "../lib/cache";
 import { UpstreamError, fetchJsonWithTimeout } from "../lib/http";
+import { toFiniteNumber } from "../lib/numbers";
 import type { RugCheckRiskItem, RugCheckSummary } from "../types";
 
 const RUGCHECK_BASE_URL = "https://api.rugcheck.xyz/v1/tokens";
@@ -32,15 +32,6 @@ interface RawRugCheckSummary {
   tokenType?: unknown;
   risks?: unknown;
   markets?: unknown;
-}
-
-function toFiniteNumber(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string" && value.trim().length > 0) {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed)) return parsed;
-  }
-  return null;
 }
 
 function extractLpLockedPct(raw: RawRugCheckSummary): number | null {
@@ -105,62 +96,67 @@ export type RugCheckProviderResult =
 export async function fetchRugCheckSummary(
   mint: string,
   cache: BoundedTtlCache = isolateCache,
-  fetchImpl: typeof fetch = fetch
+  fetchImpl: typeof fetch = fetch,
+  waitUntil?: (promise: Promise<unknown>) => void
 ): Promise<RugCheckProviderResult> {
   const cacheKey = `rugcheck:summary:${mint}`;
-  const useEdgeCache = cache === isolateCache;
+  type CachedVal = { status: "ok"; data: RugCheckSummary } | { status: "not_found" };
 
-  const cached = cache.get<RugCheckSummary>(cacheKey);
-  if (cached.hit) {
-    return { status: "ok", data: cached.value, cacheHit: true };
-  }
+  const { value, cacheHit } = await withTwoTierCache<CachedVal, RugCheckSummary>({
+    key: cacheKey,
+    ttlMs: TTL_MS.RUGCHECK_SUMMARY,
+    cache,
+    waitUntil,
+    shouldCache: (v) => v.status === "ok",
+    serializeEdge: (v) => (v as { status: "ok"; data: RugCheckSummary }).data,
+    deserializeEdge: (data) => ({ status: "ok", data }),
+    fetcher: async () => {
+      const url = `${RUGCHECK_BASE_URL}/${encodeURIComponent(mint)}/report/summary`;
+      const result = await fetchJsonWithTimeout<unknown>(url, {
+        provider: "RUGCHECK",
+        method: "GET",
+        allow404: true,
+        fetchImpl,
+      });
 
-  if (useEdgeCache) {
-    const edge = await readEdgeCache<RugCheckSummary>(cacheKey);
-    if (edge.hit) {
-      cache.set(cacheKey, edge.value, TTL_MS.RUGCHECK_SUMMARY);
-      return { status: "ok", data: edge.value, cacheHit: true };
-    }
-  }
+      if (result.status === "not_found") {
+        return { status: "not_found" };
+      }
 
-  const url = `${RUGCHECK_BASE_URL}/${encodeURIComponent(mint)}/report/summary`;
-  const result = await fetchJsonWithTimeout<unknown>(url, {
-    provider: "RUGCHECK",
-    method: "GET",
-    allow404: true,
-    fetchImpl,
+      if (result.data === null || typeof result.data !== "object" || Array.isArray(result.data)) {
+        throw new UpstreamError(
+          "RUGCHECK",
+          "RUGCHECK_BAD_PAYLOAD",
+          "RugCheck returned unexpected payload"
+        );
+      }
+
+      const rawObj = result.data as Record<string, unknown>;
+      if (typeof rawObj.error === "string" && rawObj.error.trim().length > 0) {
+        const errText = rawObj.error.trim();
+        if (/not\s*found/i.test(errText)) {
+          return { status: "not_found" };
+        }
+        const errCode = /rate\s*limit|too\s*many/i.test(errText)
+          ? "RUGCHECK_429"
+          : "RUGCHECK_API_ERROR";
+        throw new UpstreamError("RUGCHECK", errCode, `RugCheck error: ${errText}`);
+      }
+
+      const parsed = parseRugCheckSummary(mint, rawObj);
+      if (parsed.rawScore === null && parsed.scoreNormalised === null && !Array.isArray(rawObj.risks)) {
+        throw new UpstreamError(
+          "RUGCHECK",
+          "RUGCHECK_BAD_PAYLOAD",
+          "RugCheck response missing score and risks"
+        );
+      }
+
+      return { status: "ok", data: parsed };
+    },
   });
 
-  if (result.status === "not_found") {
-    return { status: "not_found", cacheHit: false };
-  }
-
-  if (result.data === null || typeof result.data !== "object" || Array.isArray(result.data)) {
-    throw new UpstreamError("RUGCHECK", "RUGCHECK_BAD_PAYLOAD", "RugCheck returned unexpected payload");
-  }
-
-  const rawObj = result.data as Record<string, unknown>;
-  if (typeof rawObj.error === "string" && rawObj.error.trim().length > 0) {
-    const errText = rawObj.error.trim();
-    if (/not\s*found/i.test(errText)) {
-      return { status: "not_found", cacheHit: false };
-    }
-    const errCode = /rate\s*limit|too\s*many/i.test(errText) ? "RUGCHECK_429" : "RUGCHECK_API_ERROR";
-    throw new UpstreamError("RUGCHECK", errCode, `RugCheck error: ${errText}`);
-  }
-
-  const parsed = parseRugCheckSummary(mint, rawObj);
-  if (parsed.rawScore === null && parsed.scoreNormalised === null && !Array.isArray(rawObj.risks)) {
-    throw new UpstreamError(
-      "RUGCHECK",
-      "RUGCHECK_BAD_PAYLOAD",
-      "RugCheck response missing score and risks"
-    );
-  }
-
-  cache.set(cacheKey, parsed, TTL_MS.RUGCHECK_SUMMARY);
-  if (useEdgeCache) {
-    await writeEdgeCache(cacheKey, parsed, TTL_MS.RUGCHECK_SUMMARY);
-  }
-  return { status: "ok", data: parsed, cacheHit: false };
+  return value.status === "ok"
+    ? { status: "ok", data: value.data, cacheHit }
+    : { status: "not_found", cacheHit };
 }

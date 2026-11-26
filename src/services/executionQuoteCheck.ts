@@ -1,4 +1,5 @@
 import { DISCLAIMER } from "../config/catalog";
+import { roundTo } from "../lib/numbers";
 import type {
   DexScreenerAggregated,
   EvmChainConfig,
@@ -18,11 +19,6 @@ import type {
 const MAX_SLIPPAGE_THRESHOLD_BPS = 100;
 const WIDE_SPREAD_THRESHOLD_BPS = 25;
 const HIGH_GAS_OVERHEAD_BPS = 50;
-
-function roundTo(value: number, decimals: number): number {
-  const factor = 10 ** decimals;
-  return Math.round(value * factor) / factor;
-}
 
 function roundPriceUsd(value: number, standardDecimals: number = 8): number {
   if (!Number.isFinite(value) || value === 0) return 0;

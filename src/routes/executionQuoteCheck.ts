@@ -18,6 +18,7 @@ import {
   findKnownQuoteToken,
   usdToRawTokenUnits,
 } from "../providers/kyberswap";
+import { createWaitUntil } from "../middleware/telemetry";
 import {
   type EvmTierInput,
   computeEvmQuoteCheck,
@@ -137,6 +138,8 @@ export function createExecutionQuoteCheckHandler(deps: ExecutionQuoteCheckDeps =
 
     const mode = parsedMode.value;
 
+    const waitUntil = createWaitUntil(c);
+
     // ===================== MODE: PERPS =====================
     if (mode === "perps") {
       const parsedCoin = parsePerpCoin(c.req.query("coin"));
@@ -170,7 +173,11 @@ export function createExecutionQuoteCheckHandler(deps: ExecutionQuoteCheckDeps =
       c.set("upstream_source", "hyperliquid");
 
       try {
-        const { map, cacheHit: metaHit } = await fetchHyperliquidMetaMap(cache, fetchImpl);
+        const { map, cacheHit: metaHit } = await fetchHyperliquidMetaMap(
+          cache,
+          fetchImpl,
+          waitUntil
+        );
         const entry = map.get(lookupKey);
 
         if (!entry) {
@@ -190,7 +197,8 @@ export function createExecutionQuoteCheckHandler(deps: ExecutionQuoteCheckDeps =
         const { book, cacheHit: bookHit } = await fetchHyperliquidL2Book(
           entry.canonicalName,
           cache,
-          fetchImpl
+          fetchImpl,
+          waitUntil
         );
 
         const cacheStatus: CacheStatus =
@@ -306,7 +314,7 @@ export function createExecutionQuoteCheckHandler(deps: ExecutionQuoteCheckDeps =
 
     if (!knownIn?.isStablecoin) {
       try {
-        const inSpot = await fetchDexScreenerEvmPairs(chain, tokenIn, cache, fetchImpl);
+        const inSpot = await fetchDexScreenerEvmPairs(chain, tokenIn, cache, fetchImpl, waitUntil);
         cacheHits.push(inSpot.cacheHit);
         activeSources.add(inSpot.source);
         if (inSpot.data.priceUsd === null || inSpot.data.priceUsd <= 0) {
@@ -343,7 +351,7 @@ export function createExecutionQuoteCheckHandler(deps: ExecutionQuoteCheckDeps =
     );
 
     const [dexOutSettled, ...kyberSettled] = await Promise.allSettled([
-      fetchDexScreenerEvmPairs(chain, tokenOut, cache, fetchImpl),
+      fetchDexScreenerEvmPairs(chain, tokenOut, cache, fetchImpl, waitUntil),
       ...rawAmounts.map((amountInRaw) => {
         if (!amountInRaw) {
           return Promise.resolve({
@@ -359,6 +367,7 @@ export function createExecutionQuoteCheckHandler(deps: ExecutionQuoteCheckDeps =
           amountInRaw,
           cache,
           fetchImpl,
+          waitUntil,
         });
       }),
     ]);
