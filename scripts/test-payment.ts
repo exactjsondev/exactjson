@@ -197,21 +197,67 @@ async function main() {
       label: "Execution Quote-Check Perps BTC ($0.01)",
       url: `${baseUrl}/v1/execution/quote-check?mode=perps&coin=${TEST_PERP_COIN}`,
     },
+    {
+      key: "oss_package_audit",
+      label: "OSS Package Audit npm lodash ($0.01)",
+      url: `${baseUrl}/v1/oss/package-audit?package=lodash&ecosystem=npm`,
+    },
+    {
+      key: "net_domain_trust",
+      label: "Domain Trust stripe.com ($0.01)",
+      url: `${baseUrl}/v1/net/domain-trust?domain=stripe.com`,
+    },
+    {
+      key: "sec_cve_triage",
+      label: "CVE Triage CVE-2024-3094 ($0.01)",
+      url: `${baseUrl}/v1/sec/cve-triage?cve=CVE-2024-3094`,
+    },
+    {
+      key: "ops_cloud_status",
+      label: "Cloud Status All Providers ($0.005)",
+      url: `${baseUrl}/v1/ops/cloud-status?providers=all`,
+    },
+    {
+      key: "oss_runtime_eol",
+      label: "Runtime EOL Node.js 20 ($0.005)",
+      url: `${baseUrl}/v1/oss/runtime-eol?product=nodejs&cycle=20`,
+    },
+    {
+      key: "ai_model_audit",
+      label: "AI Model Audit Qwen2.5-7B ($0.01)",
+      url: `${baseUrl}/v1/ai/model-audit?model=Qwen/Qwen2.5-7B-Instruct`,
+    },
+    {
+      key: "net_censorship_check",
+      label: "Censorship Check telegram.org IR ($0.01)",
+      url: `${baseUrl}/v1/net/censorship-check?domain=telegram.org&country=IR&days=7`,
+    },
   ];
 
   const v3Keys = new Set(["evm_safety", "predictions_arb", "quote_check"]);
+  const securityKeys = new Set([
+    "oss_package_audit",
+    "net_domain_trust",
+    "sec_cve_triage",
+    "ops_cloud_status",
+    "oss_runtime_eol",
+    "ai_model_audit",
+    "net_censorship_check",
+  ]);
   const selected =
     onlyTarget === "all"
       ? targets
       : onlyTarget === "v3"
         ? targets.filter((t) => v3Keys.has(t.key))
-        : onlyTarget
-          ? targets.filter((t) => t.key === onlyTarget)
-          : targets.filter((t) => t.key === "safety" || t.key === "perps");
+        : onlyTarget === "security"
+          ? targets.filter((t) => securityKeys.has(t.key))
+          : onlyTarget
+            ? targets.filter((t) => t.key === onlyTarget)
+            : targets.filter((t) => t.key === "safety" || t.key === "perps");
 
   if (selected.length === 0) {
     throw new Error(
-      `Unknown --only=${onlyTarget}. Valid values: all, v3, ${targets.map((t) => t.key).join(", ")}`
+      `Unknown --only=${onlyTarget}. Valid values: all, v3, security, ${targets.map((t) => t.key).join(", ")}`
     );
   }
 

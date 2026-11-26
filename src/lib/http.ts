@@ -31,7 +31,23 @@ export interface FetchJsonOptions {
     | "KALSHI"
     | "DERIBIT"
     | "TREASURY"
-    | "NYFED";
+    | "NYFED"
+    | "DEPS_DEV"
+    | "OSV"
+    | "NPM_REGISTRY"
+    | "PYPI"
+    | "CRATES_IO"
+    | "FIRST_EPSS"
+    | "CISA_KEV"
+    | "MITRE_CVE"
+    | "CF_DOH"
+    | "CF_SECURITY_DOH"
+    | "IANA_RDAP"
+    | "RDAP"
+    | "STATUSPAGE"
+    | "ENDOFLIFE"
+    | "HF_HUB"
+    | "OONI";
   method?: "GET" | "POST";
   body?: unknown;
   headers?: Record<string, string>;

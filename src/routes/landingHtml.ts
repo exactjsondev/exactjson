@@ -289,11 +289,11 @@ function renderBrandJsonLd(baseUrl: string, includeOffers = false): string {
     "@type": "WebAPI",
     "@id": `${baseUrl}/#api`,
     name: "ExactJSON x402 API",
-    serviceType: "x402 pay-per-call market and token safety JSON API",
+    serviceType: "x402 pay-per-call market, token-safety, and supply-chain security JSON API",
     url: baseUrl,
     documentation: `${baseUrl}/docs`,
     keywords:
-      "x402 API, AI agent API, MCP server, Base USDC micropayments, EVM token safety, Solana safety, Hyperliquid perpetuals, Polymarket Kalshi arbitrage, Deribit options surface, US macro liquidity",
+      "x402 API, AI agent API, MCP server, Base USDC micropayments, EVM token safety, Solana safety, Hyperliquid perpetuals, Polymarket Kalshi arbitrage, Deribit options surface, US macro liquidity, OSS package audit, CVE triage, domain trust, runtime EOL, Hugging Face model audit",
     description:
       "Pre-computed, deterministic, compact JSON endpoints for AI agents via x402 V2 Base Mainnet USDC micro-payments ($0.005-$0.02/call). Pay-only-on-success with zero API keys or subscriptions.",
     provider: { "@id": `${baseUrl}/#organization` },
@@ -983,7 +983,7 @@ export function renderPricingHtml(baseUrl: string, network: string): string {
     baseUrl,
     title: "ExactJSON Pricing — Pay-Per-Call Base USDC ($0.005–$0.02)",
     description:
-      "Transparent pay-per-call x402 V2 pricing for all 11 ExactJSON endpoints on Base Mainnet USDC ($0.005 to $0.02/call). Pay only on HTTP 200 success.",
+      `Transparent pay-per-call x402 V2 pricing for all ${CATALOG.length} ExactJSON endpoints on Base Mainnet USDC ($0.005 to $0.02/call). Pay only on HTTP 200 success.`,
     canonicalPath: "/pricing",
     badgesHtml: `<span class="badge live">Base USDC · $0.005–$0.02</span>`,
     jsonLd: offerCatalogJsonLd,
@@ -1014,7 +1014,7 @@ export function renderAboutHtml(baseUrl: string, network: string): string {
     <section class="grid-2" style="margin-top: 1rem;">
       <div class="card">
         <h2>Data Sources &amp; Coverage</h2>
-        <p>Coverage spans EVM chains (Base, Ethereum, Arbitrum, Optimism, Polygon, BSC via GoPlus, Honeypot.is, KyberSwap, DEX Screener), Solana (RugCheck, DEX Screener, GeckoTerminal), Perpetuals (Hyperliquid, dYdX v4, Kraken Futures), Prediction Markets (Polymarket, Kalshi), Options (Deribit), and US Macro Liquidity (US Treasury Fiscal Data &amp; NY Fed).</p>
+        <p>Coverage spans Markets (EVM via GoPlus/Honeypot.is/KyberSwap/DEX Screener, Solana via RugCheck, Hyperliquid/dYdX/Kraken perps, Polymarket/Kalshi predictions, Deribit options, US Treasury &amp; NY Fed macro) and Security (deps.dev, OSV.dev, npm/PyPI/crates.io, CISA KEV, FIRST EPSS, MITRE CVE, Cloudflare 1.1.1.1/1.1.1.2 DoH, IANA RDAP, Statuspage, endoflife.date, Hugging Face Hub, and OONI).</p>
       </div>
       <div class="card">
         <h2>Open Source &amp; Machine Discovery</h2>

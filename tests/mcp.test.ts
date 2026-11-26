@@ -117,7 +117,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
     expect(initJson.id).toBe(1);
     expect(initJson.result.protocolVersion).toBe("2025-03-26");
     expect(initJson.result.serverInfo.name).toBe("io.github.exactjsondev/exactjson");
-    expect(initJson.result.serverInfo.version).toBe("1.1.0");
+    expect(initJson.result.serverInfo.version).toBe("1.2.0");
     expect(initJson.result.instructions).toContain("https://exactjson.com/mcp");
 
     const notifRes = await rpcCall(
@@ -169,7 +169,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
     };
     expect(healthJson.result.isError).toBe(false);
     expect(healthJson.result.structuredContent.status).toBe("ok");
-    expect(healthJson.result.structuredContent.version).toBe("1.1.0");
+    expect(healthJson.result.structuredContent.version).toBe("1.2.0");
 
     // Free MCP routes must never write paid /v1/* telemetry rows
     await new Promise((r) => setTimeout(r, 10));
@@ -573,9 +573,25 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
     expect(getAllHtml.status).toBe(405);
     expect(await getAllHtml.text()).toContain("/mcp/all");
 
-    // 2. Unpopulated pack (security has 0 endpoints in Wave 0) & unknown pack return deterministic 404 JSON-RPC errors
-    const emptyPackRes = await app.request(
+    // 2. Live /mcp/security returns 8 tools (<=15 TDQS), while unpopulated /mcp/world & unknown pack return 404 JSON-RPC errors
+    const liveSecurityRes = await app.request(
       "http://localhost:8787/mcp/security",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 30, method: "tools/list" }),
+      },
+      env
+    );
+    expect(liveSecurityRes.status).toBe(200);
+    const liveSecurityJson = (await liveSecurityRes.json()) as {
+      result: { tools: Array<{ name: string }> };
+    };
+    expect(liveSecurityJson.result.tools.length).toBe(1 + getPackEndpoints(["security"]).length);
+    expect(liveSecurityJson.result.tools.length).toBe(8);
+
+    const emptyPackRes = await app.request(
+      "http://localhost:8787/mcp/world",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

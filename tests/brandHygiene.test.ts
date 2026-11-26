@@ -88,7 +88,7 @@ describe("ExactJSON clean-slate brand hygiene and MCP contract parity", () => {
     expect(mcpSource).toContain("https://exactjson.com");
     expect(mcpSource).toContain("AbortSignal.timeout(");
     expect(mcpSource).toContain("/^0x/i.test(rawKey)");
-    expect(generatedSource).toContain('export const SERVICE_VERSION = "1.1.0";');
+    expect(generatedSource).toContain('export const SERVICE_VERSION = "1.2.0";');
     expect(generatedSource).toContain("Scan live Polymarket & Kalshi");
     expect(generatedSource).not.toContain('"priceFormatted": "$0.015",\n    "summary": "Polymarket + Kalshi');
 
@@ -104,7 +104,7 @@ describe("ExactJSON clean-slate brand hygiene and MCP contract parity", () => {
       bin: Record<string, string>;
     };
     expect(mcpPkg.name).toBe("exactjson-mcp");
-    expect(mcpPkg.version).toBe("1.1.0");
+    expect(mcpPkg.version).toBe("1.2.0");
     expect(mcpPkg.mcpName).toBe("io.github.exactjsondev/exactjson");
     expect(mcpPkg.author).toContain("ExactJSON");
     expect(mcpPkg.bugs.url).toBe("https://github.com/exactjsondev/exactjson/issues");
@@ -128,14 +128,14 @@ describe("ExactJSON clean-slate brand hygiene and MCP contract parity", () => {
     };
     expect(serverJson.name).toBe("io.github.exactjsondev/exactjson");
     expect(serverJson.description.length).toBeLessThanOrEqual(100);
-    expect(serverJson.version).toBe("1.1.0");
+    expect(serverJson.version).toBe("1.2.0");
     expect(serverJson.websiteUrl).toBe("https://exactjson.com");
     expect(serverJson.remotes[0]).toEqual({
       type: "streamable-http",
       url: "https://exactjson.com/mcp",
     });
     expect(serverJson.packages[0]?.identifier).toBe("exactjson-mcp");
-    expect(serverJson.packages[0]?.version).toBe("1.1.0");
+    expect(serverJson.packages[0]?.version).toBe("1.2.0");
     const envVarNames = serverJson.packages[0]?.environmentVariables?.map((v) => v.name) ?? [];
     expect(envVarNames).toContain("EXACTJSON_PACK");
 
@@ -173,7 +173,7 @@ describe("ExactJSON clean-slate brand hygiene and MCP contract parity", () => {
 
     const emptyPackRun = spawnSync(
       process.execPath,
-      [...loaderArgs, resolve(ROOT, "mcp/index.mjs"), "--pack=security"],
+      [...loaderArgs, resolve(ROOT, "mcp/index.mjs"), "--pack=world"],
       {
         encoding: "utf8",
         timeout: 5000,
@@ -279,6 +279,13 @@ describe("ExactJSON clean-slate brand hygiene and MCP contract parity", () => {
     const scannerStdio = defaultTools.find((t) => t.name === "exactjson_predictions_scanner");
     expect(scannerStdio?.description).toContain("Paid ($0.01 USDC): Scan live Polymarket & Kalshi");
     expect(scannerStdio?.description).toContain("Do NOT use for");
+
+    const securityTools = await listToolsViaStdio(["--pack", "security"]);
+    expect(securityTools.map((t) => t.name)).toEqual([
+      "exactjson_health",
+      ...getPackEndpoints(["security"]).map((e) => `exactjson_${e.id}`),
+    ]);
+    expect(securityTools.length).toBe(8);
 
     const allTools = await listToolsViaStdio(["--pack", "all"]);
     expect(allTools.length).toBe(1 + CATALOG.length);

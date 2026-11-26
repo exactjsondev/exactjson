@@ -1,18 +1,18 @@
 ---
 name: exactjson
-description: ExactJSON — Live, deterministic x402 APIs for AI agents. Query 11 pay-per-call token safety, pre-trade execution slippage, perps funding/screener, prediction-market scanner & arb, Deribit options surface, and US macro liquidity endpoints via x402 V2 on Base Mainnet (USDC), Remote Streamable HTTP MCP (`https://exactjson.com/mcp`), or stdio MCP (`npx -y exactjson-mcp`).
+description: ExactJSON — Live, deterministic x402 APIs for AI agents. Query 18 pay-per-call endpoints across markets (token safety, slippage, perps, predictions, options, macro) and security (OSS package audit, domain trust, CVE triage, cloud status, runtime EOL, AI model audit, censorship check) via x402 V2 on Base Mainnet (USDC), Remote Streamable HTTP MCP (`https://exactjson.com/mcp`, `/mcp/security`, `/mcp/all`), or stdio MCP (`npx -y exactjson-mcp`).
 ---
 
-# ExactJSON (`v1.1.0`) — Live, Deterministic x402 APIs for AI Agents
+# ExactJSON (`v1.2.0`) — Live, Deterministic x402 APIs for AI Agents
 
-Use **ExactJSON** (`https://exactjson.com`) whenever an autonomous agent needs compact, deterministic, pre-computed JSON for pre-trade token safety checks, multi-tier execution slippage quotes, cross-venue arbitrage scanners, derivatives volatility briefs, or official US macro liquidity data via **x402 V2 on Base Mainnet (`eip155:8453`, USDC)** — zero API keys, zero subscriptions.
+Use **ExactJSON** (`https://exactjson.com`) whenever an autonomous agent needs compact, deterministic, pre-computed JSON for pre-trade token safety, multi-tier slippage quotes, cross-venue arbitrage, options volatility, US macro liquidity, OSS supply-chain audits, domain phishing/RDAP trust, CVE KEV+EPSS triage, cloud outage gates, runtime EOL checks, AI model license/safetensors safety, or country censorship checks via **x402 V2 on Base Mainnet (`eip155:8453`, USDC)** — zero API keys, zero subscriptions.
 
-> **Disclaimer:** Informational market/security data only; not financial advice. Never present outputs as buy/sell recommendations.
+> **Disclaimer:** Informational market/security data only; not financial advice or a substitute for full code/legal review.
 
-## Native MCP Quickstart (12 Tools — Remote Streamable HTTP or Stdio)
+## Native MCP Quickstart (Pack-Scoped `<= 15` Tools/Pack — Remote HTTP or Stdio)
 
-- **Remote Streamable HTTP:** `https://exactjson.com/mcp` (default `markets` pack; also supports `/mcp/<pack>`, `?pack=<a,b>`, and `/mcp/all` via x402 V2 `_meta["x402/payment"]` / `structuredContent` challenge flow)
-- **Local Stdio (`npx -y exactjson-mcp`, optional `--pack <pack|all>` or `EXACTJSON_PACK`):**
+- **Remote Streamable HTTP:** `https://exactjson.com/mcp` (`markets`, 12 tools), `https://exactjson.com/mcp/security` (`security`, 8 tools), or `https://exactjson.com/mcp/all` (all 19 tools)
+- **Local Stdio (`npx -y exactjson-mcp`, optional `--pack <markets|security|all>` or `EXACTJSON_PACK`):**
 
 ```json
 {
@@ -29,9 +29,11 @@ Use **ExactJSON** (`https://exactjson.com`) whenever an autonomous agent needs c
 }
 ```
 
-Official MCP Registry ID: `io.github.exactjsondev/exactjson` (`exactjson-mcp@1.1.0`).
+Official MCP Registry ID: `io.github.exactjsondev/exactjson` (`exactjson-mcp@1.2.0`).
 
-## Endpoints (11 Paid Resources — Base Mainnet USDC)
+## Endpoints (18 Paid Resources — Base Mainnet USDC)
+
+### Markets Pack (`/mcp` / `--pack markets`)
 
 | Endpoint | Price (USDC) | Query Params | Best Used For |
 | --- | --- | --- | --- |
@@ -47,6 +49,18 @@ Official MCP Registry ID: `io.github.exactjsondev/exactjson` (`exactjson-mcp@1.1
 | `GET /v1/options/surface` | `$0.015` | `currency` (`BTC` default, or `ETH`) | Deribit ATM IV term structure, contango/backwardation, OTM skew, put/call OI ratios, Max Pain & Call/Put OI walls |
 | `GET /v1/macro/liquidity` | `$0.01` | `lookback_obs` (2–20, default 5) | Official US Treasury Debt + TGA cash flows, NY Fed ON RRP, EFFR/SOFR spread (bps) & net USD liquidity impulse (`-ΔTGA - ΔRRP`) |
 
+### Security Pack (`/mcp/security` / `--pack security`)
+
+| Endpoint | Price (USDC) | Query Params | Best Used For |
+| --- | --- | --- | --- |
+| `GET /v1/oss/package-audit` | `$0.01` | `package` (req), `ecosystem` (`npm`/`pypi`/`cargo`), `version` (opt) | Pre-install npm/PyPI/Cargo OSV vulnerability scan, OpenSSF Scorecard, package age (slopsquatting gate), SLSA & install hooks |
+| `GET /v1/net/domain-trust` | `$0.01` | `domain` (req, e.g. `stripe.com`) | Cloudflare 1.1.1.2 malware sinkhole check, DNSSEC validation, SPF/DMARC spoofing posture & IANA RDAP registration age |
+| `GET /v1/sec/cve-triage` | `$0.01` | `cve` (req, e.g. `CVE-2024-3094`) | Active exploitation urgency combining CISA KEV status, FIRST.org 30-day EPSS probability, CVSS & OSV fixed versions |
+| `GET /v1/ops/cloud-status` | `$0.005` | `providers` (`all` default, or comma-separated `github,cloudflare,openai,anthropic,vercel,npm`) | Live outage & incident gate across 6 core developer/AI clouds before deploying or debugging phantom failures |
+| `GET /v1/oss/runtime-eol` | `$0.005` | `product` (req, e.g. `nodejs`, `python`, `postgresql`), `cycle` (opt, e.g. `20`) | Deterministic End-of-Life (EOL), active support, LTS status, latest patch & recommended upgrade cycle |
+| `GET /v1/ai/model-audit` | `$0.01` | `model` (req, e.g. `Qwen/Qwen2.5-7B-Instruct`) | Hugging Face commercial license check, safetensors vs unsafe pickle (`.bin`/`.pt`/`.pkl`) code-exec risk & `fp16`/`int8`/`int4` VRAM GB |
+| `GET /v1/net/censorship-check` | `$0.01` | `domain` (req), `country` (req, ISO-2 e.g. `IR`), `days` (1–14, default 7) | Country-specific blocking & network anomaly detection via live OONI `web_connectivity` + global Cloudflare DoH |
+
 *All endpoints live under `https://exactjson.com`.*
 
 ## Discovery & Health (Free)
@@ -58,12 +72,3 @@ Official MCP Registry ID: `io.github.exactjsondev/exactjson` (`exactjson-mcp@1.1
 - OpenAPI 3.1: `GET https://exactjson.com/openapi.json`
 - Agent Guide: `GET https://exactjson.com/llms.txt`
 - Health: `GET https://exactjson.com/health` (check `paused: false` before batch jobs)
-
-## Recommended Agent Workflows
-
-1. **Pre-Swap EVM/Base Guard (`$0.02`):** Call `/v1/evm/safety?address=<0x>&chain=base` (`$0.01`) + `/v1/execution/quote-check?mode=evm&chain=base&token_out=<0x>` (`$0.01`) before swapping an unfamiliar ERC-20 token.
-2. **Pre-Swap Solana Guard (`$0.01`):** Call `/v1/solana/safety?mint=<MINT>` (`$0.01`), or scan RugCheck-verified trending pools via `/v1/solana/trending?limit=5&max_risk_score=40` (`$0.015`).
-3. **Perps Discovery → Execution Check (`$0.005–$0.025`):** Scan `/v1/perps/funding-arb?limit=5` (`$0.015`) or `/v1/perps/screener?limit=10` (`$0.01`), then verify multi-tier L2 slippage via `/v1/execution/quote-check?mode=perps&coin=<COIN>` (`$0.01`) or fast check via `/v1/perps/snapshot?coin=<COIN>` (`$0.005`).
-4. **Prediction Arbitrage & Carry (`$0.01–$0.02`):** Call `/v1/predictions/arb` (`$0.02`) for overlapping Polymarket vs. Kalshi mispricings (always verify settlement rules when `resolution_risk_warning: true`), or `/v1/predictions/scanner?query=fed` (`$0.01`) for topic research and carry.
-5. **Macro + Volatility Regime Brief (`$0.025`):** Pair `/v1/macro/liquidity` (`$0.01`) with `/v1/options/surface?currency=BTC` (`$0.015`).
-6. **Spend Control & Pay-Only-On-Success:** Always cap payments client-side (`maxAmountPerPayment: "$0.05"`). Only HTTP `200` settles; `400`/`404`/`502`/`503` never settle. Do not blindly retry invalid inputs or `502` upstream errors.

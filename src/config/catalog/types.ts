@@ -1,7 +1,7 @@
 export const SERVICE_NAME = "ExactJSON" as const;
-export const SERVICE_VERSION = "1.1.0" as const;
+export const SERVICE_VERSION = "1.2.0" as const;
 export const USER_AGENT =
-  "ExactJSON/1.1 (+https://exactjson.com; mailto:hello@exactjson.com)" as const;
+  "ExactJSON/1.2 (+https://exactjson.com; mailto:hello@exactjson.com)" as const;
 export const DISCLAIMER =
   "Informational market/security data only; not financial advice." as const;
 
@@ -41,7 +41,14 @@ export type EndpointId =
   | "macro_liquidity"
   | "evm_safety"
   | "predictions_arb"
-  | "execution_quote_check";
+  | "execution_quote_check"
+  | "oss_package_audit"
+  | "net_domain_trust"
+  | "sec_cve_triage"
+  | "ops_cloud_status"
+  | "oss_runtime_eol"
+  | "ai_model_audit"
+  | "net_censorship_check";
 
 export type EndpointPath =
   | "/v1/solana/safety"
@@ -54,7 +61,14 @@ export type EndpointPath =
   | "/v1/macro/liquidity"
   | "/v1/evm/safety"
   | "/v1/predictions/arb"
-  | "/v1/execution/quote-check";
+  | "/v1/execution/quote-check"
+  | "/v1/oss/package-audit"
+  | "/v1/net/domain-trust"
+  | "/v1/sec/cve-triage"
+  | "/v1/ops/cloud-status"
+  | "/v1/oss/runtime-eol"
+  | "/v1/ai/model-audit"
+  | "/v1/net/censorship-check";
 
 export interface EndpointParamSchema {
   type: "string";

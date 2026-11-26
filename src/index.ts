@@ -32,6 +32,7 @@ import { getEndpointByPath } from "./config/catalog";
 import { negotiateContentType } from "./lib/contentNegotiation";
 import { applyHtmlSecurityHeaders } from "./lib/securityHeaders";
 import { registerMarketsPackRoutes } from "./packs/markets";
+import { registerSecurityPackRoutes } from "./packs/security";
 import { renderNotFoundHtml } from "./routes/landingHtml";
 import { createMcpHandler } from "./routes/mcp";
 import type { AppBindings, Env } from "./types";
@@ -119,6 +120,7 @@ app.use("/v1/*", telemetryMiddleware);
 app.use("/v1/*", serviceControlMiddleware);
 app.use("/v1/*", x402PaywallMiddleware);
 registerMarketsPackRoutes(app);
+registerSecurityPackRoutes(app);
 
 // Return 405 Method Not Allowed when a known /v1/* endpoint is called with a non-GET/HEAD method
 app.all("/v1/*", (c, next) => {

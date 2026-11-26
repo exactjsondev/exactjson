@@ -20,6 +20,16 @@ export const TTL_MS = {
   PAUSE_STATE: 60_000, // 60s (immediately invalidated on Start/Stop toggle)
   DASHBOARD_OVERVIEW: 60_000, // 60s overview aggregate cache to protect D1 free-tier read quota
   DASHBOARD_REQUESTS: 60_000, // 60s recent requests cache to protect D1 free-tier read quota
+  OSS_PACKAGE_AUDIT: 600_000, // 10 min
+  OSS_RUNTIME_EOL: 43_200_000, // 12 hr
+  SEC_CVE_DETAIL: 1_800_000, // 30 min
+  SEC_CISA_KEV: 43_200_000, // 12 hr
+  NET_DOMAIN_DOH: 300_000, // 5 min
+  NET_RDAP_BOOTSTRAP: 86_400_000, // 24 hr
+  NET_RDAP_DOMAIN: 3_600_000, // 1 hr
+  OPS_CLOUD_STATUS: 60_000, // 60s
+  AI_MODEL_AUDIT: 3_600_000, // 1 hr
+  NET_CENSORSHIP_OONI: 1_800_000, // 30 min
 } as const;
 
 interface CacheEntry<T> {

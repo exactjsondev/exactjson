@@ -2,25 +2,37 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.exactjsondev/exactjson",
   "title": "ExactJSON — Live, deterministic x402 APIs for AI agents",
-  "description": "Live, deterministic x402 APIs for AI agents: 11 Base USDC market, safety, arb & macro tools.",
+  "description": "Live, deterministic x402 APIs for AI agents: 18 Base USDC market, OSS, CVE, domain & ops tools.",
   "websiteUrl": "https://exactjson.com",
   "repository": {
     "url": "https://github.com/exactjsondev/exactjson",
     "source": "github",
     "subfolder": "mcp"
   },
-  "version": "1.1.0",
+  "version": "1.2.0",
   "remotes": [
     {
       "type": "streamable-http",
       "url": "https://exactjson.com/mcp"
+    },
+    {
+      "type": "streamable-http",
+      "url": "https://exactjson.com/mcp/markets"
+    },
+    {
+      "type": "streamable-http",
+      "url": "https://exactjson.com/mcp/security"
+    },
+    {
+      "type": "streamable-http",
+      "url": "https://exactjson.com/mcp/all"
     }
   ],
   "packages": [
     {
       "registryType": "npm",
       "identifier": "exactjson-mcp",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "transport": {
         "type": "stdio"
       },
