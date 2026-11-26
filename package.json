@@ -8,8 +8,13 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
+    "lint": "biome lint src tests scripts mcp/index.mjs public/dashboard/app.js",
     "test": "vitest run",
     "test:watch": "vitest",
+    "sync:check": "tsx scripts/sync-check.ts",
+    "build:dry": "wrangler deploy --dry-run",
+    "verify": "npm run typecheck && npm run lint && npm run test && npm run sync:check && node --check mcp/index.mjs && npm run build:dry",
+    "smoke:live": "tsx scripts/smoke-live.ts",
     "db:migrate:local": "wrangler d1 migrations apply exactjson-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply exactjson-db --remote",
     "test:payment": "tsx scripts/test-payment.ts"
