@@ -512,7 +512,7 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
             <span class="badge live">Pay-Only-On-Success (HTTP 200)</span>
             <span class="badge">Zero API Keys</span>
             <span class="badge">Fail-Closed 502 Safety</span>
-            <span class="badge">Remote &amp; Stdio MCP (12 Tools)</span>
+            <span class="badge">Remote &amp; Stdio MCP (${1 + getPackEndpoints(["markets"]).length} Tools)</span>
           </div>
           <div class="hero-actions">
             <a class="btn primary" href="#quickstart">MCP &amp; HTTP Quickstart</a>
@@ -850,7 +850,7 @@ export function renderDocsHtml(baseUrl: string, network: string): string {
       </div>
       <div class="card">
         <h2>MCP Server (Remote HTTP &amp; Stdio)</h2>
-        <p>Connect x402-native MCP clients directly to <code>${escapeHtml(baseUrl)}/mcp</code> (Streamable HTTP, JSON-RPC 2.0, 12 tools), or run the local stdio bridge <code>npx -y exactjson-mcp</code> with <code>BUYER_PRIVATE_KEY</code> and <code>MAX_PAYMENT_USD=$0.05</code>. Official MCP Registry ID: <code>io.github.exactjsondev/exactjson</code>.</p>
+        <p>Connect x402-native MCP clients directly to <code>${escapeHtml(baseUrl)}/mcp</code> (Streamable HTTP, JSON-RPC 2.0, ${1 + getPackEndpoints(["markets"]).length} default tools; pack routes at <code>/mcp/&lt;pack&gt;</code> &amp; <code>/mcp/all</code>), or run the local stdio bridge <code>npx -y exactjson-mcp</code> with <code>BUYER_PRIVATE_KEY</code> and <code>MAX_PAYMENT_USD=$0.05</code>. Official MCP Registry ID: <code>io.github.exactjsondev/exactjson</code>.</p>
       </div>
     </section>
 

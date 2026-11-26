@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { BoundedTtlCache, isolateCache } from "../../../lib/cache";
+import { type BoundedTtlCache, isolateCache, referenceCache } from "../../../lib/cache";
 import { UpstreamError } from "../../../lib/http";
 import {
   parseEvmAddress,
@@ -126,6 +126,7 @@ function parseOptionalDecimals(raw: string | undefined): ValidationResult<number
 
 export function createExecutionQuoteCheckHandler(deps: ExecutionQuoteCheckDeps = {}) {
   const cache = deps.cache ?? isolateCache;
+  const metaCache = deps.cache ?? referenceCache;
   const fetchImpl = deps.fetchImpl ?? fetch;
 
   return async (c: Context<AppBindings>) => {
@@ -174,7 +175,7 @@ export function createExecutionQuoteCheckHandler(deps: ExecutionQuoteCheckDeps =
 
       try {
         const { map, cacheHit: metaHit } = await fetchHyperliquidMetaMap(
-          cache,
+          metaCache,
           fetchImpl,
           waitUntil
         );

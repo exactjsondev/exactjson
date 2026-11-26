@@ -152,9 +152,19 @@ function resolveRequestPackContext(
   const pathPack = c.req.param("pack");
   const queryPack = c.req.query("pack");
 
+  const activePacks = getActivePacks(catalogEntries);
+  const activeLabels = [...activePacks.map((p) => p.id), "all"].join(", ");
+
+  if (pathPack !== undefined && pathPack.trim().length === 0) {
+    return {
+      ok: false,
+      status: 404,
+      message: `Unknown MCP pack '${pathPack}'. Valid packs: ${PACK_IDS.join(", ")}, all (active: ${activeLabels}).`,
+    };
+  }
+
   if (
     pathPack !== undefined &&
-    pathPack.trim().length > 0 &&
     queryPack !== undefined &&
     queryPack.trim().length > 0
   ) {
@@ -166,8 +176,6 @@ function resolveRequestPackContext(
     };
   }
 
-  const activePacks = getActivePacks(catalogEntries);
-  const activeLabels = [...activePacks.map((p) => p.id), "all"].join(", ");
   const rawSelector = pathPack !== undefined ? pathPack : queryPack;
   const parsed = parsePackSelector(rawSelector);
 

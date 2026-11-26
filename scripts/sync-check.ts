@@ -99,18 +99,17 @@ function main() {
   }
 
   // Enforce byte-for-byte sync of mcp/catalog.generated.mjs with src/config/catalog/index.ts
-  let actualGenerated = "";
+  const expectedGenerated = normalizeNewlines(renderMcpManifestSource());
   try {
-    actualGenerated = normalizeNewlines(readText("mcp/catalog.generated.mjs"));
+    const actualGenerated = normalizeNewlines(readText("mcp/catalog.generated.mjs"));
+    if (actualGenerated !== expectedGenerated) {
+      failures.push(
+        "mcp/catalog.generated.mjs is out of sync with CATALOG (run `npm run sync:mcp`)"
+      );
+    }
   } catch {
     failures.push(
       "Missing mcp/catalog.generated.mjs (run `npm run sync:mcp` to generate from CATALOG)"
-    );
-  }
-  const expectedGenerated = normalizeNewlines(renderMcpManifestSource());
-  if (actualGenerated && actualGenerated !== expectedGenerated) {
-    failures.push(
-      "mcp/catalog.generated.mjs is out of sync with CATALOG (run `npm run sync:mcp`)"
     );
   }
 

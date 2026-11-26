@@ -45,6 +45,7 @@
       "/openapi.json",
       "/.well-known/*",
       "/mcp",
+      "/mcp/*",
       "/v1/*",
       "/dashboard/api/*"
     ]

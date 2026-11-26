@@ -29,7 +29,7 @@ function extractCliPackArg(argv) {
     const arg = argv[i];
     if (arg === "--pack") {
       const next = argv[i + 1];
-      if (!next || next.startsWith("--")) {
+      if (!next || next.trim().length === 0 || next.startsWith("--")) {
         throw new Error(
           `Missing value after --pack. Valid packs: ${PACK_IDS.join(", ")}, all.`
         );
@@ -37,7 +37,13 @@ function extractCliPackArg(argv) {
       cliPack = next;
       i += 1;
     } else if (typeof arg === "string" && arg.startsWith("--pack=")) {
-      cliPack = arg.slice("--pack=".length);
+      const val = arg.slice("--pack=".length);
+      if (val.trim().length === 0) {
+        throw new Error(
+          `Missing value in --pack=. Valid packs: ${PACK_IDS.join(", ")}, all.`
+        );
+      }
+      cliPack = val;
     }
   }
   return cliPack;

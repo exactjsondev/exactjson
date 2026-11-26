@@ -142,7 +142,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
         }>;
       };
     };
-    expect(listJson.result.tools.length).toBe(1 + CATALOG.length);
+    expect(listJson.result.tools.length).toBe(1 + getPackEndpoints(["markets"]).length);
     expect(listJson.result.tools[0]?.name).toBe("exactjson_health");
     expect(listJson.result.tools[0]?.annotations.readOnlyHint).toBe(true);
     expect(listJson.result.tools[0]?.annotations.destructiveHint).toBe(false);
@@ -612,6 +612,21 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
       env
     );
     expect(conflictRes.status).toBe(400);
+
+    // Whitespace-only /mcp/%20 or /mcp/%20?pack=all must return 404 Unknown MCP pack (never fall back to markets)
+    const wsPathRes = await app.request(
+      "http://localhost:8787/mcp/%20?pack=all",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 6, method: "tools/list" }),
+      },
+      env
+    );
+    expect(wsPathRes.status).toBe(404);
+    expect(((await wsPathRes.json()) as { error: { message: string } }).error.message).toContain(
+      "Unknown MCP pack"
+    );
 
     // 3. Multi-pack synthetic fixture verifies pack isolation, ?pack=a,b union, and cross-pack tools/call hint
     const mockSecurityEntry: EndpointCatalogEntry = {

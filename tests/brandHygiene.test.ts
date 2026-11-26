@@ -143,6 +143,12 @@ describe("ExactJSON clean-slate brand hygiene and MCP contract parity", () => {
     expect(paymentScript).toContain("Predictions Scanner ($0.01)");
     expect(paymentScript).not.toContain("Predictions Scanner ($0.015)");
 
+    const wranglerConfig = JSON.parse(readFileSync(resolve(ROOT, "wrangler.jsonc"), "utf8")) as {
+      assets?: { run_worker_first?: string[] };
+    };
+    expect(wranglerConfig.assets?.run_worker_first).toContain("/mcp");
+    expect(wranglerConfig.assets?.run_worker_first).toContain("/mcp/*");
+
     // Verify stdio mcp/index.mjs --pack / EXACTJSON_PACK over real JSON-RPC stdio + error exit codes
     // Support linked git worktrees where mcp/node_modules lives in the main repo root
     const hasLocalMcpModules = existsSync(resolve(ROOT, "mcp/node_modules"));
@@ -175,6 +181,28 @@ describe("ExactJSON clean-slate brand hygiene and MCP contract parity", () => {
     );
     expect(emptyPackRun.status).toBe(1);
     expect(emptyPackRun.stderr).toContain("0 active endpoints");
+
+    const blankEqRun = spawnSync(
+      process.execPath,
+      [...loaderArgs, resolve(ROOT, "mcp/index.mjs"), "--pack="],
+      {
+        encoding: "utf8",
+        timeout: 5000,
+      }
+    );
+    expect(blankEqRun.status).toBe(1);
+    expect(blankEqRun.stderr).toContain("Missing value");
+
+    const blankSpcRun = spawnSync(
+      process.execPath,
+      [...loaderArgs, resolve(ROOT, "mcp/index.mjs"), "--pack", "   "],
+      {
+        encoding: "utf8",
+        timeout: 5000,
+      }
+    );
+    expect(blankSpcRun.status).toBe(1);
+    expect(blankSpcRun.stderr).toContain("Missing value");
 
     const listToolsViaStdio = (args: string[], extraEnv: Record<string, string> = {}) =>
       new Promise<Array<{ name: string; description: string }>>((resolvePromise, rejectPromise) => {

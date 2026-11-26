@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { describe, expect, it } from "vitest";
-import { BoundedTtlCache } from "../src/lib/cache";
+import { BoundedTtlCache, isolateCache, referenceCache } from "../src/lib/cache";
 import {
   DEFAULT_USDC_BY_CHAIN,
   KYBERSWAP_CLIENT_ID,
@@ -382,6 +382,24 @@ describe("execution quote-check engine & route", () => {
     expect(
       (await downApp.request("http://localhost/v1/execution/quote-check?mode=perps&coin=BTC")).status
     ).toBe(502);
+
+    // Default handler (no explicit cache override) shares hyperliquid:metaAndAssetCtxs via referenceCache
+    isolateCache.clear();
+    referenceCache.clear();
+    const defaultApp = new Hono<AppBindings>();
+    defaultApp.get(
+      "/v1/execution/quote-check",
+      createExecutionQuoteCheckHandler({ fetchImpl: hlFetch })
+    );
+    const defRes = await defaultApp.request(
+      "http://localhost/v1/execution/quote-check?mode=perps&coin=BTC&side=buy"
+    );
+    expect(defRes.status).toBe(200);
+    expect(referenceCache.get("hyperliquid:metaAndAssetCtxs").hit).toBe(true);
+    expect(isolateCache.get("hyperliquid:metaAndAssetCtxs").hit).toBe(false);
+    expect(isolateCache.get("hyperliquid:l2book:BTC").hit).toBe(true);
+    isolateCache.clear();
+    referenceCache.clear();
   });
 
   it("route handler executes mode=evm with x-client-id header, BSC 18-dec USDC, caching, 404, ILLIQUID 200, and 502", async () => {
