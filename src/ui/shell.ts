@@ -1,5 +1,6 @@
 import { CATALOG, DISCLAIMER, SERVICE_NAME, SERVICE_VERSION } from "../config/catalog";
 import { CONTACT_EMAIL, escapeHtml, GLAMA_URL, NPM_URL, REPO_URL, X402SCAN_URL } from "./escape";
+import { renderDialog } from "./humanCopy";
 import { SWISS_CSS } from "./styles";
 
 // IMPORTANT: Never import @x402/* or @coinbase/x402 in src/ui/* to keep GET / cold starts < 10ms.
@@ -64,7 +65,7 @@ export interface SwissShellOptions {
   ogDescription?: string;
   twitterDescription?: string;
   canonicalPath?: string;
-  activeNav?: "/" | "/docs" | "/pricing" | "/about" | "/contact" | "/privacy";
+  activeNav?: "/" | "/setup" | "/docs" | "/pricing" | "/about" | "/contact" | "/privacy";
   headerMetaHtml?: string;
   jsonLd?: string;
   noindex?: boolean;
@@ -91,15 +92,30 @@ export function renderSwissShell(opts: SwissShellOptions): string {
   const cur = (route: SwissShellOptions["activeNav"]) =>
     opts.activeNav === route ? ' aria-current="page"' : "";
 
-  const endpointsHref = opts.activeNav === "/" ? "#endpoints" : `${safeBase}/#endpoints`;
+  const toolsHref = opts.activeNav === "/" ? "#endpoints" : `${safeBase}/#endpoints`;
   const disclaimerText = opts.footerDisclaimer ?? DISCLAIMER;
+
+  const disclaimerModal = renderDialog({
+    id: "disclaimer-dialog",
+    eyebrow: "Scope & Safety Notice",
+    title: "ExactJSON Disclaimer",
+    bodyHtml: `
+      <p class="modal-lead">${escapeHtml(disclaimerText)}</p>
+      <ul class="clean-list">
+        <li><strong>Read-only data:</strong> ExactJSON never executes trades, custodies funds, or asks for your main wallet key.</li>
+        <li><strong>Fail-closed safety:</strong> If a primary security or registry source is down, ExactJSON returns HTTP <code>502</code> and charges <strong>$0.00</strong> instead of guessing.</li>
+        <li><strong>Independent checks:</strong> Always review high-stakes financial, legal, compliance, medical, or flight decisions with qualified professionals and primary agencies.</li>
+      </ul>`,
+    footerHtml: `<a class="swiss-btn" href="${safeBase}/privacy">Read Privacy Policy</a>
+      <button type="button" class="swiss-btn primary" data-close-dialog>Got it</button>`,
+  });
 
   return `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="color-scheme" content="dark">${robotsMeta}
+  <meta name="color-scheme" content="light">${robotsMeta}
   <title>${escapeHtml(opts.title)}</title>
   <meta name="description" content="${escapeHtml(opts.description)}">${canonicalLink}
   <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -135,17 +151,12 @@ export function renderSwissShell(opts: SwissShellOptions): string {
         ${opts.headerMetaHtml ?? ""}
       </div>
       <nav class="nav-cluster" aria-label="Primary">
-        <a href="${endpointsHref}">Endpoints [${CATALOG.length}]</a>
-        <a href="${safeBase}/docs"${cur("/docs")}>Docs</a>
+        <a href="${safeBase}/setup"${cur("/setup")}>Setup</a>
+        <a href="${toolsHref}">Tools</a>
         <a href="${safeBase}/pricing"${cur("/pricing")}>Pricing</a>
-        <a href="${safeBase}/openapi.json">OpenAPI</a>
-        <a href="${safeBase}/llms.txt">llms.txt</a>
-        <a href="${REPO_URL}">GitHub</a>
-        <label class="polarity-switch" for="polarity-toggle" title="Switch between Carbon Dark and Stark Paper polarity">
-          <input type="checkbox" id="polarity-toggle" class="sr-control" aria-label="Stark Paper light theme">
-          <span class="pol-carbon" aria-hidden="true">◐ Paper</span>
-          <span class="pol-paper" aria-hidden="true">◑ Carbon</span>
-        </label>
+        <a href="${safeBase}/docs"${cur("/docs")}>Docs</a>
+        <a href="${safeBase}/contact"${cur("/contact")}>Contact</a>
+        <a href="${REPO_URL}" target="_blank" rel="noopener noreferrer">GitHub</a>
       </nav>
     </div>
   </header>
@@ -156,22 +167,50 @@ export function renderSwissShell(opts: SwissShellOptions): string {
 
   <footer class="footer-band">
     <div class="footer-inner">
-      <div>${escapeHtml(disclaimerText)}</div>
-      <div class="footer-links">
-        <a href="${safeBase}/docs"${cur("/docs")}>Docs</a>
-        <a href="${safeBase}/pricing"${cur("/pricing")}>Pricing</a>
-        <a href="${safeBase}/about"${cur("/about")}>About</a>
-        <a href="${safeBase}/contact"${cur("/contact")}>Contact</a>
-        <a href="${safeBase}/privacy"${cur("/privacy")}>Privacy</a>
-        <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>
-        <a href="${REPO_URL}">GitHub</a>
-        <a href="${NPM_URL}">npm</a>
-        <a href="${GLAMA_URL}">Glama</a>
-        <a href="${X402SCAN_URL}">x402scan</a>
+      <div class="footer-grid">
+        <div class="footer-col">
+          <span class="footer-col-title">Product</span>
+          <div class="footer-links">
+            <a href="${safeBase}/setup"${cur("/setup")}>Setup Guide</a>
+            <a href="${toolsHref}">Tools</a>
+            <a href="${safeBase}/pricing"${cur("/pricing")}>Pricing</a>
+            <a href="${safeBase}/docs"${cur("/docs")}>Docs</a>
+          </div>
+        </div>
+        <div class="footer-col">
+          <span class="footer-col-title">Trust &amp; Legal</span>
+          <div class="footer-links">
+            <a href="${safeBase}/about"${cur("/about")}>About</a>
+            <a href="${safeBase}/contact"${cur("/contact")}>Contact</a>
+            <a href="${safeBase}/privacy"${cur("/privacy")}>Privacy</a>
+            <button type="button" class="footer-link-btn" data-open-dialog="disclaimer-dialog">Disclaimer</button>
+            <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>
+          </div>
+        </div>
+        <div class="footer-col">
+          <span class="footer-col-title">Developers &amp; Registries</span>
+          <div class="footer-links">
+            <a href="${safeBase}/openapi.json" target="_blank" rel="noopener noreferrer">OpenAPI</a>
+            <a href="${safeBase}/llms.txt" target="_blank" rel="noopener noreferrer">llms.txt</a>
+            <a href="${REPO_URL}" target="_blank" rel="noopener noreferrer">GitHub</a>
+            <a href="${NPM_URL}" target="_blank" rel="noopener noreferrer">npm</a>
+            <a href="${GLAMA_URL}" target="_blank" rel="noopener noreferrer">Glama</a>
+            <a href="${X402SCAN_URL}" target="_blank" rel="noopener noreferrer">x402scan</a>
+          </div>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <div class="footer-disclaimer">${escapeHtml(disclaimerText)}</div>
+        <label class="polarity-switch" for="polarity-toggle" title="Switch between Stark Paper (Light) and Carbon (Dark) theme">
+          <input type="checkbox" id="polarity-toggle" class="sr-control" aria-label="Carbon dark theme">
+          <span class="pol-dark" aria-hidden="true">◑ Dark mode</span>
+          <span class="pol-light" aria-hidden="true">◐ Light mode</span>
+        </label>
       </div>
     </div>
   </footer>
 
+  ${disclaimerModal}
   <script src="/ui.js" defer></script>
 </body>
 </html>`;

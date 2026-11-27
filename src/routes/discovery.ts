@@ -13,6 +13,7 @@ import { buildMcpTools } from "../lib/mcpTools";
 import { applyHtmlSecurityHeaders, resolveBaseUrl } from "../lib/securityHeaders";
 import { getServiceControlState } from "../middleware/serviceControl";
 import type { AppBindings } from "../types";
+import { buildSetupMarkdown } from "../ui/setupPage";
 import {
   renderAboutHtml,
   renderContactHtml,
@@ -20,6 +21,7 @@ import {
   renderLandingHtml,
   renderPricingHtml,
   renderPrivacyHtml,
+  renderSetupHtml,
 } from "./landingHtml";
 
 // IMPORTANT: Never import @x402/hono or @coinbase/x402 in this file to keep discovery cold starts < 10ms.
@@ -89,6 +91,7 @@ export async function indexHandler(c: Context<AppBindings>) {
       },
     },
     discovery: {
+      setup: `${baseUrl}/setup`,
       docs: `${baseUrl}/docs`,
       pricing: `${baseUrl}/pricing`,
       about: `${baseUrl}/about`,
@@ -360,6 +363,7 @@ export function buildLlmsTxt(baseUrl: string, network: string): string {
     ),
     "",
     "## Discovery & Metadata",
+    `- Setup Guide (Wallet, Vibe Coding & MCP): ${baseUrl}/setup`,
     `- API Documentation: ${baseUrl}/docs`,
     `- Pricing Table: ${baseUrl}/pricing`,
     `- About ExactJSON: ${baseUrl}/about`,
@@ -598,6 +602,16 @@ function respondHtmlOrMarkdown(c: Context<AppBindings>, htmlBody: string, markdo
   return c.html(htmlBody);
 }
 
+export function setupPageHandler(c: Context<AppBindings>) {
+  const baseUrl = resolveBaseUrl(c);
+  const network = c.env.X402_NETWORK || "eip155:8453";
+  return respondHtmlOrMarkdown(
+    c,
+    renderSetupHtml(baseUrl, network),
+    buildSetupMarkdown(baseUrl, network),
+  );
+}
+
 export function docsPageHandler(c: Context<AppBindings>) {
   const baseUrl = resolveBaseUrl(c);
   const network = c.env.X402_NETWORK || "eip155:8453";
@@ -681,6 +695,7 @@ export function sitemapXmlHandler(c: Context<AppBindings>) {
     '<?xml version="1.0" encoding="UTF-8"?>',
     '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
     `  <url><loc>${safeBaseUrl}/</loc><changefreq>weekly</changefreq><priority>1.0</priority></url>`,
+    `  <url><loc>${safeBaseUrl}/setup</loc><changefreq>weekly</changefreq><priority>0.95</priority></url>`,
     `  <url><loc>${safeBaseUrl}/docs</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>`,
     `  <url><loc>${safeBaseUrl}/pricing</loc><changefreq>weekly</changefreq><priority>0.9</priority></url>`,
     `  <url><loc>${safeBaseUrl}/about</loc><changefreq>monthly</changefreq><priority>0.7</priority></url>`,

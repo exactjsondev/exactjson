@@ -329,6 +329,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(sitemapRes.headers.get("content-type")).toContain("application/xml");
     const sitemapXml = await sitemapRes.text();
     expect(sitemapXml).toContain("<loc>http://localhost:8787/</loc>");
+    expect(sitemapXml).toContain("<loc>http://localhost:8787/setup</loc>");
     expect(sitemapXml).toContain("<loc>http://localhost:8787/docs</loc>");
     expect(sitemapXml).toContain("<loc>http://localhost:8787/pricing</loc>");
     expect(sitemapXml).toContain("<loc>http://localhost:8787/about</loc>");
@@ -437,7 +438,13 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(html).toContain('id="quickstart"');
     expect(html).toContain('id="discovery"');
     expect(html).toContain("@x402/fetch");
-    expect(html).toContain('<details class="sample-details">');
+    expect(html).toContain('<meta name="color-scheme" content="light">');
+    expect(html).toContain('id="tool-preview-dialog"');
+    expect(html).toContain('id="wallet-quick-dialog"');
+    expect(html).toContain('id="disclaimer-dialog"');
+    expect(html).toContain("data-setup-generator");
+    expect(html).toContain('class="faq-item"');
+    expect(html).toContain('class="compare-visual"');
     expect(html).toContain("og-image.jpg");
     expect(html).toContain("apple-touch-icon.png");
     expect(html).toContain('"@type":"Organization"');
@@ -481,8 +488,8 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     );
     expect(jsonOverMd.headers.get("content-type")).toContain("application/json");
 
-    // Dedicated docs, pricing, and trust pages (HTML + Markdown negotiation)
-    for (const pagePath of ["/docs", "/pricing", "/about", "/contact", "/privacy"]) {
+    // Dedicated setup, docs, pricing, and trust pages (HTML + Markdown negotiation)
+    for (const pagePath of ["/setup", "/docs", "/pricing", "/about", "/contact", "/privacy"]) {
       const htmlPage = await app.request(
         `http://localhost:8787${pagePath}`,
         { headers: { Accept: "text/html" } },
@@ -502,6 +509,22 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
         expect(body).toContain(
           "https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc",
         );
+        expect(body).toContain('<details class="sample-details">');
+      }
+      if (pagePath === "/setup") {
+        expect(body).toContain("guide-rabby-dialog");
+        expect(body).toContain("guide-metamask-dialog");
+        expect(body).toContain("guide-usdc-dialog");
+        expect(body).toContain("guide-mcp-paths-dialog");
+        expect(body).toContain("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
+        expect(body).toContain("$0 ETH");
+        expect(body).toContain("Passkey-only smart wallets");
+        expect(body).toContain("https://rabby.io/");
+        expect(body).toContain("https://metamask.io/");
+        expect(body).toContain("https://docs.base.org/");
+        expect(body).toContain("https://x402.org");
+        expect(body).toContain("data-setup-generator");
+        expect(body).toContain("MAX_PAYMENT_USD");
       }
 
       const mdPage = await app.request(
@@ -618,7 +641,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
       resolve(process.cwd(), "src/lib/contentNegotiation.ts"),
       ...uiFiles,
     ];
-    expect(uiFiles.length).toBeGreaterThanOrEqual(6);
+    expect(uiFiles.length).toBeGreaterThanOrEqual(8);
     for (const file of files) {
       const content = readFileSync(file, "utf8");
       expect(content).not.toMatch(/from\s+["']@x402\//);
@@ -647,8 +670,9 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     const html = await htmlRes.text();
     expect(html).toContain('id="polarity-toggle"');
     expect(html).toContain('id="hero-mode-payload"');
+    expect(html).toContain('id="hero-mode-prompt"');
     expect(html).toContain('id="hero-mode-mcp"');
-    expect(html).toContain('id="hero-mode-accept"');
+    expect(html).toContain('id="pack-tab-popular"');
     expect(html).toContain('id="pack-tab-all"');
     expect(html).toContain('id="pack-tab-markets"');
     expect(html).toContain('id="pack-tab-security"');
@@ -659,6 +683,19 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(html).toContain("/fonts/inter-latin.woff2");
     expect(html).toContain("/fonts/jetbrains-mono-latin.woff2");
     expect(html).toContain('<script src="/ui.js" defer></script>');
+
+    // Verify public/ui.js modal & pack generator hooks stay strictly XSS-safe (zero innerHTML)
+    const uiJs = readFileSync(resolve(process.cwd(), "public/ui.js"), "utf8");
+    expect(uiJs).toContain("initDialogs");
+    expect(uiJs).toContain("initToolPreviewDialog");
+    expect(uiJs).toContain("initSetupGenerator");
+    expect(uiJs).not.toMatch(/\.innerHTML\b|\.outerHTML\b|insertAdjacentHTML\b/);
+
+    // Verify wrangler.jsonc routes /setup through Worker before static assets
+    const wranglerCfg = JSON.parse(readFileSync(resolve(process.cwd(), "wrangler.jsonc"), "utf8")) as {
+      assets?: { run_worker_first?: string[] };
+    };
+    expect(wranglerCfg.assets?.run_worker_first).toContain("/setup");
 
     // XSS-safe JSON syntax highlighting keeps raw text intact when stripped of span tags
     const hostilePayload = JSON.stringify(
@@ -688,6 +725,9 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
       "https://exactjson.com/v1/sec/cve-triage?cve=CVE-2024-3094",
     );
     expect(paywallHtml).toContain("HTTP 402 · Payment Required");
+    expect(paywallHtml).toContain("Nothing was charged ($0.00)");
+    expect(paywallHtml).toContain("https://exactjson.com/setup");
+    expect(paywallHtml).toContain("wallet-quick-dialog");
     expect(paywallHtml).toContain("QUERY PARAMETER SCHEMA");
     expect(paywallHtml).toContain("<code>cve</code>");
     expect(paywallHtml).toContain("REQUIRED");

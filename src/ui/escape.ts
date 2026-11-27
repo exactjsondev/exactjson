@@ -114,10 +114,14 @@ export interface CodeWellOptions {
   codeHtml: string;
   receiptLeft?: string;
   receiptRight?: string;
+  codeDataAttr?: string;
+  labelDataAttr?: string;
 }
 
 export function renderCodeWell(opts: CodeWellOptions): string {
   const safeId = escapeHtml(opts.id);
+  const codeAttr = opts.codeDataAttr ? ` ${opts.codeDataAttr}` : "";
+  const labelAttr = opts.labelDataAttr ? ` ${opts.labelDataAttr}` : "";
   const receiptHtml = opts.receiptLeft
     ? `<div class="code-receipt">
         <span class="receipt-ok"><span class="sig-dot ok" aria-hidden="true"></span>${escapeHtml(opts.receiptLeft)}</span>
@@ -127,16 +131,16 @@ export function renderCodeWell(opts: CodeWellOptions): string {
 
   return `<div class="code-well">
     <div class="code-well-bar">
-      <span class="code-well-label">${escapeHtml(opts.label)}</span>
+      <span class="code-well-label"${labelAttr}>${escapeHtml(opts.label)}</span>
       <span class="copy-wrap">
         <button type="button" class="copy-btn" command="--copy" commandfor="${safeId}" aria-label="${escapeHtml(opts.copyLabel)}">
-          <span class="copy-text-idle" aria-hidden="true">[ COPY ]</span>
-          <span class="copy-text-done" aria-hidden="true">[ ✓ COPIED ]</span>
-          <span class="copy-text-fail" aria-hidden="true">[ ! FAILED ]</span>
+          <span class="copy-text-idle" aria-hidden="true">Copy</span>
+          <span class="copy-text-done" aria-hidden="true">✓ Copied</span>
+          <span class="copy-text-fail" aria-hidden="true">! Failed</span>
         </button>
         <span class="copy-tip" role="status"></span>
       </span>
     </div>
-    <pre tabindex="0"><code id="${safeId}">${opts.codeHtml}</code></pre>${receiptHtml}
+    <pre tabindex="0"><code id="${safeId}"${codeAttr}>${opts.codeHtml}</code></pre>${receiptHtml}
   </div>`;
 }

@@ -33,6 +33,7 @@ import {
   privacyPageHandler,
   resolveBaseUrl,
   robotsTxtHandler,
+  setupPageHandler,
   sitemapXmlHandler,
   wellKnownX402Handler,
 } from "./routes/discovery";
@@ -94,6 +95,7 @@ const { mcpPostHandler, mcpMethodNotAllowedHandler } = createMcpHandler((req, en
 
 // Free discovery & health routes (never load x402 middleware)
 app.get("/", indexHandler);
+app.get("/setup", setupPageHandler);
 app.get("/docs", docsPageHandler);
 app.get("/pricing", pricingPageHandler);
 app.get("/about", aboutPageHandler);
@@ -179,6 +181,7 @@ app.notFound((c) => {
       `No ExactJSON route matches \`${path}\`. All paid endpoints live under \`/v1/*\`.`,
       "",
       "## Helpful Links",
+      `- [Setup Guide](${baseUrl}/setup)`,
       `- [API Docs](${baseUrl}/docs)`,
       `- [Pricing](${baseUrl}/pricing)`,
       `- [llms.txt](${baseUrl}/llms.txt)`,
@@ -196,6 +199,7 @@ app.notFound((c) => {
       path,
       discovery: {
         index: `${baseUrl}/`,
+        setup: `${baseUrl}/setup`,
         docs: `${baseUrl}/docs`,
         pricing: `${baseUrl}/pricing`,
         x402: `${baseUrl}/.well-known/x402`,

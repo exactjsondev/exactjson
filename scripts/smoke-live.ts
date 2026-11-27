@@ -49,11 +49,13 @@ async function main() {
   );
 
   results.push(
-    await runCheck("GET / content negotiation & HTML security headers", async () => {
-      const [htmlRes, mdRes, jsonRes] = await Promise.all([
+    await runCheck("GET / & /setup content negotiation & HTML security headers", async () => {
+      const [htmlRes, mdRes, jsonRes, setupHtmlRes, setupMdRes] = await Promise.all([
         fetch(`${baseUrl}/`, { headers: { Accept: "text/html" }, signal: AbortSignal.timeout(10_000) }),
         fetch(`${baseUrl}/`, { headers: { Accept: "text/markdown" }, signal: AbortSignal.timeout(10_000) }),
         fetch(`${baseUrl}/`, { headers: { Accept: "application/json" }, signal: AbortSignal.timeout(10_000) }),
+        fetch(`${baseUrl}/setup`, { headers: { Accept: "text/html" }, signal: AbortSignal.timeout(10_000) }),
+        fetch(`${baseUrl}/setup`, { headers: { Accept: "text/markdown" }, signal: AbortSignal.timeout(10_000) }),
       ]);
       assert(htmlRes.status === 200, `HTML status=${htmlRes.status}`);
       assert((htmlRes.headers.get("content-type") ?? "").includes("text/html"), "Missing text/html");
@@ -75,7 +77,17 @@ async function main() {
 
       assert(jsonRes.status === 200, `JSON status=${jsonRes.status}`);
       assert((jsonRes.headers.get("content-type") ?? "").includes("application/json"), "Missing application/json");
-      return "HTML + Markdown + JSON + Vary + HSTS + CSP ok";
+
+      assert(setupHtmlRes.status === 200, `/setup HTML status=${setupHtmlRes.status}`);
+      assert((setupHtmlRes.headers.get("content-type") ?? "").includes("text/html"), "/setup missing text/html");
+      assert((setupHtmlRes.headers.get("vary") ?? "").includes("Accept"), "/setup missing Vary: Accept");
+      assert(
+        (setupHtmlRes.headers.get("content-security-policy") ?? "").includes("default-src 'none'"),
+        "/setup missing strict CSP"
+      );
+      assert(setupMdRes.status === 200, `/setup Markdown status=${setupMdRes.status}`);
+      assert((setupMdRes.headers.get("content-type") ?? "").includes("text/markdown"), "/setup missing text/markdown");
+      return "HTML + Markdown + JSON + /setup + Vary + HSTS + CSP ok";
     })
   );
 

@@ -1,11 +1,66 @@
 const THEME_KEY = "exactjson_theme";
+const SAFE_HTTP_URL_RE = /^https?:\/\//i;
+const JSON_TOKEN_RE =
+  /("(?:\\.|[^"\\])*")(\s*:)?|\b(true|false|null)\b|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|([{}[\]:,])/g;
+
+const PACK_SPECS = {
+  all: {
+    label: "All packs",
+    plainTitle: "All 31 live tools",
+    samplePathWithQuery:
+      "/v1/evm/safety?address=0x4200000000000000000000000000000000000006&chain=base",
+    mcpRemotePath: "/mcp/all",
+    stdioArgs: ["-y", "exactjson-mcp", "--pack", "all"],
+  },
+  markets: {
+    label: "Markets",
+    plainTitle: "Crypto, Trading & Macro",
+    samplePathWithQuery:
+      "/v1/evm/safety?address=0x4200000000000000000000000000000000000006&chain=base",
+    mcpRemotePath: "/mcp",
+    stdioArgs: ["-y", "exactjson-mcp"],
+  },
+  security: {
+    label: "Security",
+    plainTitle: "Code, Domain & Cloud Safety",
+    samplePathWithQuery: "/v1/oss/package-audit?package=lodash&ecosystem=npm",
+    mcpRemotePath: "/mcp/security",
+    stdioArgs: ["-y", "exactjson-mcp", "--pack", "security"],
+  },
+  world: {
+    label: "World",
+    plainTitle: "Flights, Weather, Travel & Hazards",
+    samplePathWithQuery: "/v1/aviation/airport-delays?airport=JFK",
+    mcpRemotePath: "/mcp/world",
+    stdioArgs: ["-y", "exactjson-mcp", "--pack", "world"],
+  },
+  commerce: {
+    label: "Commerce",
+    plainTitle: "Invoices, Companies & Recalls",
+    samplePathWithQuery: "/v1/commerce/vat-verify?vat=IE6388047V",
+    mcpRemotePath: "/mcp/commerce",
+    stdioArgs: ["-y", "exactjson-mcp", "--pack", "commerce"],
+  },
+  research: {
+    label: "Research",
+    plainTitle: "Papers, Chemistry & Clinical Trials",
+    samplePathWithQuery: "/v1/science/citation-verify?doi=10.1038/s41586-021-03819-2",
+    mcpRemotePath: "/mcp/research",
+    stdioArgs: ["-y", "exactjson-mcp", "--pack", "research"],
+  },
+};
+
 const timers = new WeakMap();
 let lastStatusMessage = "";
+
+function prefersReducedMotion() {
+  return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+}
 
 function readStoredTheme() {
   try {
     const val = localStorage.getItem(THEME_KEY);
-    return val === "paper" || val === "carbon" ? val : null;
+    return val === "carbon" || val === "paper" ? val : null;
   } catch {
     return null;
   }
@@ -13,8 +68,8 @@ function readStoredTheme() {
 
 function writeStoredTheme(theme) {
   try {
-    if (theme === "paper") {
-      localStorage.setItem(THEME_KEY, "paper");
+    if (theme === "carbon") {
+      localStorage.setItem(THEME_KEY, "carbon");
     } else {
       localStorage.removeItem(THEME_KEY);
     }
@@ -24,43 +79,48 @@ function writeStoredTheme(theme) {
 }
 
 function applyPolarity(theme) {
-  const isPaper = theme === "paper";
+  const isCarbon = theme === "carbon";
   const root = document.documentElement;
-  if (isPaper) {
-    root.dataset.theme = "paper";
+  if (isCarbon) {
+    root.dataset.theme = "carbon";
   } else {
     delete root.dataset.theme;
   }
 
   const meta = document.querySelector('meta[name="color-scheme"]');
   if (meta) {
-    meta.setAttribute("content", isPaper ? "light" : "dark");
+    meta.setAttribute("content", isCarbon ? "dark" : "light");
   }
 
   const toggle = document.getElementById("polarity-toggle");
   if (toggle instanceof HTMLInputElement) {
-    toggle.checked = isPaper;
+    toggle.checked = isCarbon;
   }
 }
 
 function initPolarity() {
   const stored = readStoredTheme();
-  if (stored) {
-    applyPolarity(stored);
+  if (stored === "carbon") {
+    applyPolarity("carbon");
+  } else {
+    applyPolarity("paper");
+    if (stored === "paper") {
+      writeStoredTheme("paper");
+    }
   }
 
   const toggle = document.getElementById("polarity-toggle");
   if (toggle instanceof HTMLInputElement) {
     toggle.addEventListener("change", () => {
-      const next = toggle.checked ? "paper" : "carbon";
+      const next = toggle.checked ? "carbon" : "paper";
       applyPolarity(next);
       writeStoredTheme(next);
     });
   }
 
   window.addEventListener("storage", (event) => {
-    if (event.key === THEME_KEY) {
-      applyPolarity(event.newValue === "paper" ? "paper" : "carbon");
+    if (event.key === THEME_KEY || event.key === null) {
+      applyPolarity(event.newValue === "carbon" ? "carbon" : "paper");
     }
   });
 }
@@ -170,6 +230,302 @@ function initCopyButtons() {
   });
 }
 
+function makeTokenSpan(className, text) {
+  const span = document.createElement("span");
+  span.className = className;
+  span.textContent = text;
+  return span;
+}
+
+function renderJsonTokens(codeEl, rawJson) {
+  const frag = document.createDocumentFragment();
+  let lastIndex = 0;
+
+  for (const match of rawJson.matchAll(JSON_TOKEN_RE)) {
+    const idx = match.index ?? 0;
+    if (idx > lastIndex) {
+      frag.append(document.createTextNode(rawJson.slice(lastIndex, idx)));
+    }
+
+    const [full, strLiteral, colonPart, boolNull, numLiteral, punc] = match;
+    if (strLiteral !== undefined) {
+      if (colonPart !== undefined) {
+        frag.append(makeTokenSpan("tok-key", strLiteral));
+        frag.append(makeTokenSpan("tok-punc", colonPart));
+      } else {
+        frag.append(makeTokenSpan("tok-str", strLiteral));
+      }
+    } else if (boolNull !== undefined || numLiteral !== undefined) {
+      frag.append(makeTokenSpan("tok-num", full));
+    } else if (punc !== undefined) {
+      frag.append(makeTokenSpan("tok-punc", punc));
+    } else {
+      frag.append(document.createTextNode(full));
+    }
+
+    lastIndex = idx + full.length;
+  }
+
+  if (lastIndex < rawJson.length) {
+    frag.append(document.createTextNode(rawJson.slice(lastIndex)));
+  }
+
+  codeEl.replaceChildren(frag);
+}
+
+function initDialogs() {
+  document.addEventListener("click", (event) => {
+    if (event.defaultPrevented || !(event.target instanceof Element)) return;
+
+    const openTrigger = event.target.closest("[data-open-dialog]");
+    if (openTrigger instanceof HTMLElement) {
+      const dialogId = openTrigger.dataset.openDialog;
+      const dialog = dialogId ? document.getElementById(dialogId) : null;
+      if (dialog instanceof HTMLDialogElement && !dialog.open) {
+        dialog.showModal();
+      }
+      return;
+    }
+
+    const closeTrigger = event.target.closest("[data-close-dialog]");
+    if (closeTrigger instanceof HTMLElement) {
+      const dialog = closeTrigger.closest("dialog");
+      if (dialog instanceof HTMLDialogElement && dialog.open) {
+        dialog.close();
+      }
+      return;
+    }
+
+    if (
+      event.target instanceof HTMLDialogElement &&
+      event.target.classList.contains("modal-dialog") &&
+      event.target.open
+    ) {
+      event.target.close();
+    }
+  });
+}
+
+function initToolPreviewDialog() {
+  const dialog = document.getElementById("tool-preview-dialog");
+  const titleEl = document.getElementById("tool-preview-dialog-title");
+  const eyebrowEl = dialog instanceof HTMLElement ? dialog.querySelector(".modal-eyebrow") : null;
+  const summaryEl = document.getElementById("preview-dialog-summary");
+  const urlCodeEl = document.getElementById("preview-dialog-url");
+  const urlLinkEl = document.getElementById("preview-dialog-url-link");
+  const codeLabelEl = document.getElementById("preview-dialog-code-label");
+  const jsonEl = document.getElementById("preview-dialog-json");
+  const connectBtn = document.getElementById("preview-dialog-connect");
+
+  document.addEventListener("click", (event) => {
+    if (event.defaultPrevented || !(event.target instanceof Element)) return;
+
+    const previewBtn = event.target.closest("[data-preview-tool]");
+    if (previewBtn instanceof HTMLElement && dialog instanceof HTMLDialogElement) {
+      const toolId = previewBtn.dataset.previewTool || "";
+      const path = previewBtn.dataset.previewPath || "";
+      const price = previewBtn.dataset.previewPrice || "";
+      const summary = previewBtn.dataset.previewSummary || "";
+      const sampleUrl = previewBtn.dataset.sampleUrl || "";
+      const rawPack = previewBtn.dataset.previewPack || "all";
+      const pack = Object.hasOwn(PACK_SPECS, rawPack) ? rawPack : "all";
+      const packLabel = PACK_SPECS[pack].label;
+
+      if (titleEl) {
+        titleEl.textContent = path;
+      }
+      if (eyebrowEl) {
+        eyebrowEl.textContent = `${price} · ${packLabel}`;
+      }
+      if (summaryEl) {
+        summaryEl.textContent = summary;
+      }
+      if (urlCodeEl) {
+        urlCodeEl.textContent = sampleUrl;
+      }
+      if (urlLinkEl instanceof HTMLAnchorElement) {
+        urlLinkEl.href = SAFE_HTTP_URL_RE.test(sampleUrl) ? sampleUrl : "#";
+      }
+      if (codeLabelEl) {
+        codeLabelEl.textContent = `${path} · HTTP 200 OK`;
+      }
+      if (jsonEl instanceof HTMLElement) {
+        const tpl = document.getElementById(`tpl-json-${toolId}`);
+        const rawJson =
+          tpl instanceof HTMLTemplateElement ? (tpl.content.textContent || "").trim() : "";
+        renderJsonTokens(jsonEl, rawJson);
+      }
+      if (connectBtn instanceof HTMLElement) {
+        connectBtn.dataset.connectPack = pack;
+        connectBtn.textContent = `Connect ${packLabel} pack →`;
+      }
+
+      if (!dialog.open) {
+        dialog.showModal();
+      }
+      return;
+    }
+
+    const jumpLink = event.target.closest("[data-jump-pack]");
+    if (jumpLink instanceof HTMLElement) {
+      const pack = jumpLink.dataset.jumpPack || "";
+      if (!Object.hasOwn(PACK_SPECS, pack) || pack === "all") return;
+      event.preventDefault();
+
+      const searchInput = document.getElementById("endpoint-search");
+      if (searchInput instanceof HTMLInputElement) {
+        searchInput.value = "";
+      }
+
+      const radio = document.getElementById(`pack-tab-${pack}`);
+      if (radio instanceof HTMLInputElement) {
+        radio.checked = true;
+        radio.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+
+      const endpoints = document.getElementById("endpoints");
+      endpoints?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth" });
+    }
+  });
+
+  if (connectBtn instanceof HTMLButtonElement && dialog instanceof HTMLDialogElement) {
+    connectBtn.addEventListener("click", () => {
+      const rawPack = connectBtn.dataset.connectPack || "all";
+      const pack = Object.hasOwn(PACK_SPECS, rawPack) ? rawPack : "all";
+      dialog.close();
+
+      const quickstart = document.getElementById("quickstart");
+      if (quickstart instanceof HTMLElement) {
+        quickstart.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth" });
+        const packBtn = quickstart.querySelector(`[data-gen-pack="${pack}"]`);
+        if (packBtn instanceof HTMLButtonElement) {
+          packBtn.click();
+        }
+      }
+    });
+  }
+}
+
+function buildVibePrompt(baseUrl, packId) {
+  const spec = PACK_SPECS[packId];
+  const scopeNote =
+    packId === "all"
+      ? `all 5 ExactJSON packs (${baseUrl}/mcp/all or any /v1/* endpoint)`
+      : `the ExactJSON ${spec.label} pack (${spec.plainTitle} — ${baseUrl}${spec.mcpRemotePath})`;
+
+  return `Read ${baseUrl}/llms.txt and connect my app to ${scopeNote}.
+
+Requirements:
+1. Use @x402/fetch with @x402/evm/exact/client (or exactjson-mcp if wiring an MCP client).
+2. Read BUYER_PRIVATE_KEY from process.env (.env only, add .env to .gitignore, never hardcode keys).
+3. Enforce a hard spend limit of maxAmountPerPayment: "$0.05".
+4. Handle non-200 responses cleanly (400/404/502/503 cost $0.00 — never treat 502 as safe).
+5. Start by testing ${baseUrl}${spec.samplePathWithQuery} and show me the parsed JSON result.`;
+}
+
+function buildMcpConfig(baseUrl, packId) {
+  const spec = PACK_SPECS[packId];
+  const serverKey = packId === "all" ? "exactjson" : `exactjson-${packId}`;
+  return JSON.stringify(
+    {
+      mcpServers: {
+        [serverKey]: {
+          command: "npx",
+          args: [...spec.stdioArgs],
+          env: {
+            BUYER_PRIVATE_KEY: "0xYOUR_POCKET_WALLET_PRIVATE_KEY",
+            MAX_PAYMENT_USD: "$0.05",
+          },
+        },
+        [`${serverKey}-remote`]: {
+          url: `${baseUrl}${spec.mcpRemotePath}`,
+        },
+      },
+    },
+    null,
+    2,
+  );
+}
+
+function buildSdkSnippet(baseUrl, packId) {
+  const spec = PACK_SPECS[packId];
+  return `import { wrapFetchWithPayment, x402Client } from "@x402/fetch";
+import { registerExactEvmScheme } from "@x402/evm/exact/client";
+import { privateKeyToAccount } from "viem/accounts";
+
+const client = new x402Client()
+  .setSpendControls({ maxAmountPerPayment: "$0.05" });
+registerExactEvmScheme(client, {
+  signer: privateKeyToAccount(process.env.BUYER_PRIVATE_KEY),
+});
+
+const payFetch = wrapFetchWithPayment(fetch, client);
+const res = await payFetch("${baseUrl}${spec.samplePathWithQuery}");
+console.log(await res.json());`;
+}
+
+function initSetupGenerator() {
+  const generators = Array.from(document.querySelectorAll("[data-setup-generator]"));
+
+  for (const gen of generators) {
+    if (!(gen instanceof HTMLElement)) continue;
+
+    const rawBaseUrl = (gen.dataset.baseUrl || "").trim().replace(/\/+$/, "");
+    const baseUrl = SAFE_HTTP_URL_RE.test(rawBaseUrl) ? rawBaseUrl : window.location.origin;
+    const packButtons = Array.from(gen.querySelectorAll("[data-gen-pack]"));
+    const statusEl = gen.querySelector("[data-gen-status]");
+    const promptLabelEl = gen.querySelector('[data-gen-label="prompt"]');
+    const mcpLabelEl = gen.querySelector('[data-gen-label="mcp"]');
+    const sdkLabelEl = gen.querySelector('[data-gen-label="sdk"]');
+    const promptCodeEl = gen.querySelector('[data-gen-code="prompt"]');
+    const mcpCodeEl = gen.querySelector('[data-gen-code="mcp"]');
+    const sdkCodeEl = gen.querySelector('[data-gen-code="sdk"]');
+
+    const selectPack = (packId) => {
+      if (!Object.hasOwn(PACK_SPECS, packId)) return;
+      const spec = PACK_SPECS[packId];
+
+      for (const btn of packButtons) {
+        if (!(btn instanceof HTMLElement)) continue;
+        btn.setAttribute("aria-pressed", btn.dataset.genPack === packId ? "true" : "false");
+      }
+
+      if (statusEl) {
+        statusEl.textContent =
+          packId === "all"
+            ? `Selected: ${spec.plainTitle} · Tip: single packs (<=15 tools) give sharpest MCP accuracy`
+            : `Selected: ${spec.label} (${spec.plainTitle}) · Remote MCP: ${spec.mcpRemotePath}`;
+      }
+      if (promptLabelEl) {
+        promptLabelEl.textContent = `Prompt · ${spec.plainTitle}`;
+      }
+      if (mcpLabelEl) {
+        mcpLabelEl.textContent = `MCP Config · ${spec.mcpRemotePath}`;
+      }
+      if (sdkLabelEl) {
+        sdkLabelEl.textContent = `TypeScript · ${spec.plainTitle}`;
+      }
+      if (promptCodeEl) {
+        promptCodeEl.textContent = buildVibePrompt(baseUrl, packId);
+      }
+      if (mcpCodeEl instanceof HTMLElement) {
+        renderJsonTokens(mcpCodeEl, buildMcpConfig(baseUrl, packId));
+      }
+      if (sdkCodeEl) {
+        sdkCodeEl.textContent = buildSdkSnippet(baseUrl, packId);
+      }
+    };
+
+    for (const btn of packButtons) {
+      if (!(btn instanceof HTMLButtonElement)) continue;
+      btn.addEventListener("click", () => {
+        const packId = btn.dataset.genPack || "";
+        selectPack(packId);
+      });
+    }
+  }
+}
+
 function initEndpointSearch() {
   const input = document.getElementById("endpoint-search");
   if (!(input instanceof HTMLInputElement)) return;
@@ -185,17 +541,22 @@ function initEndpointSearch() {
 
   const updatePackCounter = () => {
     if (!liveStatus) return;
-    const checkedRadio = packRadios.find(
-      (r) => r instanceof HTMLInputElement && r.checked && r.id !== "pack-tab-all",
-    );
-    if (checkedRadio instanceof HTMLInputElement) {
+    const checkedRadio = packRadios.find((r) => r instanceof HTMLInputElement && r.checked);
+
+    if (checkedRadio instanceof HTMLInputElement && checkedRadio.id === "pack-tab-popular") {
+      const popularCount = rows.filter(
+        (r) => r instanceof HTMLElement && r.dataset.popular === "true",
+      ).length;
+      liveStatus.textContent = `${popularCount} popular tools (${rows.length} total)`;
+    } else if (checkedRadio instanceof HTMLInputElement && checkedRadio.id !== "pack-tab-all") {
       const packId = checkedRadio.id.replace("pack-tab-", "");
       const packCount = rows.filter(
         (r) => r instanceof HTMLElement && r.dataset.pack === packId,
       ).length;
-      liveStatus.textContent = `${packCount} ${packId.toUpperCase()} ENDPOINTS`;
+      const packLabel = Object.hasOwn(PACK_SPECS, packId) ? PACK_SPECS[packId].label : packId;
+      liveStatus.textContent = `${packCount} ${packLabel} tools`;
     } else {
-      liveStatus.textContent = `${rows.length} LIVE ENDPOINTS`;
+      liveStatus.textContent = `${rows.length} live tools`;
     }
   };
 
@@ -230,7 +591,7 @@ function initEndpointSearch() {
       if (query.length === 0) {
         updatePackCounter();
       } else {
-        liveStatus.textContent = `${visibleCount} OF ${rows.length} MATCHING`;
+        liveStatus.textContent = `${visibleCount} of ${rows.length} matching`;
       }
     }
   };
@@ -251,10 +612,8 @@ function initEndpointSearch() {
     radio.addEventListener("change", () => {
       if (input.value.length > 0) {
         input.value = "";
-        applyFilter();
-      } else {
-        updatePackCounter();
       }
+      applyFilter();
     });
   }
 
@@ -271,4 +630,7 @@ function initEndpointSearch() {
 
 initPolarity();
 initCopyButtons();
+initDialogs();
+initToolPreviewDialog();
+initSetupGenerator();
 initEndpointSearch();

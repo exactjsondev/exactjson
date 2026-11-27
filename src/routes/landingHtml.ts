@@ -7,6 +7,7 @@ export {
   renderNotFoundHtml,
   renderPaywallHtml,
 } from "../ui/protocolPages";
+export { renderSetupHtml } from "../ui/setupPage";
 export {
   renderAboutHtml,
   renderContactHtml,

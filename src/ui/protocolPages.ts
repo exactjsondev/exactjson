@@ -12,8 +12,13 @@ import {
   highlightCode,
   highlightJson,
   renderCodeWell,
-  stripPackDisclaimer,
 } from "./escape";
+import {
+  buildVibePrompt,
+  HUMAN_ENDPOINT_ONE_LINER,
+  HUMAN_PACK_META,
+  renderQuickWalletModal,
+} from "./humanCopy";
 import { renderSwissShell } from "./shell";
 
 // IMPORTANT: Never import @x402/* or @coinbase/x402 in src/ui/* to keep GET / cold starts < 10ms.
@@ -54,6 +59,7 @@ export function renderPaywallHtml(
 ): string {
   const safeBase = escapeHtml(baseUrl);
   const networkLabel = formatNetworkLabel(network);
+  const packMeta = HUMAN_PACK_META[entry.pack];
   const sampleJson = JSON.stringify(entry.outputExample, null, 2);
   const packDisclaimer = PACKS[entry.pack].disclaimer;
   const stdioArgs =
@@ -68,7 +74,7 @@ export function renderPaywallHtml(
           command: "npx",
           args: stdioArgs,
           env: {
-            BUYER_PRIVATE_KEY: "0xYOUR_LOW_BALANCE_KEY",
+            BUYER_PRIVATE_KEY: "0xYOUR_POCKET_WALLET_PRIVATE_KEY",
             MAX_PAYMENT_USD: "$0.05",
           },
         },
@@ -86,30 +92,37 @@ export function renderPaywallHtml(
     ).join(""),
   );
 
-  const curlAndSdkSnippet = `# Inspect live base64 x402 V2 PAYMENT-REQUIRED header
+  const curlSnippet = `# Inspect live base64 x402 V2 PAYMENT-REQUIRED header ($0.00)
 curl -i "${safeShellUrl}"
 
 # Or read the full OpenAPI 3.1 schema
 curl -s ${baseUrl}/openapi.json`;
+
+  const vibePromptRaw = buildVibePrompt(baseUrl, entry.pack);
 
   const mainHtml = `
     <section class="spec-cell swiss-section" style="padding: 2.25rem 2rem;">
       <div class="eyebrow-row">
         <span class="sig-badge warn"><span class="sig-dot warn" aria-hidden="true"></span>HTTP 402 · Payment Required</span>
         <span class="sig-badge ok"><span class="sig-dot ok" aria-hidden="true"></span>${escapeHtml(entry.priceFormatted)} USDC · ${escapeHtml(networkLabel)}</span>
-        <span class="sig-badge">Pay-Only-On-Success</span>
+        <span class="sig-badge">Pay only on success</span>
       </div>
       <h1 class="page-title"><code>GET ${escapeHtml(entry.path)}</code></h1>
-      <p class="lead">${escapeHtml(entry.summary)}. ${escapeHtml(stripPackDisclaimer(entry))}</p>
-      <p class="desc">
-        Browsers do not automatically attach x402 V2 <code>PAYMENT-SIGNATURE</code> headers. This response already includes the live base64 <code>PAYMENT-REQUIRED</code> challenge for x402 SDKs and MCP clients—and <code>400</code>/<code>404</code>/<code>502</code>/<code>503</code> responses never settle payment.
-      </p>
+      <p class="lead">${escapeHtml(HUMAN_ENDPOINT_ONE_LINER[entry.id])}</p>
+      <div class="callout-box ok">
+        <strong>Nothing was charged ($0.00).</strong> You opened a live paid endpoint in a web browser, which doesn't send automatic x402 payments yet. Preview the sample output below, or connect this tool to your AI in 5 minutes.
+      </div>
+      <div class="btn-row" style="margin-top: 0.35rem;">
+        <a class="swiss-btn primary" href="${safeBase}/setup">5-Minute Setup Guide →</a>
+        <button type="button" class="swiss-btn" data-open-dialog="wallet-quick-dialog">Need a $5 wallet?</button>
+        <a class="swiss-btn" href="${safeBase}/">← All ${CATALOG.length} Tools</a>
+      </div>
     </section>
 
     <section class="swiss-section" aria-labelledby="pw-params-heading">
       <div class="section-bar">
-        <h2 id="pw-params-heading" class="coord" style="color: var(--ink-primary);">+ 01 // QUERY PARAMETER SCHEMA (${Object.keys(entry.inputSchema.properties).length})</h2>
-        <span class="coord">PACK: ${escapeHtml(entry.pack.toUpperCase())}</span>
+        <h2 id="pw-params-heading" class="section-title">Inputs &amp; parameters (${Object.keys(entry.inputSchema.properties).length})</h2>
+        <span class="coord">QUERY PARAMETER SCHEMA · ${escapeHtml(entry.pack)}</span>
       </div>
       <div tabindex="0" role="region" aria-labelledby="pw-params-heading" class="table-wrap">
         <table class="param-table">
@@ -130,26 +143,47 @@ curl -s ${baseUrl}/openapi.json`;
 
     <section class="swiss-section grid-2">
       <div class="spec-cell surface">
-        <span class="coord">+ 02 // CALL VIA MCP (EXACTJSON_${escapeHtml(entry.id.toUpperCase())})</span>
-        <h2>Claude Desktop / Cursor Local EIP-3009 Signer</h2>
-        <p>Run <code>exactjson_${escapeHtml(entry.id)}</code> automatically with a client-side Base USDC spend cap:</p>
+        <span class="coord">MCP tool · exactjson_${escapeHtml(entry.id)}</span>
+        <h2>Connect in Claude Desktop or Cursor (MCP)</h2>
+        <p>Add the <strong>${escapeHtml(packMeta.label)}</strong> pack to run <code>exactjson_${escapeHtml(entry.id)}</code> locally with a $0.05 spend cap:</p>
         ${renderCodeWell({
           id: "pw-mcp-json",
           label: `MCP Tool · exactjson_${entry.id}`,
           copyLabel: "Copy MCP configuration for this endpoint",
           codeHtml: highlightJson(mcpSnippet),
+          receiptLeft: "Local EIP-3009 signing · MAX_PAYMENT_USD=$0.05",
+          receiptRight: networkLabel,
         })}
       </div>
       <div class="spec-cell surface">
-        <span class="coord">+ 03 // INSPECT CHALLENGE OR CALL VIA SDK</span>
-        <h2>Raw PAYMENT-REQUIRED Header &amp; OpenAPI</h2>
-        <p>Inspect the base64 challenge in terminal, or wrap <code>fetch</code> with <code>@x402/fetch</code>:</p>
+        <span class="coord">Vibe Coding &amp; terminal probe</span>
+        <h2>Paste into a Vibe-Coding Tool or inspect in terminal</h2>
+        <p>Inspect the live base64 <code>PAYMENT-REQUIRED</code> challenge with <code>curl</code>, or expand the 1-click prompt for Cursor, Claude Code, Lovable, Bolt, or Replit:</p>
         ${renderCodeWell({
           id: "pw-curl-code",
           label: "bash · inspect 402 challenge",
           copyLabel: "Copy curl challenge inspection command",
-          codeHtml: highlightCode(curlAndSdkSnippet, "bash"),
+          codeHtml: highlightCode(curlSnippet, "bash"),
+          receiptLeft: "Free unpaid probe ($0.00)",
+          receiptRight: "400 / 404 / 502 = $0.00",
         })}
+        <details class="sample-details">
+          <summary>1-click Vibe-Coding prompt (${escapeHtml(packMeta.plainTitle)})</summary>
+          <div class="sample-json-wrap">
+            <div class="code-well-bar">
+              <span class="code-well-label">Prompt · ${escapeHtml(packMeta.plainTitle)}</span>
+              <span class="copy-wrap">
+                <button type="button" class="copy-btn" command="--copy" commandfor="pw-vibe-prompt" aria-label="Copy Vibe-Coding prompt">
+                  <span class="copy-text-idle" aria-hidden="true">Copy</span>
+                  <span class="copy-text-done" aria-hidden="true">✓ Copied</span>
+                  <span class="copy-text-fail" aria-hidden="true">! Failed</span>
+                </button>
+                <span class="copy-tip" role="status"></span>
+              </span>
+            </div>
+            <pre class="sample-json" tabindex="0"><code id="pw-vibe-prompt">${escapeHtml(vibePromptRaw)}</code></pre>
+          </div>
+        </details>
       </div>
     </section>
 
@@ -161,9 +195,9 @@ curl -s ${baseUrl}/openapi.json`;
             <span class="code-well-label">GET ${escapeHtml(entry.path)} · ${escapeHtml(entry.priceFormatted)} USDC on HTTP 200</span>
             <span class="copy-wrap">
               <button type="button" class="copy-btn" command="--copy" commandfor="pw-sample-json" aria-label="Copy sample JSON output">
-                <span class="copy-text-idle" aria-hidden="true">[ COPY ]</span>
-                <span class="copy-text-done" aria-hidden="true">[ ✓ COPIED ]</span>
-                <span class="copy-text-fail" aria-hidden="true">[ ! FAILED ]</span>
+                <span class="copy-text-idle" aria-hidden="true">Copy</span>
+                <span class="copy-text-done" aria-hidden="true">✓ Copied</span>
+                <span class="copy-text-fail" aria-hidden="true">! Failed</span>
               </button>
               <span class="copy-tip" role="status"></span>
             </span>
@@ -172,11 +206,13 @@ curl -s ${baseUrl}/openapi.json`;
         </div>
       </details>
       <div class="btn-row" style="margin-top: 0.75rem;">
-        <a class="swiss-btn primary" href="${safeBase}/">← All ${CATALOG.length} Endpoints</a>
+        <a class="swiss-btn primary" href="${safeBase}/setup">5-Minute Setup Guide →</a>
+        <a class="swiss-btn" href="${safeBase}/">← All ${CATALOG.length} Tools</a>
         <a class="swiss-btn" href="${safeBase}/docs">API Docs</a>
         <a class="swiss-btn" href="${safeBase}/pricing">Pricing</a>
       </div>
-    </section>`;
+    </section>
+    ${renderQuickWalletModal(baseUrl)}`;
 
   return renderSwissShell({
     baseUrl,
@@ -217,7 +253,7 @@ export function renderMcpGuideHtml(
           command: "npx",
           args: stdioArgs,
           env: {
-            BUYER_PRIVATE_KEY: "0xYOUR_LOW_BALANCE_KEY",
+            BUYER_PRIVATE_KEY: "0xYOUR_POCKET_WALLET_PRIVATE_KEY",
             MAX_PAYMENT_USD: "$0.05",
           },
         },
@@ -235,15 +271,18 @@ export function renderMcpGuideHtml(
       </div>
       <h1 class="page-title"><code>POST ${safeBase}${escapeHtml(mcpPath)}</code></h1>
       <p class="lead">
-        This is ExactJSON's stateless <strong>Streamable HTTP MCP endpoint</strong> (JSON-RPC 2.0, ${toolCount} tools). Browsers send <code>GET</code>, which returns <code>405 Method Not Allowed</code> — connect your MCP client via <code>POST</code> or use the local stdio CLI.
+        This URL is ExactJSON's stateless <strong>Streamable HTTP MCP endpoint</strong> (${toolCount} tools) built for AI clients using JSON-RPC 2.0 <code>POST</code> requests — not web browsers (which send <code>GET</code>).
       </p>
+      <div class="callout-box ok">
+        <strong>Ready for your AI client.</strong> Paste <code>${safeBase}${escapeHtml(mcpPath)}</code> into an x402-compatible MCP client, or use the local Claude Desktop / Cursor config below.
+      </div>
     </section>
 
     <section class="swiss-section grid-2">
       <div class="spec-cell surface">
-        <span class="coord">+ 01 // REMOTE STREAMABLE HTTP (ZERO INSTALL)</span>
+        <span class="coord">Remote Streamable HTTP · zero install</span>
         <h2>Connect via JSON-RPC 2.0 POST</h2>
-        <p>Point any Streamable HTTP MCP client at <code>${safeBase}${escapeHtml(mcpPath)}</code>, or test <code>tools/list</code> for free in terminal:</p>
+        <p>Point any Streamable HTTP MCP client at <code>${safeBase}${escapeHtml(mcpPath)}</code>, or list all ${toolCount} tools for free in your terminal:</p>
         ${renderCodeWell({
           id: "mcp-guide-curl",
           label: `POST ${mcpPath} · JSON-RPC 2.0`,
@@ -252,9 +291,9 @@ export function renderMcpGuideHtml(
         })}
       </div>
       <div class="spec-cell surface">
-        <span class="coord">+ 02 // LOCAL STDIO BRIDGE (AUTO-SIGN BASE USDC)</span>
-        <h2>Claude Desktop &amp; Cursor Config</h2>
-        <p>Use <code>npx -y exactjson-mcp</code> locally so EIP-3009 Base USDC authorizations sign on your machine:</p>
+        <span class="coord">Local stdio bridge · auto-sign Base USDC</span>
+        <h2>Claude Desktop &amp; Cursor config</h2>
+        <p>Run <code>npx -y exactjson-mcp</code> locally so Base USDC authorizations sign on your own machine with a $0.05 cap:</p>
         ${renderCodeWell({
           id: "mcp-guide-stdio",
           label: "mcpServers · exactjson-mcp",
@@ -266,10 +305,10 @@ export function renderMcpGuideHtml(
 
     <section class="spec-cell" style="border-bottom: none;">
       <div class="btn-row">
-        <a class="swiss-btn primary" href="${safeBase}/docs">← Back to ExactJSON Docs</a>
-        <a class="swiss-btn" href="${safeBase}/">All ${CATALOG.length} Endpoints</a>
-        <a class="swiss-btn" href="${safeBase}/.well-known/mcp/server-card.json">View MCP Server Card</a>
-        <a class="swiss-btn" href="${safeBase}/openapi.json">OpenAPI 3.1</a>
+        <a class="swiss-btn primary" href="${safeBase}/setup">5-Minute Setup Guide →</a>
+        <a class="swiss-btn" href="${safeBase}/docs">API Docs</a>
+        <a class="swiss-btn" href="${safeBase}/">All ${CATALOG.length} Tools</a>
+        <a class="swiss-btn" href="${safeBase}/.well-known/mcp/server-card.json" target="_blank" rel="noopener noreferrer">MCP Server Card ↗</a>
       </div>
     </section>`;
 
@@ -288,18 +327,17 @@ export function renderNotFoundHtml(baseUrl: string, requestedPath: string): stri
   const mainHtml = `
     <section class="spec-cell" style="padding: 3rem 2rem; border-bottom: none;">
       <div class="eyebrow-row">
-        <span class="sig-badge warn"><span class="sig-dot warn" aria-hidden="true"></span>HTTP 404 · Unmatched Route</span>
+        <span class="sig-badge warn"><span class="sig-dot warn" aria-hidden="true"></span>HTTP 404 · Not Found</span>
       </div>
       <h1 class="page-title">Page not found</h1>
       <p class="lead">
-        No ${escapeHtml(SERVICE_NAME)} route matches <code>${escapeHtml(requestedPath)}</code>. All paid endpoints live under <code>/v1/*</code>—browse our specification, pricing, or machine discovery manifests below.
+        We couldn't find a ${escapeHtml(SERVICE_NAME)} page or endpoint at <code>${escapeHtml(requestedPath)}</code>. All paid endpoints live under <code>/v1/*</code> — jump to our setup guide or browse all tools below.
       </p>
       <div class="btn-row" style="margin-top: 0.75rem;">
-        <a class="swiss-btn primary" href="${safeBase}/docs">Go to ExactJSON Docs</a>
+        <a class="swiss-btn primary" href="${safeBase}/setup">5-Minute Setup →</a>
+        <a class="swiss-btn" href="${safeBase}/#endpoints">Browse All ${CATALOG.length} Tools</a>
+        <a class="swiss-btn" href="${safeBase}/docs">Go to ExactJSON Docs</a>
         <a class="swiss-btn" href="${safeBase}/pricing">Pricing</a>
-        <a class="swiss-btn" href="${safeBase}/#endpoints">View All ${CATALOG.length} Endpoints</a>
-        <a class="swiss-btn" href="${safeBase}/openapi.json">OpenAPI 3.1</a>
-        <a class="swiss-btn" href="${safeBase}/llms.txt">llms.txt</a>
       </div>
     </section>`;
 
