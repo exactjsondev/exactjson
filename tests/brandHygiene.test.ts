@@ -17,7 +17,40 @@ const FORBIDDEN_PATTERNS: readonly RegExp[] = [
   ),
 ];
 
-const IGNORED_DIRS = new Set([".git", "node_modules", ".wrangler", ".worktrees", "dist", "coverage"]);
+const INTERNAL_LEAK_PATTERNS: readonly RegExp[] = [
+  new RegExp(["\\bwave", "s?\\s*[-_]?[1-9]\\b"].join(""), "i"),
+  new RegExp(["\\bnew", "20\\b"].join(""), "i"),
+  new RegExp(["\\b31", "\\/31\\b"].join("")),
+  new RegExp(["260%", "-rule"].join(""), "i"),
+  new RegExp(["\\btd", "qs\\b"].join(""), "i"),
+  new RegExp(["required\\s+by\\s+", "roadmap"].join(""), "i"),
+  new RegExp(["\\bfresh", "-eyes\\s+audit\\b"].join(""), "i"),
+];
+
+const FORBIDDEN_TRACKED_PATHS: readonly string[] = [
+  "GROUND_RULES.md",
+  "HANDOFF.md",
+  "AGENTS.md",
+  "CLAUDE.md",
+  ".dev.vars",
+  ".env",
+];
+
+const FORBIDDEN_TRACKED_PREFIXES: readonly string[] = [".agents/", ".claude/"];
+
+const SKIP_TEXT_SCAN_FILES = new Set(["package-lock.json", "mcp/package-lock.json"]);
+const BINARY_EXTENSIONS = /\.(?:png|jpg|jpeg|gif|webp|ico|woff2?|ttf)$/i;
+
+const IGNORED_DIRS = new Set([
+  ".git",
+  ".agents",
+  ".claude",
+  "node_modules",
+  ".wrangler",
+  ".worktrees",
+  "dist",
+  "coverage",
+]);
 
 function collectFiles(targetPath: string, out: string[] = []): string[] {
   if (!existsSync(targetPath)) return out;
@@ -43,8 +76,6 @@ describe("ExactJSON clean-slate brand hygiene and MCP contract parity", () => {
       "package.json",
       "wrangler.jsonc",
       "README.md",
-      "GROUND_RULES.md",
-      "HANDOFF.md",
       "mcp/package.json",
       "mcp/server.json",
       "mcp/index.mjs",
@@ -76,6 +107,49 @@ describe("ExactJSON clean-slate brand hygiene and MCP contract parity", () => {
     }
 
     expect(violations).toEqual([]);
+  });
+
+  it("prevents internal operator docs and internal roadmap/sprint jargon from leaking into git-tracked files", () => {
+    const gitLs = spawnSync("git", ["ls-files"], {
+      cwd: ROOT,
+      encoding: "utf8",
+      timeout: 5000,
+    });
+    expect(gitLs.status).toBe(0);
+
+    const trackedFiles = gitLs.stdout
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
+    expect(trackedFiles.length).toBeGreaterThan(20);
+
+    const trackedViolations: string[] = [];
+
+    for (const relPath of trackedFiles) {
+      if (
+        FORBIDDEN_TRACKED_PATHS.includes(relPath) ||
+        FORBIDDEN_TRACKED_PREFIXES.some((prefix) => relPath.startsWith(prefix))
+      ) {
+        trackedViolations.push(`Forbidden internal file tracked in git: ${relPath}`);
+        continue;
+      }
+
+      if (SKIP_TEXT_SCAN_FILES.has(relPath) || BINARY_EXTENSIONS.test(relPath)) {
+        continue;
+      }
+
+      const fullPath = resolve(ROOT, relPath);
+      if (!existsSync(fullPath)) continue;
+
+      const content = readFileSync(fullPath, "utf8");
+      for (const pattern of INTERNAL_LEAK_PATTERNS) {
+        if (pattern.test(content)) {
+          trackedViolations.push(`${relPath} matched internal jargon pattern ${pattern.source}`);
+        }
+      }
+    }
+
+    expect(trackedViolations).toEqual([]);
   });
 
   it("keeps mcp/catalog.generated.mjs, mcp/index.mjs, mcp/package.json, mcp/server.json, and scripts/test-payment.ts synced with CATALOG", async () => {

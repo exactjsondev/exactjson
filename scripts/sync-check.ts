@@ -69,17 +69,17 @@ function main() {
     failures.push("mcp/server.json packages[0].environmentVariables missing 'EXACTJSON_PACK'");
   }
 
-  // Enforce Glama <= 15 tools per pack ceiling (1 health tool + paid pack tools)
+  // Enforce <= 15 tools per vertical MCP pack ceiling (1 health tool + paid pack tools)
   for (const packId of PACK_IDS) {
     const toolCount = 1 + getPackEndpoints([packId]).length;
     if (toolCount > MAX_MCP_TOOLS_PER_PACK) {
       failures.push(
-        `Pack '${packId}' has ${toolCount} MCP tools (exceeds ${MAX_MCP_TOOLS_PER_PACK} Glama TDQS ceiling)`
+        `Pack '${packId}' has ${toolCount} MCP tools (exceeds ${MAX_MCP_TOOLS_PER_PACK} MCP tool ceiling)`
       );
     }
   }
 
-  // Enforce Bazaar <= 500 char cap, Glama 260%-rule negative boundary, and pack disclaimer
+  // Enforce Bazaar <= 500 char cap, explicit MCP negative-scope boundary, and pack disclaimer
   for (const entry of CATALOG) {
     const mcpDesc = `Paid (${entry.priceFormatted} USDC): ${entry.description}`;
     if (mcpDesc.length > MAX_BAZAAR_DESCRIPTION_LENGTH) {

@@ -299,7 +299,20 @@ async function main() {
     },
   ];
 
-  const v3Keys = new Set(["evm_safety", "predictions_arb", "quote_check"]);
+  const marketsKeys = new Set([
+    "safety",
+    "trending",
+    "perps",
+    "screener",
+    "funding_arb",
+    "scanner",
+    "options_surface",
+    "macro_liquidity",
+    "evm_safety",
+    "predictions_arb",
+    "quote_check",
+    "macro_global_rates",
+  ]);
   const securityKeys = new Set([
     "oss_package_audit",
     "net_domain_trust",
@@ -327,18 +340,11 @@ async function main() {
     "chem_hazard_profile",
     "bio_drug_trial_brief",
   ]);
-  const wave4Keys = new Set([...researchKeys, "macro_global_rates"]);
-  const new20Keys = new Set([
-    ...securityKeys,
-    ...worldKeys,
-    ...commerceKeys,
-    ...wave4Keys,
-  ]);
   const selected =
     onlyTarget === "all"
       ? targets
-      : onlyTarget === "v3"
-        ? targets.filter((t) => v3Keys.has(t.key))
+      : onlyTarget === "markets"
+        ? targets.filter((t) => marketsKeys.has(t.key))
         : onlyTarget === "security"
           ? targets.filter((t) => securityKeys.has(t.key))
           : onlyTarget === "world"
@@ -347,17 +353,13 @@ async function main() {
               ? targets.filter((t) => commerceKeys.has(t.key))
               : onlyTarget === "research"
                 ? targets.filter((t) => researchKeys.has(t.key))
-                : onlyTarget === "wave4"
-                  ? targets.filter((t) => wave4Keys.has(t.key))
-                  : onlyTarget === "new20"
-                    ? targets.filter((t) => new20Keys.has(t.key))
-                    : onlyTarget
-                      ? targets.filter((t) => t.key === onlyTarget)
-                      : targets.filter((t) => t.key === "safety" || t.key === "perps");
+                : onlyTarget
+                  ? targets.filter((t) => t.key === onlyTarget)
+                  : targets.filter((t) => t.key === "safety" || t.key === "perps");
 
   if (selected.length === 0) {
     throw new Error(
-      `Unknown --only=${onlyTarget}. Valid values: all, v3, security, world, commerce, research, wave4, new20, ${targets.map((t) => t.key).join(", ")}`
+      `Unknown --only=${onlyTarget}. Valid values: all, markets, security, world, commerce, research, ${targets.map((t) => t.key).join(", ")}`
     );
   }
 

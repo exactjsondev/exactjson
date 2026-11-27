@@ -85,7 +85,7 @@ export function createAirportDelaysHandler(deps: AirportDelaysDeps = {}) {
             ? (faaRes.map[target.faaCode] ?? [])
             : [];
         } else {
-          // Per Wave 2 guardrail: US FAA NAS cold XML timeouts degrade gracefully to live NOAA METAR/TAF
+          // US FAA NAS cold XML timeouts degrade gracefully to live NOAA METAR/TAF
           faaStatus = "fallback_metar_only";
           faaDisruptions = [];
         }

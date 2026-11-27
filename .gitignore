@@ -19,3 +19,11 @@ coverage/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local agent rules, skills & internal operator docs (NEVER commit to public repo)
+.agents/
+.claude/
+AGENTS.md
+CLAUDE.md
+GROUND_RULES.md
+HANDOFF.md

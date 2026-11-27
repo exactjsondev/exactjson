@@ -215,7 +215,7 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
     expect(okBody.work.citation_count).toBe(47809);
     expect(okBody.work.registry).toBe("crossref");
 
-    // H2: Senior/PI >8th author ('Hassabis, D.') & 'Jumper et al.' match, while short 'Li' does NOT false-match 'William'/'Elizabeth'
+    // Senior/PI >8th author ('Hassabis, D.') & 'Jumper et al.' match, while short 'Li' does NOT false-match 'William'/'Elizabeth'
     const seniorRes = await testApp.request(
       "http://localhost/v1/science/citation-verify?doi=10.1038/s41586-021-03819-2&expected_author=Hassabis,+D."
     );

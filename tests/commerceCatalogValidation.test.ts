@@ -19,7 +19,7 @@ import {
 } from "../src/packs/commerce/validation";
 
 describe("commerce pack — catalog contract, ISO financial checksums, and input validation", () => {
-  it("defines 4 commerce endpoints at v1.5.0 within Glama TDQS and Bazaar 500-char limits", () => {
+  it("defines 4 commerce endpoints at v1.5.0 within MCP tool-per-pack and Bazaar 500-char limits", () => {
     expect(SERVICE_VERSION).toBe("1.5.0");
     expect(COMMERCE_CATALOG.length).toBe(4);
     expect(1 + getPackEndpoints(["commerce"]).length).toBe(5);
@@ -46,7 +46,7 @@ describe("commerce pack — catalog contract, ISO financial checksums, and input
       expect(entry.description).toContain(COMMERCE_DISCLAIMER);
     }
 
-    // Verify negative boundary guardrails required by roadmap
+    // Verify explicit regional scope boundaries in descriptions
     const vatEntry = COMMERCE_CATALOG.find((e) => e.id === "commerce_vat_verify")!;
     expect(vatEntry.description).toContain("EU-27 + XI");
     expect(vatEntry.description).toContain("UK GB");

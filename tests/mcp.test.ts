@@ -573,7 +573,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
     expect(getAllHtml.status).toBe(405);
     expect(await getAllHtml.text()).toContain("/mcp/all");
 
-    // 2. Live /mcp/security (8 tools) & /mcp/world (6 tools) stay <=15 TDQS, while unpopulated /mcp/commerce & unknown pack return 404 JSON-RPC errors
+    // 2. Live vertical MCP packs stay within MAX_MCP_TOOLS_PER_PACK, while unknown packs return 404 JSON-RPC errors
     const liveSecurityRes = await app.request(
       "http://localhost:8787/mcp/security",
       {

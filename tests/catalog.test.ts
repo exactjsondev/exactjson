@@ -30,8 +30,8 @@ function isAtLeast(ver: [number, number, number], min: [number, number, number])
   return ver[2] >= min[2];
 }
 
-describe("catalog, 5-pack architecture, and 260%-rule description guardrails", () => {
-  it("enforces Bazaar <= 500 chars, Glama 260%-rule negative boundaries, and pack disclaimers on every route", () => {
+describe("catalog, 5-pack architecture, and MCP description boundaries", () => {
+  it("enforces Bazaar <= 500 chars, explicit MCP negative-scope boundaries, and pack disclaimers on every route", () => {
     expect(CATALOG.length).toBe(31);
     expect(MAX_MCP_TOOLS_PER_PACK).toBe(15);
 
