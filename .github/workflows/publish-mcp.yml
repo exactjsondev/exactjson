@@ -5,6 +5,7 @@ on:
   push:
     tags:
       - "mcp-v*"
+      - "mcp-registry-v*"
 
 permissions:
   contents: read
@@ -30,5 +31,24 @@ jobs:
       - run: npm run verify
       - working-directory: mcp
         run: npm pack --dry-run
-      - working-directory: mcp
-        run: npm publish --provenance --access public
+      - name: Publish exactjson-mcp to npm (idempotent OIDC provenance)
+        working-directory: mcp
+        run: |
+          PKG_VER="$(node -p "require('./package.json').version")"
+          PUBLISHED_VER="$(npm view "exactjson-mcp@${PKG_VER}" version 2>/dev/null || true)"
+          if [ "$PUBLISHED_VER" = "$PKG_VER" ]; then
+            echo "exactjson-mcp@${PKG_VER} is already published on npm; skipping npm publish."
+          else
+            npm publish --provenance --access public
+          fi
+      - name: Publish server.json to Official MCP Registry via GitHub OIDC
+        working-directory: mcp
+        run: |
+          mkdir -p /tmp/mcp-pub
+          curl -fsSL -o /tmp/mcp-pub/mcp-publisher.tar.gz \
+            "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.20/mcp-publisher_linux_amd64.tar.gz"
+          echo "f190a1a2e86d424b63380737bf5b259a7ec2a41df223e507692ea9ed579eda68  /tmp/mcp-pub/mcp-publisher.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/mcp-pub/mcp-publisher.tar.gz -C /tmp/mcp-pub mcp-publisher
+          /tmp/mcp-pub/mcp-publisher validate
+          /tmp/mcp-pub/mcp-publisher login github-oidc
+          /tmp/mcp-pub/mcp-publisher publish
