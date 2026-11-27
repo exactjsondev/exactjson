@@ -21,7 +21,12 @@ jobs:
         with:
           node-version: 24
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            mcp/package-lock.json
       - run: npm ci
+      - working-directory: mcp
+        run: npm ci
       - run: npm run verify
       - working-directory: mcp
         run: npm pack --dry-run
