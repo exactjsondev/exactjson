@@ -1,4 +1,4 @@
-import { CATALOG, SERVICE_VERSION, getPackEndpoints } from "../src/config/catalog";
+import { CATALOG, SERVICE_VERSION, getActivePacks, getPackEndpoints } from "../src/config/catalog";
 import { decodeBase64Json } from "../src/lib/headers";
 
 interface CheckResult {
@@ -149,14 +149,31 @@ async function main() {
         `Expected ${CATALOG.length + 1} MCP tools on /mcp/all, got ${allToolCount}`
       );
 
+      for (const pack of getActivePacks()) {
+        const packRes = await fetch(`${baseUrl}${pack.mcpPath}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 10, method: "tools/list" }),
+          signal: AbortSignal.timeout(10_000),
+        });
+        assert(packRes.status === 200, `${pack.mcpPath} tools/list status=${packRes.status}`);
+        const packJson = (await packRes.json()) as { result?: { tools?: unknown[] } };
+        const expectedPackTools = getPackEndpoints([pack.id]).length + 1;
+        const actualPackTools = packJson.result?.tools?.length ?? 0;
+        assert(
+          actualPackTools === expectedPackTools,
+          `Expected ${expectedPackTools} tools on ${pack.mcpPath}, got ${actualPackTools}`
+        );
+      }
+
       const hugeRes = await fetch(`${baseUrl}/mcp`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 3, method: "ping", params: { pad: "x".repeat(18_000) } }),
+        body: JSON.stringify({ jsonrpc: "2.0", id: 3, params: { pad: "x".repeat(18_000) }, method: "ping" }),
         signal: AbortSignal.timeout(10_000),
       });
       assert(hugeRes.status === 413, `Expected 413 on oversized MCP body, got ${hugeRes.status}`);
-      return `${toolCount} tools, 413 limit enforced`;
+      return `${toolCount} default tools, ${getActivePacks().length} active packs, ${allToolCount} total tools, 413 limit enforced`;
     })
   );
 
