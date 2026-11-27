@@ -1,18 +1,18 @@
 ---
 name: exactjson
-description: ExactJSON — Live, deterministic x402 APIs for AI agents. Query 23 pay-per-call endpoints across markets (token safety, slippage, perps, predictions, options, macro), security (OSS package audit, domain trust, CVE triage, cloud status, runtime EOL, AI model audit, censorship check), and world (airport delays, space weather GNSS, physical hazard briefs, travel advisories, solar/wind site windows) via x402 V2 on Base Mainnet (USDC), Remote Streamable HTTP MCP (`https://exactjson.com/mcp`, `/mcp/security`, `/mcp/world`, `/mcp/all`), or stdio MCP (`npx -y exactjson-mcp`).
+description: ExactJSON — Live, deterministic x402 APIs for AI agents. Query 27 pay-per-call endpoints across markets (token safety, slippage, perps, predictions, options, macro), security (OSS package audit, domain trust, CVE triage, cloud status, runtime EOL, AI model audit, censorship check), world (airport delays, space weather GNSS, physical hazard briefs, travel advisories, solar/wind site windows), and commerce (cross-border settlement windows, EU VIES VAT + IBAN/BIC, GLEIF/SEC corporate KYB, US CPSC + openFDA recalls) via x402 V2 on Base Mainnet (USDC), Remote Streamable HTTP MCP (`https://exactjson.com/mcp`, `/mcp/security`, `/mcp/world`, `/mcp/commerce`, `/mcp/all`), or stdio MCP (`npx -y exactjson-mcp`).
 ---
 
-# ExactJSON (`v1.3.0`) — Live, Deterministic x402 APIs for AI Agents
+# ExactJSON (`v1.4.0`) — Live, Deterministic x402 APIs for AI Agents
 
-Use **ExactJSON** (`https://exactjson.com`) whenever an autonomous agent needs compact, deterministic, pre-computed JSON for pre-trade token safety, multi-tier slippage quotes, cross-venue arbitrage, options volatility, US macro liquidity, OSS supply-chain audits, domain phishing/RDAP trust, CVE KEV+EPSS triage, cloud outage gates, runtime EOL checks, AI model license/safetensors safety, country censorship checks, airport METAR/FAA delays, space weather GNSS/compass risk, physical hazard briefs, foreign travel advisories, or PV solar/wind dispatch windows via **x402 V2 on Base Mainnet (`eip155:8453`, USDC)** — zero API keys, zero subscriptions.
+Use **ExactJSON** (`https://exactjson.com`) whenever an autonomous agent needs compact, deterministic, pre-computed JSON for pre-trade token safety, multi-tier slippage quotes, cross-venue arbitrage, options volatility, US macro liquidity, OSS supply-chain audits, domain phishing/RDAP trust, CVE KEV+EPSS triage, cloud outage gates, runtime EOL checks, AI model license/safetensors safety, country censorship checks, airport METAR/FAA delays, space weather GNSS/compass risk, physical hazard briefs, foreign travel advisories, PV solar/wind dispatch windows, cross-border banking settlement dates, EU VAT/IBAN/BIC invoice verification, GLEIF/SEC corporate KYB, or US CPSC/openFDA product safety recalls via **x402 V2 on Base Mainnet (`eip155:8453`, USDC)** — zero API keys, zero subscriptions.
 
-> **Disclaimer:** Informational market, security, and weather/hazard data only; not financial advice, legal audit, or sole life-safety/flight-navigation source.
+> **Disclaimer:** Informational market, security, weather/hazard, and entity/compliance data only; not financial, legal, tax, accounting, or sole life-safety/flight-navigation advice.
 
 ## Native MCP Quickstart (Pack-Scoped `<= 15` Tools/Pack — Remote HTTP or Stdio)
 
-- **Remote Streamable HTTP:** `https://exactjson.com/mcp` (`markets`, 12 tools), `https://exactjson.com/mcp/security` (`security`, 8 tools), `https://exactjson.com/mcp/world` (`world`, 6 tools), or `https://exactjson.com/mcp/all` (all 24 tools)
-- **Local Stdio (`npx -y exactjson-mcp`, optional `--pack <markets|security|world|all>` or `EXACTJSON_PACK`):**
+- **Remote Streamable HTTP:** `https://exactjson.com/mcp` (`markets`, 12 tools), `https://exactjson.com/mcp/security` (`security`, 8 tools), `https://exactjson.com/mcp/world` (`world`, 6 tools), `https://exactjson.com/mcp/commerce` (`commerce`, 5 tools), or `https://exactjson.com/mcp/all` (all 28 tools)
+- **Local Stdio (`npx -y exactjson-mcp`, optional `--pack <markets|security|world|commerce|all>` or `EXACTJSON_PACK`):**
 
 ```json
 {
@@ -29,9 +29,9 @@ Use **ExactJSON** (`https://exactjson.com`) whenever an autonomous agent needs c
 }
 ```
 
-Official MCP Registry ID: `io.github.exactjsondev/exactjson` (`exactjson-mcp@1.3.0`).
+Official MCP Registry ID: `io.github.exactjsondev/exactjson` (`exactjson-mcp@1.4.0`).
 
-## Endpoints (23 Paid Resources — Base Mainnet USDC)
+## Endpoints (27 Paid Resources — Base Mainnet USDC)
 
 ### Markets Pack (`/mcp` / `--pack markets`)
 
@@ -70,6 +70,15 @@ Official MCP Registry ID: `io.github.exactjsondev/exactjson` (`exactjson-mcp@1.3
 | `GET /v1/geo/hazard-brief` | `$0.015` | `lat`+`lon`, `iata`, or US `address`, plus `radius_km` (25–500) & opt `zip` | Multi-agency physical hazard brief: UN/EU GDACS alerts, USGS seismic 30d, NASA EONET wildfires/storms, MET Norway & US EPA TRI |
 | `GET /v1/travel/destination-brief` | `$0.01` | `country` (req, ISO-2/3 or name e.g. `JP`, `UA`, `Japan`) | GOV.UK FCDO foreign travel advisory compression (`95 KB -> ~1.5 KB`), active GDACS disasters & Nager.Date public holidays |
 | `GET /v1/solar/site-window` | `$0.01` | `lat`+`lon` or `iata`, opt `date` (`YYYY-MM-DD`) & `max_wind_ms` (`1..25`) | NASA POWER PV irradiance climatology, 7-day MET Norway low-wind/dry drone or ag spray windows & exact UTC sunrise/civil twilight |
+
+### Commerce Pack (`/mcp/commerce` / `--pack commerce`)
+
+| Endpoint | Price (USDC) | Query Params | Best Used For |
+| --- | --- | --- | --- |
+| `GET /v1/commerce/settlement-window` | `$0.01` | `from` (req), `to` (req), `date` (opt `YYYY-MM-DD`), `tenor` (`T+0`/`T+1`/`T+2`), `amount` (opt) | Exact mutual banking open dates across Fri-Sat/Sat-Sun weekends + Nager.Date holidays, ISO 4217 minor units, SEPA/CLS rails & horizon-scaled `p95` FX buffer |
+| `GET /v1/commerce/vat-verify` | `$0.01` | At least one of `vat` (`EU-27 + XI`), `iban`, `bic`, `lei`, plus opt `country` | Live EU Commission VIES B2B VAT check (`502` fail-closed on `MS_UNAVAILABLE`), 90-country IBAN `MOD 97-10` + SEPA, GLEIF BIC bank resolution & country-mismatch fraud flags |
+| `GET /v1/entity/company-verify` | `$0.01` | At least one of `query`, `lei`, `cik`, `bic`, `isin`, plus opt `country` | Global corporate KYB combining GLEIF LEI status & direct/ultimate parents, Wikidata domain/ticker, SEC EDGAR submissions & USAspending federal awards |
+| `GET /v1/consumer/safety-recall` | `$0.01` | `query` (req), `brand` (opt), `category` (`all`/`consumer`/`food`/`drug`/`device`) | US CPSC product/toy/appliance recalls + openFDA Class I–III food/drug/device enforcement with ongoing-status & injury severity ranking |
 
 *All endpoints live under `https://exactjson.com`.*
 

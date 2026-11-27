@@ -32,7 +32,7 @@ function isAtLeast(ver: [number, number, number], min: [number, number, number])
 
 describe("catalog, 5-pack architecture, and 260%-rule description guardrails", () => {
   it("enforces Bazaar <= 500 chars, Glama 260%-rule negative boundaries, and pack disclaimers on every route", () => {
-    expect(CATALOG.length).toBe(23);
+    expect(CATALOG.length).toBe(27);
     expect(MAX_MCP_TOOLS_PER_PACK).toBe(15);
 
     for (const packId of PACK_IDS) {
@@ -115,17 +115,23 @@ describe("catalog, 5-pack architecture, and 260%-rule description guardrails", (
       invalid: "__proto__",
     });
 
-    expect(getActivePacks().map((p) => p.id)).toEqual(["markets", "security", "world"]);
+    expect(getActivePacks().map((p) => p.id)).toEqual([
+      "markets",
+      "security",
+      "world",
+      "commerce",
+    ]);
     expect(getPackEndpoints(["markets"]).length).toBe(11);
     expect(getPackEndpoints(["security"]).length).toBe(7);
     expect(getPackEndpoints(["world"]).length).toBe(5);
-    expect(getPackEndpoints(["commerce"]).length).toBe(0);
+    expect(getPackEndpoints(["commerce"]).length).toBe(4);
+    expect(getPackEndpoints(["research"]).length).toBe(0);
   });
 
   it("uses exact root-app full paths, compliant upstream USER_AGENT, and typed numeric MCP param metadata", () => {
     expect(SERVICE_NAME).toBe("ExactJSON");
-    expect(SERVICE_VERSION).toBe("1.3.0");
-    expect(USER_AGENT).toBe("ExactJSON/1.3 (+https://exactjson.com; mailto:hello@exactjson.com)");
+    expect(SERVICE_VERSION).toBe("1.4.0");
+    expect(USER_AGENT).toBe("ExactJSON/1.4 (+https://exactjson.com; mailto:hello@exactjson.com)");
     expect(DISCLAIMER).toBe("Informational market/security data only; not financial advice.");
 
     expect(CATALOG.map((e) => e.routeKey)).toEqual([
@@ -152,6 +158,10 @@ describe("catalog, 5-pack architecture, and 260%-rule description guardrails", (
       "GET /v1/geo/hazard-brief",
       "GET /v1/travel/destination-brief",
       "GET /v1/solar/site-window",
+      "GET /v1/commerce/settlement-window",
+      "GET /v1/commerce/vat-verify",
+      "GET /v1/entity/company-verify",
+      "GET /v1/consumer/safety-recall",
     ]);
     expect(CATALOG.map((e) => e.priceAmount)).toEqual([
       "0.01",
@@ -175,6 +185,10 @@ describe("catalog, 5-pack architecture, and 260%-rule description guardrails", (
       "0.01",
       "0.01",
       "0.015",
+      "0.01",
+      "0.01",
+      "0.01",
+      "0.01",
       "0.01",
       "0.01",
     ]);

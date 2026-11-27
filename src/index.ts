@@ -31,6 +31,7 @@ import {
 import { getEndpointByPath } from "./config/catalog";
 import { negotiateContentType } from "./lib/contentNegotiation";
 import { applyHtmlSecurityHeaders } from "./lib/securityHeaders";
+import { registerCommercePackRoutes } from "./packs/commerce";
 import { registerMarketsPackRoutes } from "./packs/markets";
 import { registerSecurityPackRoutes } from "./packs/security";
 import { registerWorldPackRoutes } from "./packs/world";
@@ -123,6 +124,7 @@ app.use("/v1/*", x402PaywallMiddleware);
 registerMarketsPackRoutes(app);
 registerSecurityPackRoutes(app);
 registerWorldPackRoutes(app);
+registerCommercePackRoutes(app);
 
 // Return 405 Method Not Allowed when a known /v1/* endpoint is called with a non-GET/HEAD method
 app.all("/v1/*", (c, next) => {

@@ -85,7 +85,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
       service: "ExactJSON",
       env: "testnet",
       network: "eip155:84532",
-      version: "1.3.0",
+      version: "1.4.0",
       paused: false,
     });
 
@@ -120,6 +120,10 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
         "GET http://localhost:8787/v1/geo/hazard-brief",
         "GET http://localhost:8787/v1/travel/destination-brief",
         "GET http://localhost:8787/v1/solar/site-window",
+        "GET http://localhost:8787/v1/commerce/settlement-window",
+        "GET http://localhost:8787/v1/commerce/vat-verify",
+        "GET http://localhost:8787/v1/entity/company-verify",
+        "GET http://localhost:8787/v1/consumer/safety-recall",
       ],
     });
 
@@ -146,7 +150,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     };
     expect(oa.openapi).toBe("3.1.0");
     expect(oa.info.title).toContain("ExactJSON");
-    expect(oa.info.version).toBe("1.3.0");
+    expect(oa.info.version).toBe("1.4.0");
     expect(oa.info.contact.email).toBe("hello@exactjson.com");
     expect(oa.info.description).toContain(DISCLAIMER);
     expect(oa.info["x-guidance"]).toContain("x402 V2");
@@ -221,10 +225,10 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
       authentication: { schemes: string[] };
     };
     expect(card.name).toBe("ExactJSON");
-    expect(card.version).toBe("1.3.0");
+    expect(card.version).toBe("1.4.0");
     expect(card.description).toContain("prediction scanner ($0.01)");
     expect(card.description).not.toContain("prediction scanner ($0.015)");
-    expect(card.skills.length).toBe(23);
+    expect(card.skills.length).toBe(27);
     expect(card.authentication.schemes).toContain("x402");
 
     // Legacy A2A alias /.well-known/agent.json
@@ -254,7 +258,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
       tools: Array<{ name: string; inputSchema: { properties: Record<string, { type?: string }> } }>;
     };
     expect(mcpCard.serverInfo.name).toBe("io.github.exactjsondev/exactjson");
-    expect(mcpCard.serverInfo.version).toBe("1.3.0");
+    expect(mcpCard.serverInfo.version).toBe("1.4.0");
     expect(mcpCard.transport.type).toBe("streamable-http");
     expect(mcpCard.transport.endpoint).toBe("http://localhost:8787/mcp");
     expect(mcpCard.remotes).toEqual([
@@ -273,6 +277,10 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
       {
         type: "streamable-http",
         url: "http://localhost:8787/mcp/world",
+      },
+      {
+        type: "streamable-http",
+        url: "http://localhost:8787/mcp/commerce",
       },
       {
         type: "streamable-http",
@@ -334,7 +342,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
       mcp: { package: string; registry_name: string; remote_url: string };
     };
     expect(jsonBody.service).toBe("ExactJSON");
-    expect(jsonBody.version).toBe("1.3.0");
+    expect(jsonBody.version).toBe("1.4.0");
     expect(jsonBody.mcp.package).toBe("exactjson-mcp");
     expect(jsonBody.mcp.registry_name).toBe("io.github.exactjsondev/exactjson");
     expect(jsonBody.mcp.remote_url).toBe("http://localhost:8787/mcp");

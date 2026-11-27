@@ -59,7 +59,16 @@ export type UpstreamProviderId =
   | "EPA_TRI"
   | "GOVUK_FCDO"
   | "NAGER_DATE"
-  | "NASA_POWER";
+  | "NASA_POWER"
+  | "FRANKFURTER"
+  | "WORLDBANK"
+  | "EU_VIES"
+  | "GLEIF"
+  | "WIKIDATA"
+  | "SEC_EDGAR"
+  | "USASPENDING"
+  | "US_CPSC"
+  | "OPENFDA";
 
 export interface FetchJsonOptions<T = unknown> {
   provider: UpstreamProviderId;

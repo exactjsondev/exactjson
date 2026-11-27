@@ -257,6 +257,26 @@ async function main() {
       label: "Solar & Wind Site Window Amsterdam ($0.01)",
       url: `${baseUrl}/v1/solar/site-window?lat=52.3676&lon=4.9041`,
     },
+    {
+      key: "commerce_settlement_window",
+      label: "Cross-Border Settlement Window US->JP ($0.01)",
+      url: `${baseUrl}/v1/commerce/settlement-window?from=US&to=JP`,
+    },
+    {
+      key: "commerce_vat_verify",
+      label: "EU VIES VAT Verify Google Ireland ($0.01)",
+      url: `${baseUrl}/v1/commerce/vat-verify?vat=IE6388047V`,
+    },
+    {
+      key: "entity_company_verify",
+      label: "Corporate KYB Verify Apple Inc. ($0.01)",
+      url: `${baseUrl}/v1/entity/company-verify?query=Apple%20Inc.`,
+    },
+    {
+      key: "consumer_safety_recall",
+      label: "Consumer Safety Recall Stroller ($0.01)",
+      url: `${baseUrl}/v1/consumer/safety-recall?query=stroller&category=consumer`,
+    },
   ];
 
   const v3Keys = new Set(["evm_safety", "predictions_arb", "quote_check"]);
@@ -276,6 +296,12 @@ async function main() {
     "travel_destination_brief",
     "solar_site_window",
   ]);
+  const commerceKeys = new Set([
+    "commerce_settlement_window",
+    "commerce_vat_verify",
+    "entity_company_verify",
+    "consumer_safety_recall",
+  ]);
   const selected =
     onlyTarget === "all"
       ? targets
@@ -285,13 +311,15 @@ async function main() {
           ? targets.filter((t) => securityKeys.has(t.key))
           : onlyTarget === "world"
             ? targets.filter((t) => worldKeys.has(t.key))
-            : onlyTarget
-              ? targets.filter((t) => t.key === onlyTarget)
-              : targets.filter((t) => t.key === "safety" || t.key === "perps");
+            : onlyTarget === "commerce"
+              ? targets.filter((t) => commerceKeys.has(t.key))
+              : onlyTarget
+                ? targets.filter((t) => t.key === onlyTarget)
+                : targets.filter((t) => t.key === "safety" || t.key === "perps");
 
   if (selected.length === 0) {
     throw new Error(
-      `Unknown --only=${onlyTarget}. Valid values: all, v3, security, world, ${targets.map((t) => t.key).join(", ")}`
+      `Unknown --only=${onlyTarget}. Valid values: all, v3, security, world, commerce, ${targets.map((t) => t.key).join(", ")}`
     );
   }
 

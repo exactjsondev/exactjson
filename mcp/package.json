@@ -1,8 +1,8 @@
 {
   "name": "exactjson-mcp",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "mcpName": "io.github.exactjsondev/exactjson",
-  "description": "ExactJSON — Live, deterministic x402 APIs for AI agents: 23 pay-per-call Base USDC endpoints across markets, security, and world (aviation METAR/FAA delays, space weather GNSS, physical hazard briefs, travel advisories, solar/wind site windows).",
+  "description": "ExactJSON — Live, deterministic x402 APIs for AI agents: 27 pay-per-call Base USDC endpoints across markets, security, world, and commerce (cross-border settlement windows, EU VIES VAT + IBAN/BIC, GLEIF/SEC corporate KYB, US CPSC + openFDA recalls).",
   "license": "MIT",
   "author": "ExactJSON <hello@exactjson.com> (https://exactjson.com)",
   "type": "module",
@@ -43,7 +43,13 @@
     "metar",
     "gnss",
     "gdacs",
-    "solar"
+    "solar",
+    "vies",
+    "iban",
+    "gleif",
+    "kyb",
+    "cpsc",
+    "fda"
   ],
   "repository": {
     "type": "git",

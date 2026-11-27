@@ -16,8 +16,8 @@ import {
 } from "../src/packs/world/validation";
 
 describe("world pack — catalog contract, static IATA/ISO tables, and input validation", () => {
-  it("defines 5 world endpoints at v1.3.0 within Glama TDQS and Bazaar 500-char limits", () => {
-    expect(SERVICE_VERSION).toBe("1.3.0");
+  it("defines 5 world endpoints at v1.4.0 within Glama TDQS and Bazaar 500-char limits", () => {
+    expect(SERVICE_VERSION).toBe("1.4.0");
     expect(WORLD_CATALOG.length).toBe(5);
     expect(1 + getPackEndpoints(["world"]).length).toBe(6);
     expect(1 + getPackEndpoints(["world"]).length).toBeLessThanOrEqual(MAX_MCP_TOOLS_PER_PACK);
