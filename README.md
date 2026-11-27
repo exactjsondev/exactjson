@@ -5,19 +5,19 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/exactjsondev/exactjson/blob/main/LICENSE)
 [![ExactJSON MCP server](https://glama.ai/mcp/servers/exactjsondev/exactjson/badge)](https://glama.ai/mcp/servers/exactjsondev/exactjson)
 
-**Website:** https://exactjson.com ([Docs](https://exactjson.com/docs) · [Pricing](https://exactjson.com/pricing)) · **Remote MCP:** `https://exactjson.com/mcp` · **Security MCP:** `https://exactjson.com/mcp/security` · **Stdio MCP:** `npx -y exactjson-mcp` · **x402scan:** [Listing](https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc) · **Security:** [SECURITY.md](SECURITY.md) · **Contact:** hello@exactjson.com
+**Website:** https://exactjson.com ([Docs](https://exactjson.com/docs) · [Pricing](https://exactjson.com/pricing)) · **Remote MCP:** `https://exactjson.com/mcp` · **Security MCP:** `https://exactjson.com/mcp/security` · **World MCP:** `https://exactjson.com/mcp/world` · **Stdio MCP:** `npx -y exactjson-mcp` · **x402scan:** [Listing](https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc) · **Security:** [SECURITY.md](SECURITY.md) · **Contact:** hello@exactjson.com
 
-**ExactJSON** (`v1.2.0`) serves **18 pre-computed, strict-schema, token-optimized JSON endpoints** for AI agents via **x402 V2** micro-payments on **Base Mainnet (`eip155:8453`, USDC)** — `$0.005–$0.02/call`, zero API keys, zero subscriptions, strict **Pay-Only-On-Success** settlement (`HTTP 200` only).
+**ExactJSON** (`v1.3.0`) serves **23 pre-computed, strict-schema, token-optimized JSON endpoints** for AI agents via **x402 V2** micro-payments on **Base Mainnet (`eip155:8453`, USDC)** — `$0.005–$0.02/call`, zero API keys, zero subscriptions, strict **Pay-Only-On-Success** settlement (`HTTP 200` only).
 
-> **Disclaimer:** Informational market/security data only; not financial advice or a substitute for full code/legal review.
+> **Disclaimer:** Informational market, security, and weather/hazard data only; not financial advice, legal audit, or sole life-safety/flight-navigation source.
 
 ## Why ExactJSON
 
-- **Cheaper than free raw APIs for LLM agents:** Pulling 600+ Deribit contracts, 180+ Hyperliquid assets, or 430 KB registry packuments raw into an LLM context costs `$0.02–$0.15` in input tokens and invites math hallucinations. ExactJSON returns one deterministic ~2 KB JSON payload.
+- **Cheaper than free raw APIs for LLM agents:** Pulling 600+ Deribit contracts, 180+ Hyperliquid assets, 430 KB registry packuments, or 555 KB GDACS/95 KB FCDO feeds raw into an LLM context costs `$0.02–$0.15` in input tokens and invites math hallucinations. ExactJSON returns one deterministic ~2 KB JSON payload.
 - **Pay-Only-On-Success:** Unpaid probes return `402` with `PAYMENT-REQUIRED` terms. Invalid inputs (`400`/`404`), upstream outages (`502`), and operator pause (`503`) never settle payment.
-- **Fail-Closed Security:** Missing primary security engines (GoPlus + Honeypot.is on EVM; RugCheck on Solana; OSV/deps.dev/CISA KEV/Cloudflare 1.1.1.2 on Security) return `502` instead of falsely marking a target safe.
+- **Fail-Closed Safety:** Missing primary engines (GoPlus + Honeypot.is on EVM; RugCheck on Solana; OSV/deps.dev/CISA KEV/Cloudflare 1.1.1.2 on Security; NOAA AWC/SWPC/GDACS/USGS/FCDO on World) return `502` instead of falsely marking a target safe.
 
-## Live Endpoints (18 Paid Resources — Base Mainnet USDC)
+## Live Endpoints (23 Paid Resources — Base Mainnet USDC)
 
 ### Markets Pack (`/mcp` / `--pack markets` — 11 Paid Tools)
 
@@ -47,10 +47,20 @@
 | MLOps | `GET /v1/ai/model-audit` | `$0.01` | Hugging Face commercial license check, safetensors vs pickle code-exec flags & `fp16`/`int8`/`int4` VRAM sizing |
 | Reachability | `GET /v1/net/censorship-check` | `$0.01` | Country-specific blocking & network anomaly detection via live OONI `web_connectivity` + global Cloudflare DoH |
 
+### World Pack (`/mcp/world` / `--pack world` — 5 Paid Tools)
+
+| Category | Endpoint | Price (USDC) | What It Returns |
+| --- | --- | --- | --- |
+| Aviation | `GET /v1/aviation/airport-delays` | `$0.01` | Global NOAA METAR/TAF/SIGMET flight category (`VFR`/`MVFR`/`IFR`/`LIFR`) + US FAA NAS Ground Stops & Closures |
+| Space Weather | `GET /v1/space/weather-gnss` | `$0.01` | NOAA SWPC R/S/G scales, Kp forecast, solar wind `Bz` & CelesTrak `F10.7` flux -> RTK-GPS, compass & LEO drag gates |
+| Hazards | `GET /v1/geo/hazard-brief` | `$0.015` | Worldwide site hazard brief combining UN/EU GDACS, USGS seismic, NASA EONET, MET Norway & US Census/EPA TRI |
+| Travel | `GET /v1/travel/destination-brief` | `$0.01` | GOV.UK FCDO foreign travel advisory compression, active regional GDACS disasters & Nager.Date public holidays |
+| Solar & Wind | `GET /v1/solar/site-window` | `$0.01` | NASA POWER PV irradiance climatology, 7-day MET Norway drone/ag low-wind windows & UTC sunrise/civil twilight |
+
 ## Native MCP Quickstart (Pack-Scoped `<= 15` Tools/Pack)
 
-- **Remote Streamable HTTP:** `https://exactjson.com/mcp` (`markets`), `https://exactjson.com/mcp/security` (`security`), or `https://exactjson.com/mcp/all` (`all`)
-- **Local Stdio (`exactjson-mcp@1.2.0`):**
+- **Remote Streamable HTTP:** `https://exactjson.com/mcp` (`markets`), `https://exactjson.com/mcp/security` (`security`), `https://exactjson.com/mcp/world` (`world`), or `https://exactjson.com/mcp/all` (`all`)
+- **Local Stdio (`exactjson-mcp@1.3.0`):**
 
 ```json
 {

@@ -232,6 +232,31 @@ async function main() {
       label: "Censorship Check telegram.org IR ($0.01)",
       url: `${baseUrl}/v1/net/censorship-check?domain=telegram.org&country=IR&days=7`,
     },
+    {
+      key: "aviation_airport_delays",
+      label: "Aviation Airport Delays JFK ($0.01)",
+      url: `${baseUrl}/v1/aviation/airport-delays?airport=JFK`,
+    },
+    {
+      key: "space_weather_gnss",
+      label: "Space Weather GNSS & LEO Drag ($0.01)",
+      url: `${baseUrl}/v1/space/weather-gnss?lat=37.77`,
+    },
+    {
+      key: "geo_hazard_brief",
+      label: "Geo Hazard Brief SF Coordinates ($0.015)",
+      url: `${baseUrl}/v1/geo/hazard-brief?lat=37.7749&lon=-122.4194&radius_km=100`,
+    },
+    {
+      key: "travel_destination_brief",
+      label: "Travel Destination Brief Japan ($0.01)",
+      url: `${baseUrl}/v1/travel/destination-brief?country=JP`,
+    },
+    {
+      key: "solar_site_window",
+      label: "Solar & Wind Site Window Amsterdam ($0.01)",
+      url: `${baseUrl}/v1/solar/site-window?lat=52.3676&lon=4.9041`,
+    },
   ];
 
   const v3Keys = new Set(["evm_safety", "predictions_arb", "quote_check"]);
@@ -244,6 +269,13 @@ async function main() {
     "ai_model_audit",
     "net_censorship_check",
   ]);
+  const worldKeys = new Set([
+    "aviation_airport_delays",
+    "space_weather_gnss",
+    "geo_hazard_brief",
+    "travel_destination_brief",
+    "solar_site_window",
+  ]);
   const selected =
     onlyTarget === "all"
       ? targets
@@ -251,13 +283,15 @@ async function main() {
         ? targets.filter((t) => v3Keys.has(t.key))
         : onlyTarget === "security"
           ? targets.filter((t) => securityKeys.has(t.key))
-          : onlyTarget
-            ? targets.filter((t) => t.key === onlyTarget)
-            : targets.filter((t) => t.key === "safety" || t.key === "perps");
+          : onlyTarget === "world"
+            ? targets.filter((t) => worldKeys.has(t.key))
+            : onlyTarget
+              ? targets.filter((t) => t.key === onlyTarget)
+              : targets.filter((t) => t.key === "safety" || t.key === "perps");
 
   if (selected.length === 0) {
     throw new Error(
-      `Unknown --only=${onlyTarget}. Valid values: all, v3, security, ${targets.map((t) => t.key).join(", ")}`
+      `Unknown --only=${onlyTarget}. Valid values: all, v3, security, world, ${targets.map((t) => t.key).join(", ")}`
     );
   }
 

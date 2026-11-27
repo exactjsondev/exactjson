@@ -7,11 +7,12 @@
 
 **ExactJSON — Live, deterministic x402 APIs for AI agents** (Model Context Protocol server).
 
-Exposes **18 Base USDC pay-per-call endpoints + free `exactjson_health`** organized into focused vertical packs (`<= 15` tools per pack for zero-bloat LLM tool selection) with client-side spend caps (`MAX_PAYMENT_USD`) and Pay-Only-On-Success guarantees:
+Exposes **23 Base USDC pay-per-call endpoints + free `exactjson_health`** organized into focused vertical packs (`<= 15` tools per pack for zero-bloat LLM tool selection) with client-side spend caps (`MAX_PAYMENT_USD`) and Pay-Only-On-Success guarantees:
 
 - **`markets` (default, 12 tools):** `https://exactjson.com/mcp` or `npx -y exactjson-mcp`
 - **`security` (8 tools):** `https://exactjson.com/mcp/security` or `npx -y exactjson-mcp --pack security`
-- **`all` (19 tools):** `https://exactjson.com/mcp/all` or `npx -y exactjson-mcp --pack all`
+- **`world` (6 tools):** `https://exactjson.com/mcp/world` or `npx -y exactjson-mcp --pack world`
+- **`all` (24 tools):** `https://exactjson.com/mcp/all` or `npx -y exactjson-mcp --pack all`
 
 - **Website & Docs:** https://exactjson.com · https://exactjson.com/docs · https://exactjson.com/pricing
 - **Official MCP Registry:** `io.github.exactjsondev/exactjson`
@@ -21,7 +22,7 @@ Exposes **18 Base USDC pay-per-call endpoints + free `exactjson_health`** organi
 
 ## Quickstart (Remote Streamable HTTP or Stdio)
 
-For x402-native MCP clients, connect directly to the stateless Remote Streamable HTTP endpoints (`https://exactjson.com/mcp`, `https://exactjson.com/mcp/security`, or `https://exactjson.com/mcp/all`).
+For x402-native MCP clients, connect directly to the stateless Remote Streamable HTTP endpoints (`https://exactjson.com/mcp`, `https://exactjson.com/mcp/security`, `https://exactjson.com/mcp/world`, or `https://exactjson.com/mcp/all`).
 
 For local desktop hosts (Claude Desktop / Cursor / OpenClaw):
 
@@ -43,6 +44,14 @@ For local desktop hosts (Claude Desktop / Cursor / OpenClaw):
         "BUYER_PRIVATE_KEY": "0xYOUR_LOW_BALANCE_BASE_WALLET_KEY",
         "MAX_PAYMENT_USD": "$0.05"
       }
+    },
+    "exactjson-world": {
+      "command": "npx",
+      "args": ["-y", "exactjson-mcp", "--pack", "world"],
+      "env": {
+        "BUYER_PRIVATE_KEY": "0xYOUR_LOW_BALANCE_BASE_WALLET_KEY",
+        "MAX_PAYMENT_USD": "$0.05"
+      }
     }
   }
 }
@@ -55,7 +64,7 @@ For local desktop hosts (Claude Desktop / Cursor / OpenClaw):
 | `BUYER_PRIVATE_KEY` | For paid tools | — | Dedicated low-balance Base EVM wallet private key (`0x...` or 64-char hex) holding USDC for paid x402 calls. |
 | `MAX_PAYMENT_USD` | No | `$0.05` | Maximum USDC spend per call enforced client-side before signing. |
 | `EXACTJSON_BASE_URL` | No | `https://exactjson.com` | Optional base URL override when self-hosting ExactJSON. |
-| `EXACTJSON_PACK` | No | `markets` | Vertical tool pack filter (`markets`, `security`, comma-separated, or `all`; also available via `--pack`). |
+| `EXACTJSON_PACK` | No | `markets` | Vertical tool pack filter (`markets`, `security`, `world`, comma-separated, or `all`; also available via `--pack`). |
 
 ## Security & Spend Controls
 
@@ -63,7 +72,7 @@ For local desktop hosts (Claude Desktop / Cursor / OpenClaw):
 - **Hard client-side cap:** `MAX_PAYMENT_USD` (default `$0.05`) enforces `maxAmountPerPayment` locally before any authorization is signed. Use a dedicated low-balance operational wallet.
 - **Pay-Only-On-Success:** Unpaid probes (`402`), bad inputs (`400`/`404`), fail-closed upstream outages (`502`), and operator pauses (`503`) never settle payment.
 
-## Tools (19 Total Across Active Packs)
+## Tools (24 Total Across Active Packs)
 
 | Pack | Tool | Price (USDC) | Endpoint |
 | --- | --- | --- | --- |
@@ -86,6 +95,11 @@ For local desktop hosts (Claude Desktop / Cursor / OpenClaw):
 | `security` | `exactjson_oss_runtime_eol` | `$0.005` | `GET /v1/oss/runtime-eol` |
 | `security` | `exactjson_ai_model_audit` | `$0.01` | `GET /v1/ai/model-audit` |
 | `security` | `exactjson_net_censorship_check` | `$0.01` | `GET /v1/net/censorship-check` |
+| `world` | `exactjson_aviation_airport_delays` | `$0.01` | `GET /v1/aviation/airport-delays` |
+| `world` | `exactjson_space_weather_gnss` | `$0.01` | `GET /v1/space/weather-gnss` |
+| `world` | `exactjson_geo_hazard_brief` | `$0.015` | `GET /v1/geo/hazard-brief` |
+| `world` | `exactjson_travel_destination_brief` | `$0.01` | `GET /v1/travel/destination-brief` |
+| `world` | `exactjson_solar_site_window` | `$0.01` | `GET /v1/solar/site-window` |
 
 ## References
 
@@ -93,4 +107,4 @@ For local desktop hosts (Claude Desktop / Cursor / OpenClaw):
 - [OpenAPI 3.1 Spec](https://exactjson.com/openapi.json) · [llms.txt](https://exactjson.com/llms.txt)
 - [MCP Server Card](https://exactjson.com/.well-known/mcp/server-card.json) · [x402scan](https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc)
 
-> Informational market/security data only; not financial advice or a substitute for full code/legal review.
+> Informational market, security, and weather/hazard data only; not financial advice, legal audit, or sole life-safety/flight-navigation source.

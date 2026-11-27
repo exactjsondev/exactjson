@@ -1,18 +1,18 @@
 ---
 name: exactjson
-description: ExactJSON — Live, deterministic x402 APIs for AI agents. Query 18 pay-per-call endpoints across markets (token safety, slippage, perps, predictions, options, macro) and security (OSS package audit, domain trust, CVE triage, cloud status, runtime EOL, AI model audit, censorship check) via x402 V2 on Base Mainnet (USDC), Remote Streamable HTTP MCP (`https://exactjson.com/mcp`, `/mcp/security`, `/mcp/all`), or stdio MCP (`npx -y exactjson-mcp`).
+description: ExactJSON — Live, deterministic x402 APIs for AI agents. Query 23 pay-per-call endpoints across markets (token safety, slippage, perps, predictions, options, macro), security (OSS package audit, domain trust, CVE triage, cloud status, runtime EOL, AI model audit, censorship check), and world (airport delays, space weather GNSS, physical hazard briefs, travel advisories, solar/wind site windows) via x402 V2 on Base Mainnet (USDC), Remote Streamable HTTP MCP (`https://exactjson.com/mcp`, `/mcp/security`, `/mcp/world`, `/mcp/all`), or stdio MCP (`npx -y exactjson-mcp`).
 ---
 
-# ExactJSON (`v1.2.0`) — Live, Deterministic x402 APIs for AI Agents
+# ExactJSON (`v1.3.0`) — Live, Deterministic x402 APIs for AI Agents
 
-Use **ExactJSON** (`https://exactjson.com`) whenever an autonomous agent needs compact, deterministic, pre-computed JSON for pre-trade token safety, multi-tier slippage quotes, cross-venue arbitrage, options volatility, US macro liquidity, OSS supply-chain audits, domain phishing/RDAP trust, CVE KEV+EPSS triage, cloud outage gates, runtime EOL checks, AI model license/safetensors safety, or country censorship checks via **x402 V2 on Base Mainnet (`eip155:8453`, USDC)** — zero API keys, zero subscriptions.
+Use **ExactJSON** (`https://exactjson.com`) whenever an autonomous agent needs compact, deterministic, pre-computed JSON for pre-trade token safety, multi-tier slippage quotes, cross-venue arbitrage, options volatility, US macro liquidity, OSS supply-chain audits, domain phishing/RDAP trust, CVE KEV+EPSS triage, cloud outage gates, runtime EOL checks, AI model license/safetensors safety, country censorship checks, airport METAR/FAA delays, space weather GNSS/compass risk, physical hazard briefs, foreign travel advisories, or PV solar/wind dispatch windows via **x402 V2 on Base Mainnet (`eip155:8453`, USDC)** — zero API keys, zero subscriptions.
 
-> **Disclaimer:** Informational market/security data only; not financial advice or a substitute for full code/legal review.
+> **Disclaimer:** Informational market, security, and weather/hazard data only; not financial advice, legal audit, or sole life-safety/flight-navigation source.
 
 ## Native MCP Quickstart (Pack-Scoped `<= 15` Tools/Pack — Remote HTTP or Stdio)
 
-- **Remote Streamable HTTP:** `https://exactjson.com/mcp` (`markets`, 12 tools), `https://exactjson.com/mcp/security` (`security`, 8 tools), or `https://exactjson.com/mcp/all` (all 19 tools)
-- **Local Stdio (`npx -y exactjson-mcp`, optional `--pack <markets|security|all>` or `EXACTJSON_PACK`):**
+- **Remote Streamable HTTP:** `https://exactjson.com/mcp` (`markets`, 12 tools), `https://exactjson.com/mcp/security` (`security`, 8 tools), `https://exactjson.com/mcp/world` (`world`, 6 tools), or `https://exactjson.com/mcp/all` (all 24 tools)
+- **Local Stdio (`npx -y exactjson-mcp`, optional `--pack <markets|security|world|all>` or `EXACTJSON_PACK`):**
 
 ```json
 {
@@ -29,9 +29,9 @@ Use **ExactJSON** (`https://exactjson.com`) whenever an autonomous agent needs c
 }
 ```
 
-Official MCP Registry ID: `io.github.exactjsondev/exactjson` (`exactjson-mcp@1.2.0`).
+Official MCP Registry ID: `io.github.exactjsondev/exactjson` (`exactjson-mcp@1.3.0`).
 
-## Endpoints (18 Paid Resources — Base Mainnet USDC)
+## Endpoints (23 Paid Resources — Base Mainnet USDC)
 
 ### Markets Pack (`/mcp` / `--pack markets`)
 
@@ -60,6 +60,16 @@ Official MCP Registry ID: `io.github.exactjsondev/exactjson` (`exactjson-mcp@1.2
 | `GET /v1/oss/runtime-eol` | `$0.005` | `product` (req, e.g. `nodejs`, `python`, `postgresql`), `cycle` (opt, e.g. `20`) | Deterministic End-of-Life (EOL), active support, LTS status, latest patch & recommended upgrade cycle |
 | `GET /v1/ai/model-audit` | `$0.01` | `model` (req, e.g. `Qwen/Qwen2.5-7B-Instruct`) | Hugging Face commercial license check, safetensors vs unsafe pickle (`.bin`/`.pt`/`.pkl`) code-exec risk & `fp16`/`int8`/`int4` VRAM GB |
 | `GET /v1/net/censorship-check` | `$0.01` | `domain` (req), `country` (req, ISO-2 e.g. `IR`), `days` (1–14, default 7) | Country-specific blocking & network anomaly detection via live OONI `web_connectivity` + global Cloudflare DoH |
+
+### World Pack (`/mcp/world` / `--pack world`)
+
+| Endpoint | Price (USDC) | Query Params | Best Used For |
+| --- | --- | --- | --- |
+| `GET /v1/aviation/airport-delays` | `$0.01` | `airport` (req, IATA e.g. `JFK`/`LHR` or ICAO e.g. `KJFK`/`EGLL`) | NOAA AviationWeather METAR/TAF/SIGMET flight category (`VFR`/`MVFR`/`IFR`/`LIFR`) + US FAA NAS Ground Stops & Closures |
+| `GET /v1/space/weather-gnss` | `$0.01` | `lat` (opt, `-90..90`) | NOAA SWPC R/S/G scales, Kp forecast, solar wind `Bz` & CelesTrak `F10.7` flux -> RTK-GPS, drone compass, HF/SATCOM & LEO drag Go/No-Go |
+| `GET /v1/geo/hazard-brief` | `$0.015` | `lat`+`lon`, `iata`, or US `address`, plus `radius_km` (25–500) & opt `zip` | Multi-agency physical hazard brief: UN/EU GDACS alerts, USGS seismic 30d, NASA EONET wildfires/storms, MET Norway & US EPA TRI |
+| `GET /v1/travel/destination-brief` | `$0.01` | `country` (req, ISO-2/3 or name e.g. `JP`, `UA`, `Japan`) | GOV.UK FCDO foreign travel advisory compression (`95 KB -> ~1.5 KB`), active GDACS disasters & Nager.Date public holidays |
+| `GET /v1/solar/site-window` | `$0.01` | `lat`+`lon` or `iata`, opt `date` (`YYYY-MM-DD`) & `max_wind_ms` (`1..25`) | NASA POWER PV irradiance climatology, 7-day MET Norway low-wind/dry drone or ag spray windows & exact UTC sunrise/civil twilight |
 
 *All endpoints live under `https://exactjson.com`.*
 

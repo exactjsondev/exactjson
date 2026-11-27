@@ -289,11 +289,11 @@ function renderBrandJsonLd(baseUrl: string, includeOffers = false): string {
     "@type": "WebAPI",
     "@id": `${baseUrl}/#api`,
     name: "ExactJSON x402 API",
-    serviceType: "x402 pay-per-call market, token-safety, and supply-chain security JSON API",
+    serviceType: "x402 pay-per-call market, security, and physical-world intelligence JSON API",
     url: baseUrl,
     documentation: `${baseUrl}/docs`,
     keywords:
-      "x402 API, AI agent API, MCP server, Base USDC micropayments, EVM token safety, Solana safety, Hyperliquid perpetuals, Polymarket Kalshi arbitrage, Deribit options surface, US macro liquidity, OSS package audit, CVE triage, domain trust, runtime EOL, Hugging Face model audit",
+      "x402 API, AI agent API, MCP server, Base USDC micropayments, EVM token safety, Solana safety, Hyperliquid perpetuals, Polymarket Kalshi arbitrage, Deribit options surface, US macro liquidity, OSS package audit, CVE triage, domain trust, airport delays METAR, space weather GNSS, GDACS hazard brief, travel advisories, NASA POWER solar",
     description:
       "Pre-computed, deterministic, compact JSON endpoints for AI agents via x402 V2 Base Mainnet USDC micro-payments ($0.005-$0.02/call). Pay-only-on-success with zero API keys or subscriptions.",
     provider: { "@id": `${baseUrl}/#organization` },
@@ -1014,7 +1014,7 @@ export function renderAboutHtml(baseUrl: string, network: string): string {
     <section class="grid-2" style="margin-top: 1rem;">
       <div class="card">
         <h2>Data Sources &amp; Coverage</h2>
-        <p>Coverage spans Markets (EVM via GoPlus/Honeypot.is/KyberSwap/DEX Screener, Solana via RugCheck, Hyperliquid/dYdX/Kraken perps, Polymarket/Kalshi predictions, Deribit options, US Treasury &amp; NY Fed macro) and Security (deps.dev, OSV.dev, npm/PyPI/crates.io, CISA KEV, FIRST EPSS, MITRE CVE, Cloudflare 1.1.1.1/1.1.1.2 DoH, IANA RDAP, Statuspage, endoflife.date, Hugging Face Hub, and OONI).</p>
+        <p>Coverage spans Markets (EVM via GoPlus/Honeypot.is/KyberSwap/DEX Screener, Solana via RugCheck, Hyperliquid/dYdX/Kraken perps, Polymarket/Kalshi predictions, Deribit options, US Treasury &amp; NY Fed macro), Security (deps.dev, OSV.dev, npm/PyPI/crates.io, CISA KEV, FIRST EPSS, MITRE CVE, Cloudflare 1.1.1.1/1.1.1.2 DoH, IANA RDAP, Statuspage, endoflife.date, Hugging Face Hub, OONI), and World (NOAA AviationWeather, FAA NAS, NOAA SWPC, CelesTrak, UN/EU GDACS, USGS Seismic, NASA EONET, MET Norway, US Census/EPA TRI, GOV.UK FCDO, Nager.Date, and NASA POWER).</p>
       </div>
       <div class="card">
         <h2>Open Source &amp; Machine Discovery</h2>

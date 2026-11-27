@@ -117,7 +117,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
     expect(initJson.id).toBe(1);
     expect(initJson.result.protocolVersion).toBe("2025-03-26");
     expect(initJson.result.serverInfo.name).toBe("io.github.exactjsondev/exactjson");
-    expect(initJson.result.serverInfo.version).toBe("1.2.0");
+    expect(initJson.result.serverInfo.version).toBe("1.3.0");
     expect(initJson.result.instructions).toContain("https://exactjson.com/mcp");
 
     const notifRes = await rpcCall(
@@ -169,7 +169,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
     };
     expect(healthJson.result.isError).toBe(false);
     expect(healthJson.result.structuredContent.status).toBe("ok");
-    expect(healthJson.result.structuredContent.version).toBe("1.2.0");
+    expect(healthJson.result.structuredContent.version).toBe("1.3.0");
 
     // Free MCP routes must never write paid /v1/* telemetry rows
     await new Promise((r) => setTimeout(r, 10));
@@ -573,7 +573,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
     expect(getAllHtml.status).toBe(405);
     expect(await getAllHtml.text()).toContain("/mcp/all");
 
-    // 2. Live /mcp/security returns 8 tools (<=15 TDQS), while unpopulated /mcp/world & unknown pack return 404 JSON-RPC errors
+    // 2. Live /mcp/security (8 tools) & /mcp/world (6 tools) stay <=15 TDQS, while unpopulated /mcp/commerce & unknown pack return 404 JSON-RPC errors
     const liveSecurityRes = await app.request(
       "http://localhost:8787/mcp/security",
       {
@@ -590,8 +590,24 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
     expect(liveSecurityJson.result.tools.length).toBe(1 + getPackEndpoints(["security"]).length);
     expect(liveSecurityJson.result.tools.length).toBe(8);
 
-    const emptyPackRes = await app.request(
+    const liveWorldRes = await app.request(
       "http://localhost:8787/mcp/world",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 31, method: "tools/list" }),
+      },
+      env
+    );
+    expect(liveWorldRes.status).toBe(200);
+    const liveWorldJson = (await liveWorldRes.json()) as {
+      result: { tools: Array<{ name: string }> };
+    };
+    expect(liveWorldJson.result.tools.length).toBe(1 + getPackEndpoints(["world"]).length);
+    expect(liveWorldJson.result.tools.length).toBe(6);
+
+    const emptyPackRes = await app.request(
+      "http://localhost:8787/mcp/commerce",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
