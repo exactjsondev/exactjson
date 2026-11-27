@@ -1,7 +1,8 @@
-import type { MiddlewareHandler } from "hono";
-import type { Network, PaymentRequired } from "@x402/core/types";
 import type { PaywallProvider, RoutesConfig, x402ResourceServer } from "@x402/core/server";
-import { CATALOG, SERVICE_NAME, getEndpointByPath, toHttpInputSchema } from "../config/catalog";
+import type { Network, PaymentRequired } from "@x402/core/types";
+import type { MiddlewareHandler } from "hono";
+import { CATALOG, getEndpointByPath, SERVICE_NAME, toHttpInputSchema } from "../config/catalog";
+import { hasPaymentSignatureHeader } from "../lib/headers";
 import { applyHtmlSecurityHeaders } from "../lib/securityHeaders";
 import { renderPaywallHtml } from "../routes/landingHtml";
 import type { AppBindings } from "../types";
@@ -21,7 +22,7 @@ async function buildX402Instance(
   payTo: string,
   baseUrl: string,
   cdpApiKeyId: string | undefined,
-  cdpApiKeySecret: string | undefined
+  cdpApiKeySecret: string | undefined,
 ): Promise<MemoizedX402Instance> {
   // Dynamic imports keep free/discovery/dashboard routes near 0ms cold-start CPU
   const [
@@ -117,7 +118,7 @@ async function getOrCreateInstance(
   payTo: string,
   baseUrl: string,
   cdpApiKeyId: string | undefined,
-  cdpApiKeySecret: string | undefined
+  cdpApiKeySecret: string | undefined,
 ): Promise<MemoizedX402Instance> {
   const cacheKey = `${network}:${payTo}:${baseUrl}`;
   const existing = isolateInstances.get(cacheKey);
@@ -174,10 +175,7 @@ export function classifyFacilitatorInitError(err: unknown): string {
   }
 
   const combinedMsg = messages.join(" ");
-  if (
-    names.includes("AbortError") ||
-    /timeout|timed out|abort/i.test(combinedMsg)
-  ) {
+  if (names.includes("AbortError") || /timeout|timed out|abort/i.test(combinedMsg)) {
     return "FACILITATOR_INIT_TIMEOUT";
   }
   if (statuses.includes(401) || /\b401\b|unauthorized/i.test(combinedMsg)) {
@@ -189,10 +187,7 @@ export function classifyFacilitatorInitError(err: unknown): string {
   if (statuses.includes(429) || /\b429\b|rate limit|too many requests/i.test(combinedMsg)) {
     return "FACILITATOR_INIT_429";
   }
-  if (
-    statuses.some((s) => s >= 500 && s <= 599) ||
-    /\b5\d{2}\b/.test(combinedMsg)
-  ) {
+  if (statuses.some((s) => s >= 500 && s <= 599) || /\b5\d{2}\b/.test(combinedMsg)) {
     return "FACILITATOR_INIT_5XX";
   }
   return "FACILITATOR_INIT_ERROR";
@@ -237,10 +232,24 @@ export const x402PaywallMiddleware: MiddlewareHandler<AppBindings> = async (c, n
   const endpoint = c.get("matched_endpoint") ?? getEndpointByPath(c.req.path);
   const methodMatches =
     endpoint !== undefined &&
-    (c.req.method === endpoint.method ||
-      (endpoint.method === "GET" && c.req.method === "HEAD"));
+    (c.req.method === endpoint.method || (endpoint.method === "GET" && c.req.method === "HEAD"));
   if (!endpoint || !methodMatches) {
     return next();
+  }
+
+  // Unpaid HEAD is permitted for 402 header discovery, but signed HEAD must never settle payment for an empty body
+  if (c.req.method === "HEAD" && hasPaymentSignatureHeader(c.req.raw.headers)) {
+    c.set("cache_status", "NONE");
+    c.set("upstream_error", "HEAD_PAYMENT_NOT_ALLOWED");
+    c.header("Allow", "GET, HEAD, OPTIONS");
+    return c.json(
+      {
+        error: "HEAD_PAYMENT_NOT_ALLOWED",
+        message:
+          "Signed x402 payment requires HTTP GET so the paid JSON body is delivered; unpaid HEAD is for 402 header discovery only. Payment was not settled.",
+      },
+      405,
+    );
   }
 
   const network = c.env.X402_NETWORK as Network;
@@ -253,7 +262,7 @@ export const x402PaywallMiddleware: MiddlewareHandler<AppBindings> = async (c, n
         error: "SERVER_MISCONFIGURED",
         message: "X402_NETWORK and a non-zero EVM X402_PAY_TO address must be configured.",
       },
-      500
+      500,
     );
   }
 
@@ -270,7 +279,7 @@ export const x402PaywallMiddleware: MiddlewareHandler<AppBindings> = async (c, n
       payTo,
       baseUrl,
       c.env.CDP_API_KEY_ID,
-      c.env.CDP_API_KEY_SECRET
+      c.env.CDP_API_KEY_SECRET,
     );
     await ensureInitialized(instance);
   } catch (err) {
@@ -282,7 +291,7 @@ export const x402PaywallMiddleware: MiddlewareHandler<AppBindings> = async (c, n
         error: "FACILITATOR_UNAVAILABLE",
         message: "x402 facilitator temporarily unavailable. No payment was charged.",
       },
-      502
+      502,
     );
   }
 

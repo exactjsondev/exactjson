@@ -1,5 +1,5 @@
 import { type BoundedTtlCache, TTL_MS, withTwoTierCache } from "../../../lib/cache";
-import { UpstreamError, fetchJsonWithTimeout } from "../../../lib/http";
+import { fetchJsonWithTimeout, UpstreamError } from "../../../lib/http";
 import { toFiniteNumber } from "../../../lib/numbers";
 import type { DrugTrialInput, TrialPhaseScope } from "../validation";
 
@@ -14,13 +14,13 @@ const CTGOV_FIELDS = [
   "Phase",
   "StartDateStruct",
   "PrimaryCompletionDateStruct",
-  "CompletionDateStruct",
   "LeadSponsorName",
   "LeadSponsorClass",
   "Condition",
   "InterventionName",
   "InterventionType",
   "PrimaryOutcomeMeasure",
+  "PrimaryOutcomeTimeFrame",
   "EnrollmentCount",
   "HasResults",
   "LastUpdatePostDateStruct",
@@ -178,12 +178,17 @@ export async function fetchClinicalTrials(
   cache: BoundedTtlCache,
   fetchImpl: typeof fetch = fetch,
   waitUntil?: (promise: Promise<unknown>) => void,
-  nowMs: number = Date.now()
+  nowMs: number = Date.now(),
 ): Promise<{ data: ClinicalTrialsResult; cacheHit: boolean }> {
   const cutoffIso = new Date(nowMs - 90 * 86_400_000).toISOString().slice(0, 10);
   const key = input.nct
     ? `bio:ctgov:nct:${input.nct}`
-    : `bio:ctgov:search:${(input.drug ?? "").toLowerCase()}|${(input.condition ?? "").toLowerCase()}|${input.phaseScope}|${cutoffIso}`;
+    : `bio:ctgov:search:${JSON.stringify([
+        (input.drug ?? "").replace(/\s+/g, " ").toLowerCase(),
+        (input.condition ?? "").replace(/\s+/g, " ").toLowerCase(),
+        input.phaseScope,
+        cutoffIso,
+      ])}`;
 
   const { value, cacheHit } = await withTwoTierCache<ClinicalTrialsResult>({
     key,
@@ -199,7 +204,7 @@ export async function fetchClinicalTrials(
             allow404: true,
             timeoutMs: 5500,
             fetchImpl,
-          }
+          },
         );
         if (res.status === "not_found") {
           return { notFound: true, totalCount: 0, studies: [] };
@@ -209,7 +214,7 @@ export async function fetchClinicalTrials(
           throw new UpstreamError(
             "CLINICALTRIALS",
             "CLINICALTRIALS_BAD_SCHEMA",
-            "Invalid ClinicalTrials.gov single-study payload"
+            "Invalid ClinicalTrials.gov single-study payload",
           );
         }
         return { notFound: false, totalCount: 1, studies: [parsed] };
@@ -223,7 +228,7 @@ export async function fetchClinicalTrials(
         if (withDateFloor) {
           url.searchParams.set(
             "filter.advanced",
-            `AREA[PrimaryCompletionDate]RANGE[${cutoffIso},MAX]`
+            `AREA[PrimaryCompletionDate]RANGE[${cutoffIso},MAX]`,
           );
         }
         const agg = phaseAggFilter(input.phaseScope);
@@ -248,7 +253,7 @@ export async function fetchClinicalTrials(
         throw new UpstreamError(
           "CLINICALTRIALS",
           "CLINICALTRIALS_BAD_SCHEMA",
-          "Invalid ClinicalTrials.gov search payload"
+          "Invalid ClinicalTrials.gov search payload",
         );
       }
 
@@ -266,7 +271,7 @@ export async function fetchClinicalTrials(
           throw new UpstreamError(
             "CLINICALTRIALS",
             "CLINICALTRIALS_BAD_SCHEMA",
-            "Invalid ClinicalTrials.gov fallback search payload"
+            "Invalid ClinicalTrials.gov fallback search payload",
           );
         }
       }
@@ -275,6 +280,13 @@ export async function fetchClinicalTrials(
       for (const item of res.data.studies) {
         const parsed = parseClinicalStudy(item);
         if (parsed) studies.push(parsed);
+      }
+      if (res.data.studies.length > 0 && studies.length === 0) {
+        throw new UpstreamError(
+          "CLINICALTRIALS",
+          "CLINICALTRIALS_BAD_SCHEMA",
+          "ClinicalTrials.gov returned non-empty studies list with zero parseable studies",
+        );
       }
 
       const totalCountNum = toFiniteNumber(res.data.totalCount);
@@ -294,7 +306,7 @@ export async function fetchRxNormDrugSummary(
   drugName: string,
   cache: BoundedTtlCache,
   fetchImpl: typeof fetch = fetch,
-  waitUntil?: (promise: Promise<unknown>) => void
+  waitUntil?: (promise: Promise<unknown>) => void,
 ): Promise<{ data: RxNormDrugSummary; cacheHit: boolean }> {
   const normalizedName = drugName.trim().toLowerCase();
   const key = `bio:rxnav:${normalizedName}`;
@@ -311,14 +323,16 @@ export async function fetchRxNormDrugSummary(
           provider: "RXNAV",
           timeoutMs: 5000,
           fetchImpl,
-        }
+        },
       );
 
       if (idRes.status !== "ok") {
         throw new UpstreamError("RXNAV", "RXNAV_UNAVAILABLE", "RxNav lookup unavailable");
       }
 
-      const rxcui = idRes.data?.idGroup?.rxnormId?.[0]?.trim() ?? null;
+      const rawRxIds = idRes.data?.idGroup?.rxnormId;
+      const firstRxId = Array.isArray(rawRxIds) ? rawRxIds[0] : undefined;
+      const rxcui = typeof firstRxId === "string" && firstRxId.trim() ? firstRxId.trim() : null;
       if (!rxcui) {
         return {
           normalized: false,
@@ -374,20 +388,26 @@ export async function fetchRxNormDrugSummary(
       const brandNames: string[] = [];
 
       if (relatedRes.status === "ok") {
-        const groups = relatedRes.data?.relatedGroup?.conceptGroup ?? [];
+        const rawGroups = relatedRes.data?.relatedGroup?.conceptGroup;
+        const groups = Array.isArray(rawGroups) ? rawGroups : [];
         for (const g of groups) {
-          const props = g.conceptProperties ?? [];
-          if (g.tty === "IN" && props[0]?.name) {
-            preferredName = props[0].name.trim();
+          if (!g || typeof g !== "object") continue;
+          const props = Array.isArray(g.conceptProperties) ? g.conceptProperties : [];
+          const p0 = props[0];
+          const p0Name = typeof p0?.name === "string" ? p0.name.trim() : "";
+          const p0Rxcui = typeof p0?.rxcui === "string" ? p0.rxcui.trim() : "";
+          if (g.tty === "IN" && p0Name) {
+            preferredName = p0Name;
             tty = "IN";
-            if (props[0].rxcui) ingredientRxcui = props[0].rxcui.trim();
-          } else if (g.tty === "PIN" && !preferredName && props[0]?.name) {
-            preferredName = props[0].name.trim();
+            if (p0Rxcui) ingredientRxcui = p0Rxcui;
+          } else if (g.tty === "PIN" && !preferredName && p0Name) {
+            preferredName = p0Name;
             tty = "PIN";
           } else if (g.tty === "BN") {
             for (const p of props) {
-              if (p.name && brandNames.length < 6) {
-                brandNames.push(p.name.trim());
+              const bName = typeof p?.name === "string" ? p.name.trim() : "";
+              if (bName && brandNames.length < 6) {
+                brandNames.push(bName);
               }
             }
           }
@@ -395,10 +415,11 @@ export async function fetchRxNormDrugSummary(
       }
 
       // If input was a brand name (e.g., Ozempic) whose direct rxcui had no rxclass entries, query ingredient rxcui
-      let classInfos =
+      const rawInitialClassInfos =
         rxClassRes.status === "ok"
-          ? (rxClassRes.data?.rxclassDrugInfoList?.rxclassDrugInfo ?? [])
-          : [];
+          ? rxClassRes.data?.rxclassDrugInfoList?.rxclassDrugInfo
+          : undefined;
+      let classInfos = Array.isArray(rawInitialClassInfos) ? rawInitialClassInfos : [];
 
       if (classInfos.length === 0 && ingredientRxcui !== rxcui) {
         const ingClassRes = await fetchJsonWithTimeout<{
@@ -412,10 +433,11 @@ export async function fetchRxNormDrugSummary(
             allow404: true,
             timeoutMs: 4500,
             fetchImpl,
-          }
+          },
         );
         if (ingClassRes.status === "ok") {
-          classInfos = ingClassRes.data?.rxclassDrugInfoList?.rxclassDrugInfo ?? [];
+          const rawIngClassInfos = ingClassRes.data?.rxclassDrugInfoList?.rxclassDrugInfo;
+          classInfos = Array.isArray(rawIngClassInfos) ? rawIngClassInfos : [];
         }
       }
 
@@ -424,14 +446,17 @@ export async function fetchRxNormDrugSummary(
       const contraSet = new Set<string>();
 
       for (const item of classInfos) {
-        if (!preferredName && item.minConcept?.name) {
-          preferredName = item.minConcept.name.trim();
-          tty = item.minConcept.tty?.trim() ?? tty;
+        if (!item || typeof item !== "object") continue;
+        const mcName = typeof item.minConcept?.name === "string" ? item.minConcept.name.trim() : "";
+        const mcTty = typeof item.minConcept?.tty === "string" ? item.minConcept.tty.trim() : "";
+        if (!preferredName && mcName) {
+          preferredName = mcName;
+          if (mcTty) tty = mcTty;
         }
         const cls = item.rxclassMinConceptItem;
-        const cId = cls?.classId?.trim() ?? "";
-        const cName = cls?.className?.trim() ?? "";
-        const cType = cls?.classType?.trim() ?? "";
+        const cId = typeof cls?.classId === "string" ? cls.classId.trim() : "";
+        const cName = typeof cls?.className === "string" ? cls.className.trim() : "";
+        const cType = typeof cls?.classType === "string" ? cls.classType.trim() : "";
         if (!cName) continue;
 
         if (cType === "ATC1-4" && cId && atcMap.size < 4 && !atcMap.has(cId)) {

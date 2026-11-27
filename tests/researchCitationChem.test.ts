@@ -4,6 +4,10 @@ import { BoundedTtlCache } from "../src/lib/cache";
 import { createChemHazardProfileHandler } from "../src/packs/research/routes/chemHazardProfile";
 import { createCitationVerifyHandler } from "../src/packs/research/routes/citationVerify";
 import {
+  computeTitleOverlap,
+  matchesRegisteredAuthor,
+} from "../src/packs/research/services/citationVerify";
+import {
   isValidCasRegistryNumber,
   normalizeDoiInput,
   parseChemHazardInput,
@@ -23,6 +27,14 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
       ok: true,
       value: "10.48550/arxiv.1706.03762",
     });
+    expect(normalizeDoiInput("10.48550/arXiv.1706.03762v7")).toEqual({
+      ok: true,
+      value: "10.48550/arxiv.1706.03762",
+    });
+    expect(normalizeDoiInput("https://doi.org/10.48550/arXiv.1706.03762v2")).toEqual({
+      ok: true,
+      value: "10.48550/arxiv.1706.03762",
+    });
     expect(normalizeDoiInput("1706.03762")).toEqual({
       ok: true,
       value: "10.48550/arxiv.1706.03762",
@@ -31,13 +43,21 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
     expect(normalizeDoiInput("not-a-doi").ok).toBe(false);
     expect(parseCitationVerifyInput({}).ok).toBe(false);
     expect(parseCitationVerifyInput({ doi: "10.1038/nature12373", expected_year: "1200" }).ok).toBe(
-      false
+      false,
     );
+
+    expect(matchesRegisteredAuthor("Sørensen", ["Søren Sørensen"])).toBe(true);
+    expect(matchesRegisteredAuthor("Weiß", ["Hans Weiß"])).toBe(true);
+    expect(matchesRegisteredAuthor("Łukasiewicz", ["Jan Łukasiewicz"])).toBe(true);
+    expect(matchesRegisteredAuthor("张伟", ["张伟"])).toBe(true);
+    expect(computeTitleOverlap("人工智能与医疗", "海洋生物多样性")).toBe(0);
+    expect(computeTitleOverlap("人工智能与医疗", "人工智能与医疗诊断")).toBe(1);
 
     expect(isValidCasRegistryNumber("71-43-2")).toBe(true); // Benzene
     expect(isValidCasRegistryNumber("67-64-1")).toBe(true); // Acetone
     expect(isValidCasRegistryNumber("7732-18-5")).toBe(true); // Water
     expect(isValidCasRegistryNumber("71-43-9")).toBe(false); // Bad check digit
+    expect(isValidCasRegistryNumber("00-00-0")).toBe(false); // Reject all-zero CAS
 
     expect(parseChemHazardInput("71-43-2")).toEqual({
       ok: true,
@@ -94,7 +114,7 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
               license: [{ URL: "https://creativecommons.org/licenses/by/4.0" }],
             },
           }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
+          { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
 
@@ -121,7 +141,7 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
               ],
             },
           }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
+          { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
 
@@ -141,7 +161,7 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
               },
             },
           }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
+          { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
 
@@ -174,7 +194,7 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
               ],
             },
           }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
+          { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
       if (url.includes("api.datacite.org/dois?query=")) {
@@ -194,12 +214,12 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
         cache: new BoundedTtlCache(32),
         fetchImpl: mockFetch,
         nowMs: () => FIXED_NOW,
-      })
+      }),
     );
 
     // Happy path + accent-folded author check
     const okRes = await testApp.request(
-      "http://localhost/v1/science/citation-verify?doi=10.1038/s41586-021-03819-2&expected_author=Muller&expected_year=2021"
+      "http://localhost/v1/science/citation-verify?doi=10.1038/s41586-021-03819-2&expected_author=Muller&expected_year=2021",
     );
     expect(okRes.status).toBe(200);
     const okBody = (await okRes.json()) as {
@@ -217,23 +237,23 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
 
     // Senior/PI >8th author ('Hassabis, D.') & 'Jumper et al.' match, while short 'Li' does NOT false-match 'William'/'Elizabeth'
     const seniorRes = await testApp.request(
-      "http://localhost/v1/science/citation-verify?doi=10.1038/s41586-021-03819-2&expected_author=Hassabis,+D."
+      "http://localhost/v1/science/citation-verify?doi=10.1038/s41586-021-03819-2&expected_author=Hassabis,+D.",
     );
     expect(((await seniorRes.json()) as { verdict: string }).verdict).toBe("VERIFIED");
 
     const etAlRes = await testApp.request(
-      "http://localhost/v1/science/citation-verify?doi=10.1038/s41586-021-03819-2&expected_author=Jumper+et+al."
+      "http://localhost/v1/science/citation-verify?doi=10.1038/s41586-021-03819-2&expected_author=Jumper+et+al.",
     );
     expect(((await etAlRes.json()) as { verdict: string }).verdict).toBe("VERIFIED");
 
     const shortLiRes = await testApp.request(
-      "http://localhost/v1/science/citation-verify?doi=10.1038/s41586-021-03819-2&expected_author=Li"
+      "http://localhost/v1/science/citation-verify?doi=10.1038/s41586-021-03819-2&expected_author=Li",
     );
     expect(((await shortLiRes.json()) as { verdict: string }).verdict).toBe("METADATA_MISMATCH");
 
     // Swapped-DOI hallucination detection
     const swapRes = await testApp.request(
-      "http://localhost/v1/science/citation-verify?doi=10.1038/s41586-021-03819-2&expected_title=Quantum+gravity+in+11+dimensions"
+      "http://localhost/v1/science/citation-verify?doi=10.1038/s41586-021-03819-2&expected_title=Quantum+gravity+in+11+dimensions",
     );
     expect(swapRes.status).toBe(200);
     const swapBody = (await swapRes.json()) as { verdict: string; flags: string[] };
@@ -242,7 +262,7 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
 
     // Retraction Watch updated-by detection
     const retRes = await testApp.request(
-      "http://localhost/v1/science/citation-verify?doi=10.1016/S0140-6736(97)11096-0"
+      "http://localhost/v1/science/citation-verify?doi=10.1016/S0140-6736(97)11096-0",
     );
     expect(retRes.status).toBe(200);
     const retBody = (await retRes.json()) as {
@@ -258,7 +278,7 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
     // arXiv DataCite direct prefix routing (zero Crossref subrequest wasted)
     seenUrls.length = 0;
     const arxivRes = await testApp.request(
-      "http://localhost/v1/science/citation-verify?doi=arXiv:1706.03762"
+      "http://localhost/v1/science/citation-verify?doi=arXiv:1706.03762",
     );
     expect(arxivRes.status).toBe(200);
     const arxivBody = (await arxivRes.json()) as {
@@ -274,7 +294,7 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
 
     // Authoritative 404 across both registries -> 200 exists: false
     const fakeRes = await testApp.request(
-      "http://localhost/v1/science/citation-verify?doi=10.1038/s41586-999-99999-9"
+      "http://localhost/v1/science/citation-verify?doi=10.1038/s41586-999-99999-9",
     );
     expect(fakeRes.status).toBe(200);
     const fakeBody = (await fakeRes.json()) as {
@@ -290,7 +310,7 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
 
     // Bibliographic query mode
     const qRes = await testApp.request(
-      "http://localhost/v1/science/citation-verify?query=Highly+accurate+protein+structure+prediction+with+AlphaFold+Jumper+2021"
+      "http://localhost/v1/science/citation-verify?query=Highly+accurate+protein+structure+prediction+with+AlphaFold+Jumper+2021",
     );
     expect(qRes.status).toBe(200);
     expect(((await qRes.json()) as { verdict: string }).verdict).toBe("VERIFIED");
@@ -301,7 +321,7 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
 
     // 502 fail-closed on upstream 429
     const errRes = await testApp.request(
-      "http://localhost/v1/science/citation-verify?doi=10.1038/ratelimited-999"
+      "http://localhost/v1/science/citation-verify?doi=10.1038/ratelimited-999",
     );
     expect(errRes.status).toBe(502);
   });
@@ -328,7 +348,7 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
               ],
             },
           }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
+          { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
 
@@ -339,7 +359,7 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
               Information: [{ Synonym: ["Benzene", "71-43-2", "200-753-7", "benzol"] }],
             },
           }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
+          { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
 
@@ -403,7 +423,7 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
               ],
             },
           }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
+          { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
 
@@ -425,7 +445,7 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
               ],
             },
           }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
+          { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
 
@@ -444,7 +464,7 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
               ],
             },
           }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
+          { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
       if (url.includes("/compound/962/JSON?heading=GHS+Classification")) {
@@ -474,7 +494,7 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
               ],
             },
           }),
-          { status: 200, headers: { "Content-Type": "application/json" } }
+          { status: 200, headers: { "Content-Type": "application/json" } },
         );
       }
       if (url.includes("/cid/962/") || url.includes("/compound/962/")) {
@@ -499,7 +519,7 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
         cache: new BoundedTtlCache(32),
         fetchImpl: mockFetch,
         nowMs: () => FIXED_NOW,
-      })
+      }),
     );
 
     const benzRes = await testApp.request("http://localhost/v1/chem/hazard-profile?query=71-43-2");
@@ -517,7 +537,11 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
     expect(benzBody.compound.smiles).toBe("C1=CC=CC=C1");
     expect(benzBody.hazard_tier).toBe("EXTREME");
     expect(benzBody.ghs.signal_word).toBe("Danger");
-    expect(benzBody.ghs.hazard_statements.map((h) => h.code)).toEqual(["H225", "H300+H310", "H350"]);
+    expect(benzBody.ghs.hazard_statements.map((h) => h.code)).toEqual([
+      "H225",
+      "H300+H310",
+      "H350",
+    ]);
     expect(benzBody.nfpa_704).toEqual({
       health: 2,
       flammability: 3,
@@ -542,12 +566,12 @@ describe("science/citation-verify and chem/hazard-profile validation & route han
     expect(badCas.status).toBe(400);
 
     const notFound = await testApp.request(
-      "http://localhost/v1/chem/hazard-profile?query=unknownxyz"
+      "http://localhost/v1/chem/hazard-profile?query=unknownxyz",
     );
     expect(notFound.status).toBe(404);
 
     const upstreamErr = await testApp.request(
-      "http://localhost/v1/chem/hazard-profile?query=serverdown"
+      "http://localhost/v1/chem/hazard-profile?query=serverdown",
     );
     expect(upstreamErr.status).toBe(502);
   });

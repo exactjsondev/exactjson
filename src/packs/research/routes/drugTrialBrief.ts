@@ -34,10 +34,7 @@ export function createDrugTrialBriefHandler(deps: DrugTrialBriefDeps = {}) {
     }
 
     const input = parsed.value;
-    c.set(
-      "query_target",
-      (input.nct ?? input.drug ?? input.condition ?? "trials").slice(0, 64)
-    );
+    c.set("query_target", (input.nct ?? input.drug ?? input.condition ?? "trials").slice(0, 64));
 
     const waitUntil = createWaitUntil(c);
     const currentNowMs = nowProvider();
@@ -57,7 +54,7 @@ export function createDrugTrialBriefHandler(deps: DrugTrialBriefDeps = {}) {
             error: "TRIAL_NOT_FOUND",
             message: `ClinicalTrials.gov study '${input.nct ?? ""}' was not found. Payment was not settled.`,
           },
-          404
+          404,
         );
       }
 
@@ -65,12 +62,16 @@ export function createDrugTrialBriefHandler(deps: DrugTrialBriefDeps = {}) {
       let rxRes = initialRxRes;
       if (!rxRes && input.nct && trialsRes.data.studies[0]) {
         const studyIntrs = trialsRes.data.studies[0].interventions.filter(
-          (i) => i.type === "DRUG" || i.type === "BIOLOGICAL"
+          (i) => i.type === "DRUG" || i.type === "BIOLOGICAL",
         );
-        const candidateIntr =
-          studyIntrs.find((i) => !/\bplacebo\b/i.test(i.name)) ?? studyIntrs[0];
+        const candidateIntr = studyIntrs.find((i) => !/\bplacebo\b/i.test(i.name)) ?? studyIntrs[0];
         if (candidateIntr) {
-          rxRes = await fetchRxNormDrugSummary(candidateIntr.name, cache, fetchImpl, waitUntil);
+          rxRes = await fetchRxNormDrugSummary(
+            candidateIntr.name,
+            cache,
+            fetchImpl,
+            waitUntil,
+          ).catch(() => null);
         }
       }
 
@@ -83,7 +84,7 @@ export function createDrugTrialBriefHandler(deps: DrugTrialBriefDeps = {}) {
             message:
               "No active ClinicalTrials.gov studies or normalized NIH RxNorm drug matched the query. Payment was not settled.",
           },
-          404
+          404,
         );
       }
 
@@ -118,7 +119,7 @@ export function createDrugTrialBriefHandler(deps: DrugTrialBriefDeps = {}) {
           message:
             "ClinicalTrials.gov v2 or NIH RxNav upstream unavailable; refusing to return incomplete trial brief. Payment was not settled.",
         },
-        502
+        502,
       );
     }
   };

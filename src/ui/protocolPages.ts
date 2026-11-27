@@ -36,7 +36,7 @@ function renderParamRows(entry: EndpointCatalogEntry): string {
 
       return `<tr>
         <th scope="row" class="ep-cell"><code>${escapeHtml(name)}</code></th>
-        <td class="price">${isReq ? '<span class="coord warn">REQUIRED</span>' : '<span class="coord">OPTIONAL</span>'}</td>
+        <td class="req-cell">${isReq ? '<span class="coord warn">REQUIRED</span>' : '<span class="coord">OPTIONAL</span>'}</td>
         <td>
           <div>${escapeHtml(prop.description)}</div>
           <div class="desc"><code>${escapeHtml(constraints.join(" · "))}</code>${prop.example ? ` · Example: <code>${escapeHtml(prop.example)}</code>` : ""}</div>
@@ -78,9 +78,12 @@ export function renderPaywallHtml(
     2,
   );
 
-  const safeShellUrl = requestedUrl.replace(
-    /[$`"\\!()'\s<>|;&]/g,
-    (ch) => `%${ch.charCodeAt(0).toString(16).toUpperCase().padStart(2, "0")}`,
+  const utf8Encoder = new TextEncoder();
+  const safeShellUrl = requestedUrl.replace(/[\x00-\x1f\x7f$`"\\!()'\s<>|;]/g, (ch) =>
+    Array.from(
+      utf8Encoder.encode(ch),
+      (b) => `%${b.toString(16).toUpperCase().padStart(2, "0")}`,
+    ).join(""),
   );
 
   const curlAndSdkSnippet = `# Inspect live base64 x402 V2 PAYMENT-REQUIRED header
@@ -109,7 +112,7 @@ curl -s ${baseUrl}/openapi.json`;
         <span class="coord">PACK: ${escapeHtml(entry.pack.toUpperCase())}</span>
       </div>
       <div tabindex="0" role="region" aria-labelledby="pw-params-heading" class="table-wrap">
-        <table>
+        <table class="param-table">
           <caption class="visually-hidden">Query parameters for ${escapeHtml(entry.path)}</caption>
           <thead>
             <tr>
@@ -128,7 +131,7 @@ curl -s ${baseUrl}/openapi.json`;
     <section class="swiss-section grid-2">
       <div class="spec-cell surface">
         <span class="coord">+ 02 // CALL VIA MCP (EXACTJSON_${escapeHtml(entry.id.toUpperCase())})</span>
-        <h3>Claude Desktop / Cursor Local EIP-3009 Signer</h3>
+        <h2>Claude Desktop / Cursor Local EIP-3009 Signer</h2>
         <p>Run <code>exactjson_${escapeHtml(entry.id)}</code> automatically with a client-side Base USDC spend cap:</p>
         ${renderCodeWell({
           id: "pw-mcp-json",
@@ -139,7 +142,7 @@ curl -s ${baseUrl}/openapi.json`;
       </div>
       <div class="spec-cell surface">
         <span class="coord">+ 03 // INSPECT CHALLENGE OR CALL VIA SDK</span>
-        <h3>Raw PAYMENT-REQUIRED Header &amp; OpenAPI</h3>
+        <h2>Raw PAYMENT-REQUIRED Header &amp; OpenAPI</h2>
         <p>Inspect the base64 challenge in terminal, or wrap <code>fetch</code> with <code>@x402/fetch</code>:</p>
         ${renderCodeWell({
           id: "pw-curl-code",
@@ -160,6 +163,7 @@ curl -s ${baseUrl}/openapi.json`;
               <button type="button" class="copy-btn" command="--copy" commandfor="pw-sample-json" aria-label="Copy sample JSON output">
                 <span class="copy-text-idle" aria-hidden="true">[ COPY ]</span>
                 <span class="copy-text-done" aria-hidden="true">[ ✓ COPIED ]</span>
+                <span class="copy-text-fail" aria-hidden="true">[ ! FAILED ]</span>
               </button>
               <span class="copy-tip" role="status"></span>
             </span>
@@ -262,7 +266,8 @@ export function renderMcpGuideHtml(
 
     <section class="spec-cell" style="border-bottom: none;">
       <div class="btn-row">
-        <a class="swiss-btn primary" href="${safeBase}/">← Back to ExactJSON Docs</a>
+        <a class="swiss-btn primary" href="${safeBase}/docs">← Back to ExactJSON Docs</a>
+        <a class="swiss-btn" href="${safeBase}/">All ${CATALOG.length} Endpoints</a>
         <a class="swiss-btn" href="${safeBase}/.well-known/mcp/server-card.json">View MCP Server Card</a>
         <a class="swiss-btn" href="${safeBase}/openapi.json">OpenAPI 3.1</a>
       </div>

@@ -35,6 +35,10 @@ jobs:
         working-directory: mcp
         run: |
           PKG_VER="$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_EVENT_NAME}" = "push" ] && [ "${GITHUB_REF_NAME}" != "mcp-v${PKG_VER}" ] && [ "${GITHUB_REF_NAME}" != "mcp-registry-v${PKG_VER}" ]; then
+            echo "Ref tag '${GITHUB_REF_NAME}' does not match mcp/package.json version '${PKG_VER}'." >&2
+            exit 1
+          fi
           PUBLISHED_VER="$(npm view "exactjson-mcp@${PKG_VER}" version 2>/dev/null || true)"
           if [ "$PUBLISHED_VER" = "$PKG_VER" ]; then
             echo "exactjson-mcp@${PKG_VER} is already published on npm; skipping npm publish."

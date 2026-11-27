@@ -142,9 +142,9 @@ export function renderSwissShell(opts: SwissShellOptions): string {
         <a href="${safeBase}/llms.txt">llms.txt</a>
         <a href="${REPO_URL}">GitHub</a>
         <label class="polarity-switch" for="polarity-toggle" title="Switch between Carbon Dark and Stark Paper polarity">
-          <input type="checkbox" id="polarity-toggle" class="sr-control">
-          <span class="pol-carbon">◐ Paper</span>
-          <span class="pol-paper">◑ Carbon</span>
+          <input type="checkbox" id="polarity-toggle" class="sr-control" aria-label="Stark Paper light theme">
+          <span class="pol-carbon" aria-hidden="true">◐ Paper</span>
+          <span class="pol-paper" aria-hidden="true">◑ Carbon</span>
         </label>
       </nav>
     </div>
@@ -158,11 +158,11 @@ export function renderSwissShell(opts: SwissShellOptions): string {
     <div class="footer-inner">
       <div>${escapeHtml(disclaimerText)}</div>
       <div class="footer-links">
-        <a href="${safeBase}/docs">Docs</a>
-        <a href="${safeBase}/pricing">Pricing</a>
-        <a href="${safeBase}/about">About</a>
-        <a href="${safeBase}/contact">Contact</a>
-        <a href="${safeBase}/privacy">Privacy</a>
+        <a href="${safeBase}/docs"${cur("/docs")}>Docs</a>
+        <a href="${safeBase}/pricing"${cur("/pricing")}>Pricing</a>
+        <a href="${safeBase}/about"${cur("/about")}>About</a>
+        <a href="${safeBase}/contact"${cur("/contact")}>Contact</a>
+        <a href="${safeBase}/privacy"${cur("/privacy")}>Privacy</a>
         <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>
         <a href="${REPO_URL}">GitHub</a>
         <a href="${NPM_URL}">npm</a>

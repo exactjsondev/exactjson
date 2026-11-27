@@ -1,5 +1,6 @@
 import type { MiddlewareHandler } from "hono";
-import { BoundedTtlCache, TTL_MS, isolateCache } from "../lib/cache";
+import { getEndpointByPath } from "../config/catalog";
+import { type BoundedTtlCache, isolateCache, TTL_MS } from "../lib/cache";
 import type { AppBindings } from "../types";
 
 const PAUSE_CACHE_KEY = "service_control:state";
@@ -12,7 +13,7 @@ export interface ServiceControlState {
 export async function getServiceControlState(
   db: D1Database | undefined,
   cache: BoundedTtlCache = isolateCache,
-  bypassCache: boolean = false
+  bypassCache: boolean = false,
 ): Promise<ServiceControlState> {
   if (!bypassCache) {
     const cached = cache.get<ServiceControlState>(PAUSE_CACHE_KEY);
@@ -47,7 +48,7 @@ export async function getServiceControlState(
 export async function setServicePaused(
   db: D1Database,
   paused: boolean,
-  cache: BoundedTtlCache = isolateCache
+  cache: BoundedTtlCache = isolateCache,
 ): Promise<ServiceControlState> {
   const updatedAt = new Date().toISOString();
   const pausedInt = paused ? 1 : 0;
@@ -56,7 +57,7 @@ export async function setServicePaused(
     .prepare(
       `INSERT INTO service_control (id, paused, updated_at)
        VALUES (?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET paused = excluded.paused, updated_at = excluded.updated_at`
+       ON CONFLICT(id) DO UPDATE SET paused = excluded.paused, updated_at = excluded.updated_at`,
     )
     .bind(1, pausedInt, updatedAt)
     .run();
@@ -75,6 +76,14 @@ export function clearServiceControlCache(cache: BoundedTtlCache = isolateCache):
  * When operator switches API to Paused, returns 503 immediately so zero charges occur.
  */
 export const serviceControlMiddleware: MiddlewareHandler<AppBindings> = async (c, next) => {
+  const endpoint = c.get("matched_endpoint") ?? getEndpointByPath(c.req.path);
+  const methodMatches =
+    endpoint !== undefined &&
+    (c.req.method === endpoint.method || (endpoint.method === "GET" && c.req.method === "HEAD"));
+  if (!endpoint || !methodMatches) {
+    return next();
+  }
+
   const state = await getServiceControlState(c.env.DB);
   if (state.paused) {
     c.set("cache_status", "NONE");
@@ -82,9 +91,10 @@ export const serviceControlMiddleware: MiddlewareHandler<AppBindings> = async (c
     return c.json(
       {
         error: "SERVICE_PAUSED",
-        message: "ExactJSON paid endpoints are currently paused by the operator. No payment was charged.",
+        message:
+          "ExactJSON paid endpoints are currently paused by the operator. No payment was charged.",
       },
-      503
+      503,
     );
   }
 

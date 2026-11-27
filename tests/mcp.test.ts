@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it } from "vitest";
 import { Hono } from "hono";
+import { beforeEach, describe, expect, it } from "vitest";
+import { CATALOG, type EndpointCatalogEntry, getPackEndpoints, PACKS } from "../src/config/catalog";
 import app from "../src/index";
-import { CATALOG, PACKS, getPackEndpoints, type EndpointCatalogEntry } from "../src/config/catalog";
 import { decodeBase64Json, encodeBase64Json } from "../src/lib/headers";
 import { detectRequestTransport } from "../src/lib/transport";
 import { clearServiceControlCache } from "../src/middleware/serviceControl";
@@ -63,7 +63,7 @@ async function rpcCall(
   body: unknown,
   env: Env,
   headers: Record<string, string> = {},
-  targetApp: { request: typeof app.request } = app
+  targetApp: { request: typeof app.request } = app,
 ) {
   return targetApp.request(
     "http://localhost:8787/mcp",
@@ -75,7 +75,7 @@ async function rpcCall(
       },
       body: typeof body === "string" ? body : JSON.stringify(body),
     },
-    env
+    env,
   );
 }
 
@@ -99,7 +99,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
           clientInfo: { name: "vitest", version: "1.0.0" },
         },
       },
-      env
+      env,
     );
     expect(initRes.status).toBe(200);
     expect(initRes.headers.get("mcp-protocol-version")).toBe("2025-03-26");
@@ -120,10 +120,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
     expect(initJson.result.serverInfo.version).toBe("1.5.0");
     expect(initJson.result.instructions).toContain("https://exactjson.com/mcp");
 
-    const notifRes = await rpcCall(
-      { jsonrpc: "2.0", method: "notifications/initialized" },
-      env
-    );
+    const notifRes = await rpcCall({ jsonrpc: "2.0", method: "notifications/initialized" }, env);
     expect(notifRes.status).toBe(202);
     expect(await notifRes.text()).toBe("");
 
@@ -158,7 +155,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
         method: "tools/call",
         params: { name: "exactjson_health", arguments: {} },
       },
-      env
+      env,
     );
     expect(healthRes.status).toBe(200);
     const healthJson = (await healthRes.json()) as {
@@ -194,7 +191,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
 
     const unknownTool = await rpcCall(
       { jsonrpc: "2.0", id: 10, method: "tools/call", params: { name: "nope", arguments: {} } },
-      env
+      env,
     );
     expect(unknownTool.status).toBe(200);
     expect(((await unknownTool.json()) as { error: { code: number } }).error.code).toBe(-32602);
@@ -206,10 +203,35 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
         method: "tools/call",
         params: { name: "exactjson_perps_snapshot", arguments: ["BTC"] },
       },
-      env
+      env,
     );
     expect(badArgs.status).toBe(200);
     expect(((await badArgs.json()) as { error: { code: number } }).error.code).toBe(-32602);
+
+    // Missing required parameter and non-scalar argument values reject with -32602 before x402 challenge
+    const missingReqArg = await rpcCall(
+      {
+        jsonrpc: "2.0",
+        id: 111,
+        method: "tools/call",
+        params: { name: "exactjson_solana_safety", arguments: {} },
+      },
+      env,
+    );
+    expect(missingReqArg.status).toBe(200);
+    expect(((await missingReqArg.json()) as { error: { code: number } }).error.code).toBe(-32602);
+
+    const nestedObjArg = await rpcCall(
+      {
+        jsonrpc: "2.0",
+        id: 112,
+        method: "tools/call",
+        params: { name: "exactjson_perps_snapshot", arguments: { coin: { bad: 1 } } },
+      },
+      env,
+    );
+    expect(nestedObjArg.status).toBe(200);
+    expect(((await nestedObjArg.json()) as { error: { code: number } }).error.code).toBe(-32602);
 
     const getRes = await app.request("http://localhost:8787/mcp", { method: "GET" }, env);
     expect(getRes.status).toBe(405);
@@ -223,7 +245,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
         method: "GET",
         headers: { Accept: "text/html,application/xhtml+xml,*/*;q=0.8" },
       },
-      env
+      env,
     );
     expect(getHtmlRes.status).toBe(405);
     expect(getHtmlRes.headers.get("allow")).toContain("POST");
@@ -272,7 +294,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
           "Access-Control-Request-Method": "POST",
         },
       },
-      env
+      env,
     );
     expect(optRes.status).toBe(204);
     expect(optRes.headers.get("access-control-expose-headers")).toContain("PAYMENT-REQUIRED");
@@ -365,7 +387,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
       },
       env,
       {},
-      testApp
+      testApp,
     );
     expect(unpaidRes.status).toBe(200);
     const unpaidJson = (await unpaidRes.json()) as {
@@ -396,7 +418,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
       },
       env,
       {},
-      testApp
+      testApp,
     );
     expect(paidRes.status).toBe(200);
     const paidJson = (await paidRes.json()) as {
@@ -421,7 +443,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
       },
       env,
       {},
-      testApp
+      testApp,
     );
     const errJson = (await errRes.json()) as {
       result: {
@@ -450,7 +472,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
       },
       env,
       {},
-      testApp
+      testApp,
     );
     const settleFailJson = (await settleFailRes.json()) as {
       result: {
@@ -463,7 +485,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
     expect(settleFailJson.result.structuredContent.error).toBe("insufficient_funds");
     expect(settleFailJson.result._meta?.["x402/payment-response"]?.success).toBe(false);
     expect(settleFailJson.result._meta?.["x402/payment-response"]?.errorReason).toBe(
-      "insufficient_funds"
+      "insufficient_funds",
     );
 
     expect(seenRequests.every((r) => r.transport === "mcp")).toBe(true);
@@ -484,7 +506,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
           arguments: { coin: "BTC" },
         },
       },
-      env
+      env,
     );
     expect(mcpBlocked.status).toBe(200);
     const mcpJson = (await mcpBlocked.json()) as {
@@ -503,7 +525,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
           "X-Transport": "mcp",
         },
       },
-      env
+      env,
     );
     expect(httpBlocked.status).toBe(503);
 
@@ -526,7 +548,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }),
       },
-      env
+      env,
     );
     expect(marketsRes.status).toBe(200);
     const marketsJson = (await marketsRes.json()) as { result: { tools: Array<{ name: string }> } };
@@ -539,7 +561,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 2, method: "tools/list" }),
       },
-      env
+      env,
     );
     expect(allRes.status).toBe(200);
     const allJson = (await allRes.json()) as { result: { tools: Array<{ name: string }> } };
@@ -554,11 +576,11 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
           "Access-Control-Request-Method": "POST",
         },
       },
-      env
+      env,
     );
     expect(optPackRes.status).toBe(204);
     expect(optPackRes.headers.get("access-control-expose-headers")).toContain(
-      "Mcp-Protocol-Version"
+      "Mcp-Protocol-Version",
     );
 
     // Browser GET /mcp/all returns pack-aware 405 HTML guide
@@ -568,7 +590,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
         method: "GET",
         headers: { Accept: "text/html" },
       },
-      env
+      env,
     );
     expect(getAllHtml.status).toBe(405);
     expect(await getAllHtml.text()).toContain("/mcp/all");
@@ -581,7 +603,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 30, method: "tools/list" }),
       },
-      env
+      env,
     );
     expect(liveSecurityRes.status).toBe(200);
     const liveSecurityJson = (await liveSecurityRes.json()) as {
@@ -597,7 +619,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 31, method: "tools/list" }),
       },
-      env
+      env,
     );
     expect(liveWorldRes.status).toBe(200);
     const liveWorldJson = (await liveWorldRes.json()) as {
@@ -613,7 +635,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 32, method: "tools/list" }),
       },
-      env
+      env,
     );
     expect(liveCommerceRes.status).toBe(200);
     const liveCommerceJson = (await liveCommerceRes.json()) as {
@@ -629,7 +651,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 33, method: "tools/list" }),
       },
-      env
+      env,
     );
     expect(liveResearchRes.status).toBe(200);
     const liveResearchJson = (await liveResearchRes.json()) as {
@@ -645,12 +667,12 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 4, method: "tools/list" }),
       },
-      env
+      env,
     );
     expect(unknownPackRes.status).toBe(404);
-    expect(((await unknownPackRes.json()) as { error: { message: string } }).error.message).toContain(
-      "Unknown MCP pack"
-    );
+    expect(
+      ((await unknownPackRes.json()) as { error: { message: string } }).error.message,
+    ).toContain("Unknown MCP pack");
 
     const conflictRes = await app.request(
       "http://localhost:8787/mcp/markets?pack=all",
@@ -659,7 +681,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 5, method: "tools/list" }),
       },
-      env
+      env,
     );
     expect(conflictRes.status).toBe(400);
 
@@ -671,11 +693,11 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 6, method: "tools/list" }),
       },
-      env
+      env,
     );
     expect(wsPathRes.status).toBe(404);
     expect(((await wsPathRes.json()) as { error: { message: string } }).error.message).toContain(
-      "Unknown MCP pack"
+      "Unknown MCP pack",
     );
 
     // 3. Multi-pack synthetic fixture verifies pack isolation, ?pack=a,b union, and cross-pack tools/call hint
@@ -694,7 +716,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
     const multiApp = new Hono<AppBindings>();
     const { mcpPostHandler, mcpMethodNotAllowedHandler } = createMcpHandler(
       async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
-      { catalogEntries: multiCatalog }
+      { catalogEntries: multiCatalog },
     );
     multiApp.post("/mcp", mcpPostHandler);
     multiApp.post("/mcp/:pack", mcpPostHandler);
@@ -708,7 +730,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 10, method: "tools/list" }),
       },
-      env
+      env,
     );
     expect(secListRes.status).toBe(200);
     const secTools = (
@@ -723,7 +745,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 11, method: "tools/list" }),
       },
-      env
+      env,
     );
     expect(unionListRes.status).toBe(200);
     const unionTools = (
@@ -751,7 +773,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
           },
         }),
       },
-      env
+      env,
     );
     expect(crossPackCall.status).toBe(200);
     const crossPackErr = (await crossPackCall.json()) as {
@@ -769,11 +791,11 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jsonrpc: "2.0", id: 13, method: "tools/list" }),
       },
-      env
+      env,
     );
     expect(emptyFixtureRes.status).toBe(404);
     expect(
-      ((await emptyFixtureRes.json()) as { error: { message: string } }).error.message
+      ((await emptyFixtureRes.json()) as { error: { message: string } }).error.message,
     ).toContain("0 active endpoints");
   });
 });

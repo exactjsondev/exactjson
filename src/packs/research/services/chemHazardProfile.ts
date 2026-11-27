@@ -54,10 +54,7 @@ function baseHCode(code: string): string {
   return m?.[1] ?? code.toUpperCase();
 }
 
-export function computeChemHazardProfile(params: {
-  bundle: PubChemHazardBundle;
-  nowMs?: number;
-}) {
+export function computeChemHazardProfile(params: { bundle: PubChemHazardBundle; nowMs?: number }) {
   const { bundle, nowMs = Date.now() } = params;
   if (!bundle.found || !bundle.props) {
     throw new Error("computeChemHazardProfile requires a resolved PubChem compound");
@@ -86,9 +83,7 @@ export function computeChemHazardProfile(params: {
     pictogramCodes.has("GHS09") || [...baseCodes].some((c) => c.startsWith("H4"));
 
   const classified =
-    ghs.hazardStatements.length > 0 ||
-    ghs.pictograms.length > 0 ||
-    ghs.signalWord !== "None";
+    ghs.hazardStatements.length > 0 || ghs.pictograms.length > 0 || ghs.signalWord !== "None";
   const flags: string[] = [];
 
   if (ghs.signalWord === "Danger") flags.push("GHS_DANGER");
@@ -103,7 +98,7 @@ export function computeChemHazardProfile(params: {
         baseCodes.has("H220") ||
         (nfpa?.flammability ?? 0) >= 4
         ? "HIGH_FLAMMABILITY"
-        : "FLAMMABLE_MATERIAL"
+        : "FLAMMABLE_MATERIAL",
     );
   }
   if (oxidizerOrExplosive) flags.push("OXIDIZER_OR_EXPLOSIVE_HAZARD");
@@ -116,6 +111,9 @@ export function computeChemHazardProfile(params: {
     } else {
       flags.push("UNCLASSIFIED_GHS_CHECK_SDS");
     }
+  }
+  if (bundle.degraded) {
+    flags.push("PARTIAL_PUBCHEM_METADATA");
   }
 
   let hazardTier: "EXTREME" | "HIGH" | "MODERATE" | "LOW" | "UNCLASSIFIED";

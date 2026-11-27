@@ -1,5 +1,5 @@
 import { type BoundedTtlCache, TTL_MS, withTwoTierCache } from "../../../lib/cache";
-import { UpstreamError, fetchJsonWithTimeout, fetchTextWithTimeout } from "../../../lib/http";
+import { fetchJsonWithTimeout, fetchTextWithTimeout, UpstreamError } from "../../../lib/http";
 import { toFiniteNumber } from "../../../lib/numbers";
 
 const BIS_MONTHLY_CSV_URL =
@@ -133,7 +133,7 @@ function parseBisCsvByArea(csvText: string): Map<string, RawCsvObs[]> {
 
 export function parseBisPolicyRatesCsv(
   monthlyCsv: string,
-  dailyCsv: string | null
+  dailyCsv: string | null,
 ): { series: BisAreaRateSeries[]; dailyParseFailed: boolean } {
   const monthlyByArea = parseBisCsvByArea(monthlyCsv);
   let dailyByArea = new Map<string, RawCsvObs[]>();
@@ -154,6 +154,14 @@ export function parseBisPolicyRatesCsv(
     if (ym !== null && ym > maxDatasetMonths) {
       maxDatasetMonths = ym;
     }
+  }
+
+  if (maxDatasetMonths === 0) {
+    throw new UpstreamError(
+      "BIS",
+      "BIS_BAD_PERIOD_FORMAT",
+      "BIS WS_CBPOL returned no parseable YYYY-MM time periods",
+    );
   }
 
   const results: BisAreaRateSeries[] = [];
@@ -227,7 +235,7 @@ export function parseBisPolicyRatesCsv(
 }
 
 export function parseEcbSdmxLatestSeries(
-  raw: unknown
+  raw: unknown,
 ): Map<string, { value: number; period: string }> {
   const obj = raw as {
     dataSets?: Array<{
@@ -242,14 +250,17 @@ export function parseEcbSdmxLatestSeries(
   } | null;
 
   const seriesMap = obj?.dataSets?.[0]?.series;
-  const seriesDims = obj?.structure?.dimensions?.series ?? [];
-  const obsValues = obj?.structure?.dimensions?.observation?.[0]?.values ?? [];
+  const rawSeriesDims = obj?.structure?.dimensions?.series;
+  const seriesDims = Array.isArray(rawSeriesDims) ? rawSeriesDims : [];
+  const rawObsDims = obj?.structure?.dimensions?.observation;
+  const rawObsValues = Array.isArray(rawObsDims) ? rawObsDims[0]?.values : undefined;
+  const obsValues = Array.isArray(rawObsValues) ? rawObsValues : [];
 
   if (!seriesMap || typeof seriesMap !== "object") {
     throw new UpstreamError("ECB", "ECB_BAD_SDMX", "Invalid ECB SDMX-JSON payload");
   }
 
-  const providerIdDimIndex = seriesDims.findIndex((d) => d.id === "PROVIDER_FM_ID");
+  const providerIdDimIndex = seriesDims.findIndex((d) => d?.id === "PROVIDER_FM_ID");
   const out = new Map<string, { value: number; period: string }>();
 
   for (const [seriesKey, seriesData] of Object.entries(seriesMap)) {
@@ -257,26 +268,34 @@ export function parseEcbSdmxLatestSeries(
     let seriesCode = "SINGLE";
     if (providerIdDimIndex >= 0) {
       const valIdx = keyParts[providerIdDimIndex];
+      const dimValues = seriesDims[providerIdDimIndex]?.values;
       const dimVal =
-        valIdx !== undefined ? seriesDims[providerIdDimIndex]?.values?.[valIdx]?.id : undefined;
-      if (dimVal) seriesCode = dimVal;
+        valIdx !== undefined && Array.isArray(dimValues) ? dimValues[valIdx]?.id : undefined;
+      if (typeof dimVal === "string" && dimVal) seriesCode = dimVal;
     }
 
-    const observations = seriesData?.observations ?? {};
+    const observations =
+      seriesData?.observations && typeof seriesData.observations === "object"
+        ? seriesData.observations
+        : {};
     let bestIdx = -1;
+    let bestPeriod = "";
     let bestVal: number | null = null;
     for (const [obsKey, obsArr] of Object.entries(observations)) {
       const idx = Number(obsKey);
       const val = Array.isArray(obsArr) ? toFiniteNumber(obsArr[0]) : null;
-      if (Number.isInteger(idx) && val !== null && idx > bestIdx) {
+      if (!Number.isInteger(idx) || idx < 0 || val === null) continue;
+      const candPeriod = typeof obsValues[idx]?.id === "string" ? obsValues[idx].id : "";
+      const isNewer = candPeriod && bestPeriod ? candPeriod > bestPeriod : idx > bestIdx;
+      if (isNewer) {
         bestIdx = idx;
+        bestPeriod = candPeriod;
         bestVal = val;
       }
     }
 
     if (bestIdx >= 0 && bestVal !== null) {
-      const period = obsValues[bestIdx]?.id ?? "";
-      out.set(seriesCode, { value: bestVal, period });
+      out.set(seriesCode, { value: bestVal, period: bestPeriod });
     }
   }
 
@@ -335,7 +354,7 @@ interface CachedBisRatesPayload {
 export async function fetchBisPolicyRates(
   cache: BoundedTtlCache,
   fetchImpl: typeof fetch = fetch,
-  waitUntil?: (promise: Promise<unknown>) => void
+  waitUntil?: (promise: Promise<unknown>) => void,
 ): Promise<{ data: BisAreaRateSeries[]; cacheHit: boolean }> {
   const { value, cacheHit } = await withTwoTierCache<CachedBisRatesPayload>({
     key: "macro:global:bis:cbpol",
@@ -381,7 +400,7 @@ export async function fetchBisPolicyRates(
 export async function fetchEcbRates(
   cache: BoundedTtlCache,
   fetchImpl: typeof fetch = fetch,
-  waitUntil?: (promise: Promise<unknown>) => void
+  waitUntil?: (promise: Promise<unknown>) => void,
 ): Promise<{ data: EcbRatesSnapshot; cacheHit: boolean }> {
   const { value, cacheHit } = await withTwoTierCache<EcbRatesSnapshot>({
     key: "macro:global:ecb:rates",
@@ -408,7 +427,11 @@ export async function fetchEcbRates(
       ]);
 
       if (krRes.status !== "ok") {
-        throw new UpstreamError("ECB", "ECB_UNAVAILABLE", "ECB key interest rates feed unavailable");
+        throw new UpstreamError(
+          "ECB",
+          "ECB_UNAVAILABLE",
+          "ECB key interest rates feed unavailable",
+        );
       }
 
       const krMap = parseEcbSdmxLatestSeries(krRes.data);
@@ -452,7 +475,7 @@ export async function fetchEcbRates(
 export async function fetchBocRates(
   cache: BoundedTtlCache,
   fetchImpl: typeof fetch = fetch,
-  waitUntil?: (promise: Promise<unknown>) => void
+  waitUntil?: (promise: Promise<unknown>) => void,
 ): Promise<{ data: BocRatesSnapshot; cacheHit: boolean }> {
   const { value, cacheHit } = await withTwoTierCache<BocRatesSnapshot>({
     key: "macro:global:boc:rates",

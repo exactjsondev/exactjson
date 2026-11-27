@@ -1,5 +1,5 @@
 import { type BoundedTtlCache, TTL_MS, withTwoTierCache } from "../../../lib/cache";
-import { UpstreamError, fetchJsonWithTimeout } from "../../../lib/http";
+import { fetchJsonWithTimeout, UpstreamError } from "../../../lib/http";
 import { toFiniteNumber } from "../../../lib/numbers";
 
 const CROSSREF_BASE = "https://api.crossref.org/works";
@@ -102,7 +102,7 @@ function formatDateParts(parts: unknown): { year: number | null; isoDate: string
 
 function classifyUpdateType(
   rawType: string,
-  direction: "updated_by" | "update_to"
+  direction: "updated_by" | "update_to",
 ): CitationUpdateCategory {
   const lower = rawType.toLowerCase();
   if (
@@ -129,7 +129,7 @@ function classifyUpdateType(
 
 function extractCrossrefUpdates(
   msg: Record<string, unknown>,
-  workDoi: string
+  workDoi: string,
 ): CitationUpdateNotice[] {
   const notices: CitationUpdateNotice[] = [];
   const seen = new Set<string>();
@@ -206,12 +206,27 @@ function extractCrossrefUpdates(
   return notices;
 }
 
-export function parseCrossrefWork(rawWork: Record<string, unknown>): NormalizedCitationWork | null {
+export function parseCrossrefWork(
+  rawWork: Record<string, unknown>,
+  allowUntitled = false,
+): NormalizedCitationWork | null {
   const doi = typeof rawWork.DOI === "string" ? rawWork.DOI.trim().toLowerCase() : "";
   if (!doi) return null;
 
+  const workType =
+    typeof rawWork.type === "string" && rawWork.type.trim().length > 0
+      ? rawWork.type.trim()
+      : "unknown";
+
   const titles = Array.isArray(rawWork.title) ? rawWork.title : [];
-  const rawTitle = typeof titles[0] === "string" ? stripHtmlTags(titles[0]) : "";
+  const subtitles = Array.isArray(rawWork.subtitle) ? rawWork.subtitle : [];
+  let rawTitle = typeof titles[0] === "string" ? stripHtmlTags(titles[0]) : "";
+  if (!rawTitle && allowUntitled) {
+    rawTitle =
+      typeof subtitles[0] === "string" && stripHtmlTags(subtitles[0])
+        ? stripHtmlTags(subtitles[0])
+        : `[Untitled ${workType}]`;
+  }
   if (!rawTitle) return null;
 
   const containers = Array.isArray(rawWork["container-title"]) ? rawWork["container-title"] : [];
@@ -251,11 +266,6 @@ export function parseCrossrefWork(rawWork: Record<string, unknown>): NormalizedC
     typeof firstLicense?.URL === "string" && firstLicense.URL.trim().length > 0
       ? firstLicense.URL.trim()
       : null;
-
-  const workType =
-    typeof rawWork.type === "string" && rawWork.type.trim().length > 0
-      ? rawWork.type.trim()
-      : "unknown";
 
   const titleIndicatesRetractionNotice = RETRACTION_NOTICE_TITLE_REGEX.test(rawTitle);
   const titleIndicatesRetracted =
@@ -407,7 +417,7 @@ export function parseDataCiteWork(attrs: Record<string, unknown>): NormalizedCit
 
 async function queryCrossrefByDoi(
   doi: string,
-  fetchImpl: typeof fetch
+  fetchImpl: typeof fetch,
 ): Promise<NormalizedCitationWork | null> {
   const url = `${CROSSREF_BASE}/${encodeURIComponent(doi)}?mailto=${encodeURIComponent(POLITE_MAILTO)}`;
   const res = await fetchJsonWithTimeout<{ message?: Record<string, unknown> }>(url, {
@@ -420,16 +430,20 @@ async function queryCrossrefByDoi(
   if (!res.data?.message || typeof res.data.message !== "object") {
     throw new UpstreamError("CROSSREF", "CROSSREF_BAD_SCHEMA", "Invalid Crossref work payload");
   }
-  const parsed = parseCrossrefWork(res.data.message);
+  const parsed = parseCrossrefWork(res.data.message, true);
   if (!parsed) {
-    throw new UpstreamError("CROSSREF", "CROSSREF_BAD_SCHEMA", "Missing DOI/title in Crossref work");
+    throw new UpstreamError(
+      "CROSSREF",
+      "CROSSREF_BAD_SCHEMA",
+      "Missing DOI/title in Crossref work",
+    );
   }
   return parsed;
 }
 
 async function queryDataCiteByDoi(
   doi: string,
-  fetchImpl: typeof fetch
+  fetchImpl: typeof fetch,
 ): Promise<NormalizedCitationWork | null> {
   const url = `${DATACITE_BASE}/${encodeURIComponent(doi)}`;
   const res = await fetchJsonWithTimeout<{ data?: { attributes?: Record<string, unknown> } }>(url, {
@@ -445,7 +459,11 @@ async function queryDataCiteByDoi(
   }
   const parsed = parseDataCiteWork(attrs);
   if (!parsed) {
-    throw new UpstreamError("DATACITE", "DATACITE_BAD_SCHEMA", "Missing DOI/title in DataCite work");
+    throw new UpstreamError(
+      "DATACITE",
+      "DATACITE_BAD_SCHEMA",
+      "Missing DOI/title in DataCite work",
+    );
   }
   return parsed;
 }
@@ -454,7 +472,7 @@ export async function fetchCitationByDoi(
   doi: string,
   cache: BoundedTtlCache,
   fetchImpl: typeof fetch = fetch,
-  waitUntil?: (promise: Promise<unknown>) => void
+  waitUntil?: (promise: Promise<unknown>) => void,
 ): Promise<{ data: CitationLookupBundle; cacheHit: boolean }> {
   const key = `science:citation:doi:${doi.toLowerCase()}`;
   const { value, cacheHit } = await withTwoTierCache<CitationLookupBundle>({
@@ -493,7 +511,7 @@ export async function fetchCitationByBibliographicQuery(
   query: string,
   cache: BoundedTtlCache,
   fetchImpl: typeof fetch = fetch,
-  waitUntil?: (promise: Promise<unknown>) => void
+  waitUntil?: (promise: Promise<unknown>) => void,
 ): Promise<{ data: CitationLookupBundle; cacheHit: boolean }> {
   const normalizedQuery = query.toLowerCase().replace(/\s+/g, " ").trim();
   const key = `science:citation:query:${normalizedQuery}`;
@@ -549,9 +567,9 @@ export async function fetchCitationByBibliographicQuery(
       }
 
       if (dcSettled.status === "fulfilled" && dcSettled.value.status === "ok") {
-        sources.push("datacite");
         const dcRows = dcSettled.value.data?.data;
         if (Array.isArray(dcRows)) {
+          sources.push("datacite");
           for (const row of dcRows) {
             if (!row?.attributes || typeof row.attributes !== "object") continue;
             const parsed = parseDataCiteWork(row.attributes);
@@ -560,6 +578,9 @@ export async function fetchCitationByBibliographicQuery(
               candidates.push(parsed);
             }
           }
+        } else {
+          degraded = true;
+          dataciteErrorCode = "DATACITE_BAD_SCHEMA";
         }
       } else if (dcSettled.status === "rejected") {
         degraded = true;

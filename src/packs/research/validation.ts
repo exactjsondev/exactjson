@@ -4,7 +4,7 @@ const CONTROL_CHAR_REGEX = /[\u0000-\u001F\u007F]/;
 const DOI_SYNTAX_REGEX = /^10\.\d{4,9}\/[-._;()/:A-Za-z0-9<>+[\]]+$/;
 const ARXIV_MODERN_REGEX = /^(?:arxiv:\s*)?(\d{4}\.\d{4,5})(?:v\d+)?$/i;
 const ARXIV_LEGACY_REGEX = /^arxiv:\s*([a-z-]+(?:\.[a-z]{2})?\/\d{7})(?:v\d+)?$/i;
-const CAS_RN_REGEX = /^(\d{2,7})-(\d{2})-(\d)$/;
+const CAS_RN_REGEX = /^([1-9]\d{1,6})-(\d{2})-(\d)$/;
 const INCHIKEY_REGEX = /^[A-Z]{14}-[A-Z]{10}-[A-Z]$/;
 const CID_PREFIX_REGEX = /^(?:cid:\s*)?(\d{1,9})$/i;
 const SAFE_CHEM_NAME_REGEX =
@@ -50,6 +50,12 @@ export function normalizeDoiInput(raw: string): ValidationResult<string> {
   } else if (/^doi:\s*/i.test(candidate)) {
     candidate = candidate.replace(/^doi:\s*/i, "").trim();
   }
+
+  // Strip version suffix on canonical arXiv DataCite DOIs (e.g. 10.48550/arXiv.1706.03762v7 -> 10.48550/arXiv.1706.03762)
+  candidate = candidate.replace(
+    /^(10\.48550\/arxiv\.(?:\d{4}\.\d{4,5}|[a-z-]+(?:\.[a-z]{2})?\/\d{7}))v\d+$/i,
+    "$1",
+  );
 
   if (
     candidate.length < 7 ||
@@ -133,7 +139,10 @@ export function parseCitationVerifyInput(raw: {
   if (raw.expected_year !== undefined && raw.expected_year.trim().length > 0) {
     const yStr = raw.expected_year.trim();
     if (yStr.length > 8) {
-      return { ok: false, error: "Parameter 'expected_year' must be an integer between 1665 and 2100." };
+      return {
+        ok: false,
+        error: "Parameter 'expected_year' must be an integer between 1665 and 2100.",
+      };
     }
     const yNum = Number(yStr);
     if (!Number.isInteger(yNum) || yNum < 1665 || yNum > 2100) {
@@ -179,7 +188,9 @@ export interface ChemHazardInput {
   normalizedValue: string;
 }
 
-export function parseChemHazardInput(rawQuery: string | undefined): ValidationResult<ChemHazardInput> {
+export function parseChemHazardInput(
+  rawQuery: string | undefined,
+): ValidationResult<ChemHazardInput> {
   if (rawQuery === undefined || rawQuery.trim().length === 0) {
     return {
       ok: false,
@@ -253,7 +264,7 @@ export function parseChemHazardInput(rawQuery: string | undefined): ValidationRe
     value: {
       kind: "name",
       rawQuery: trimmed,
-      normalizedValue: trimmed.toLowerCase(),
+      normalizedValue: trimmed.replace(/\s+/g, " ").toLowerCase(),
     },
   };
 }
@@ -290,7 +301,8 @@ export function parseDrugTrialInput(raw: {
     if (!NCT_ID_REGEX.test(trimmedNct)) {
       return {
         ok: false,
-        error: "Invalid 'nct' identifier: expected 'NCT' followed by 8 digits (e.g., 'NCT05382286').",
+        error:
+          "Invalid 'nct' identifier: expected 'NCT' followed by 8 digits (e.g., 'NCT05382286').",
       };
     }
     nct = trimmedNct.toUpperCase();
@@ -299,7 +311,11 @@ export function parseDrugTrialInput(raw: {
   let drug: string | null = null;
   if (raw.drug !== undefined && raw.drug.trim().length > 0) {
     const trimmedDrug = raw.drug.trim();
-    if (trimmedDrug.length < 2 || trimmedDrug.length > 120 || CONTROL_CHAR_REGEX.test(trimmedDrug)) {
+    if (
+      trimmedDrug.length < 2 ||
+      trimmedDrug.length > 120 ||
+      CONTROL_CHAR_REGEX.test(trimmedDrug)
+    ) {
       return {
         ok: false,
         error: "Parameter 'drug' must be 2 to 120 printable characters.",

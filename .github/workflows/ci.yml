@@ -30,4 +30,6 @@ jobs:
         run: npm pack --dry-run
       - name: Production dependency audit (advisory)
         continue-on-error: true
-        run: npm audit --omit=dev --audit-level=high
+        run: |
+          npm audit --omit=dev --audit-level=high
+          npm --prefix mcp audit --omit=dev --audit-level=high

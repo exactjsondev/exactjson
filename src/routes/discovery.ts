@@ -2,10 +2,10 @@ import type { Context } from "hono";
 import {
   CATALOG,
   DISCLAIMER,
-  SERVICE_NAME,
-  SERVICE_VERSION,
   getActivePacks,
   getEndpointById,
+  SERVICE_NAME,
+  SERVICE_VERSION,
   toHttpInputSchema,
 } from "../config/catalog";
 import { negotiateContentType } from "../lib/contentNegotiation";
@@ -51,7 +51,7 @@ export async function indexHandler(c: Context<AppBindings>) {
       `<${baseUrl}/.well-known/x402>; rel="describedby"; type="application/json"`,
       `<${baseUrl}/.well-known/x402.json>; rel="describedby"; type="application/json"`,
       `<${baseUrl}/.well-known/mcp/server-card.json>; rel="describedby"; type="application/json"`,
-    ].join(", ")
+    ].join(", "),
   );
 
   if (format === "html") {
@@ -84,7 +84,7 @@ export async function indexHandler(c: Context<AppBindings>) {
         active: getActivePacks().map((p) => p.id),
         all_url: `${baseUrl}/mcp/all`,
         endpoints: Object.fromEntries(
-          getActivePacks().map((p) => [p.id, `${baseUrl}${p.mcpPath}`])
+          getActivePacks().map((p) => [p.id, `${baseUrl}${p.mcpPath}`]),
         ),
       },
     },
@@ -157,7 +157,7 @@ export function openApiHandler(c: Context<AppBindings>) {
             : entry.queryParamDescription,
         schema: propSchema,
         ...(propSchema.example !== undefined ? { example: propSchema.example } : {}),
-      })
+      }),
     );
 
     paths[entry.path] = {
@@ -200,7 +200,8 @@ export function openApiHandler(c: Context<AppBindings>) {
             },
           },
           "402": {
-            description: "Payment Required - x402 V2 payment terms returned in PAYMENT-REQUIRED header.",
+            description:
+              "Payment Required - x402 V2 payment terms returned in PAYMENT-REQUIRED header.",
             headers: {
               "PAYMENT-REQUIRED": {
                 description: "Base64-encoded x402 V2 PaymentRequired payload.",
@@ -214,7 +215,8 @@ export function openApiHandler(c: Context<AppBindings>) {
             },
           },
           "404": {
-            description: "Requested resource (token, market, package, domain, CVE, runtime, or model) not found (payment NOT settled).",
+            description:
+              "Requested resource (token, market, package, domain, CVE, airport, entity, DOI, chemical, or trial) not found (payment NOT settled).",
             content: {
               "application/json": {
                 schema: { $ref: "#/components/schemas/ErrorResponse" },
@@ -256,8 +258,7 @@ export function openApiHandler(c: Context<AppBindings>) {
       title: `${BRAND_HEADLINE}`,
       version: SERVICE_VERSION,
       description: `${BRAND_HEADLINE}. Pre-computed, compact JSON endpoints across markets (token safety, pre-trade slippage, perpetuals, prediction markets, options volatility, US macro liquidity, global central bank rates), security (OSS package audit, domain trust, CVE triage, cloud status, runtime EOL, AI model audit, censorship check), world (airport delays, space weather GNSS, physical hazard brief, travel destination brief, solar/wind site window), commerce (settlement window, EU VIES VAT/IBAN/BIC check, GLEIF/SEC corporate KYB, US CPSC + openFDA recall gate), and research (academic DOI/arXiv/Retraction Watch citation verify, NIH PubChem GHS hazard profile, ClinicalTrials.gov + RxNorm drug trial brief). ${DISCLAIMER}`,
-      "x-guidance":
-        `Pay per request via x402 V2 (exact EVM USDC in PAYMENT-SIGNATURE header), Remote Streamable HTTP MCP (${baseUrl}/mcp for markets, ${baseUrl}/mcp/security for security, ${baseUrl}/mcp/world for world, ${baseUrl}/mcp/commerce for commerce, ${baseUrl}/mcp/research for research, ${baseUrl}/mcp/all for all packs), or stdio MCP (\`npx -y ${MCP_PACKAGE}\` / \`--pack security\` / \`--pack world\` / \`--pack commerce\` / \`--pack research\`). Unpaid probes return HTTP 402 with PAYMENT-REQUIRED terms. Only HTTP 200 settles; 400/404/502/503 never settle. Recommended chains: call /v1/evm/safety (${p("evm_safety")}) + /v1/execution/quote-check?mode=evm (${p("execution_quote_check")}) before swapping unfamiliar EVM tokens; verify settlement rules when /v1/predictions/arb (${p("predictions_arb")}) returns resolution_risk_warning=true; call /v1/oss/package-audit (${p("oss_package_audit")}) + /v1/oss/runtime-eol (${p("oss_runtime_eol")}) before installing packages; call /v1/net/domain-trust (${p("net_domain_trust")}) + /v1/entity/company-verify (${p("entity_company_verify")}) + /v1/commerce/vat-verify (${p("commerce_vat_verify")}) + /v1/commerce/settlement-window (${p("commerce_settlement_window")}) before paying B2B supplier invoices; call /v1/consumer/safety-recall (${p("consumer_safety_recall")}) before approving product listings; call /v1/science/citation-verify (${p("science_citation_verify")}) before citing academic DOIs or arXiv preprints; call /v1/bio/drug-trial-brief (${p("bio_drug_trial_brief")}) + /v1/chem/hazard-profile (${p("chem_hazard_profile")}) for clinical catalysts & chemical GHS safety; call /v1/ops/cloud-status (${p("ops_cloud_status")}) before deploying; call /v1/space/weather-gnss (${p("space_weather_gnss")}) + /v1/solar/site-window (${p("solar_site_window")}) before drone/ag dispatch; call /v1/travel/destination-brief (${p("travel_destination_brief")}) + /v1/aviation/airport-delays (${p("aviation_airport_delays")}) + /v1/geo/hazard-brief (${p("geo_hazard_brief")}) before travel routing. Scanners & Arb: /v1/perps/screener (${p("perps_screener")}), /v1/perps/funding-arb (${p("perps_funding_arb")}, HL/dYdX/Kraken), /v1/predictions/scanner (${p("predictions_scanner")}, Polymarket+Kalshi), /v1/predictions/arb (${p("predictions_arb")}, Polymarket vs Kalshi net arb), /v1/solana/trending (${p("solana_trending")}, RugCheck-scored). Deep Dives, Macro, Safety, World, Commerce & Research: /v1/evm/safety?address=<0x>&chain=base (${p("evm_safety")}, GoPlus+Honeypot.is), /v1/execution/quote-check?mode=perps&coin=BTC (${p("execution_quote_check")}, multi-tier EVM/Perps slippage), /v1/options/surface?currency=BTC (${p("options_surface")}, Deribit IV/skew/max-pain), /v1/macro/liquidity (${p("macro_liquidity")}, US Treasury & NY Fed), /v1/macro/global-rates (${p("macro_global_rates")}, BIS 38-country + ECB/BoC/NY Fed), /v1/perps/snapshot?coin=BTC (${p("perps_snapshot")}), /v1/solana/safety?mint=<MINT> (${p("solana_safety")}), /v1/sec/cve-triage?cve=CVE-2024-3094 (${p("sec_cve_triage")}), /v1/ai/model-audit?model=Qwen/Qwen2.5-7B-Instruct (${p("ai_model_audit")}), /v1/net/censorship-check?domain=telegram.org&country=IR (${p("net_censorship_check")}). ${DISCLAIMER}`,
+      "x-guidance": `Pay per request via x402 V2 (exact EVM USDC in PAYMENT-SIGNATURE header), Remote Streamable HTTP MCP (${baseUrl}/mcp for markets, ${baseUrl}/mcp/security for security, ${baseUrl}/mcp/world for world, ${baseUrl}/mcp/commerce for commerce, ${baseUrl}/mcp/research for research, ${baseUrl}/mcp/all for all packs), or stdio MCP (\`npx -y ${MCP_PACKAGE}\` / \`--pack security\` / \`--pack world\` / \`--pack commerce\` / \`--pack research\`). Unpaid probes return HTTP 402 with PAYMENT-REQUIRED terms. Only HTTP 200 settles; 400/404/502/503 never settle. Recommended chains: call /v1/evm/safety (${p("evm_safety")}) + /v1/execution/quote-check?mode=evm (${p("execution_quote_check")}) before swapping unfamiliar EVM tokens; verify settlement rules when /v1/predictions/arb (${p("predictions_arb")}) returns resolution_risk_warning=true; call /v1/oss/package-audit (${p("oss_package_audit")}) + /v1/oss/runtime-eol (${p("oss_runtime_eol")}) before installing packages; call /v1/net/domain-trust (${p("net_domain_trust")}) + /v1/entity/company-verify (${p("entity_company_verify")}) + /v1/commerce/vat-verify (${p("commerce_vat_verify")}) + /v1/commerce/settlement-window (${p("commerce_settlement_window")}) before paying B2B supplier invoices; call /v1/consumer/safety-recall (${p("consumer_safety_recall")}) before approving product listings; call /v1/science/citation-verify (${p("science_citation_verify")}) before citing academic DOIs or arXiv preprints; call /v1/bio/drug-trial-brief (${p("bio_drug_trial_brief")}) + /v1/chem/hazard-profile (${p("chem_hazard_profile")}) for clinical catalysts & chemical GHS safety; call /v1/ops/cloud-status (${p("ops_cloud_status")}) before deploying; call /v1/space/weather-gnss (${p("space_weather_gnss")}) + /v1/solar/site-window (${p("solar_site_window")}) before drone/ag dispatch; call /v1/travel/destination-brief (${p("travel_destination_brief")}) + /v1/aviation/airport-delays (${p("aviation_airport_delays")}) + /v1/geo/hazard-brief (${p("geo_hazard_brief")}) before travel routing. Scanners & Arb: /v1/perps/screener (${p("perps_screener")}), /v1/perps/funding-arb (${p("perps_funding_arb")}, HL/dYdX/Kraken), /v1/predictions/scanner (${p("predictions_scanner")}, Polymarket+Kalshi), /v1/predictions/arb (${p("predictions_arb")}, Polymarket vs Kalshi net arb), /v1/solana/trending (${p("solana_trending")}, RugCheck-scored). Deep Dives, Macro, Safety, World, Commerce & Research: /v1/evm/safety?address=<0x>&chain=base (${p("evm_safety")}, GoPlus+Honeypot.is), /v1/execution/quote-check?mode=perps&coin=BTC (${p("execution_quote_check")}, multi-tier EVM/Perps slippage), /v1/options/surface?currency=BTC (${p("options_surface")}, Deribit IV/skew/max-pain), /v1/macro/liquidity (${p("macro_liquidity")}, US Treasury & NY Fed), /v1/macro/global-rates (${p("macro_global_rates")}, BIS 38-country + ECB/BoC/NY Fed), /v1/perps/snapshot?coin=BTC (${p("perps_snapshot")}), /v1/solana/safety?mint=<MINT> (${p("solana_safety")}), /v1/sec/cve-triage?cve=CVE-2024-3094 (${p("sec_cve_triage")}), /v1/ai/model-audit?model=Qwen/Qwen2.5-7B-Instruct (${p("ai_model_audit")}), /v1/net/censorship-check?domain=telegram.org&country=IR (${p("net_censorship_check")}). ${DISCLAIMER}`,
       contact: {
         name: `${SERVICE_NAME} Support`,
         url: `${baseUrl}/contact`,
@@ -355,7 +356,7 @@ export function buildLlmsTxt(baseUrl: string, network: string): string {
     "## Paid Endpoints",
     ...CATALOG.map(
       (entry) =>
-        `- \`${entry.method} ${baseUrl}${entry.path}?${new URLSearchParams(entry.exampleQueryParams).toString()}\` (${entry.priceFormatted} USD): ${entry.description}`
+        `- \`${entry.method} ${baseUrl}${entry.path}?${new URLSearchParams(entry.exampleQueryParams).toString()}\` (${entry.priceFormatted} USD): ${entry.description}`,
     ),
     "",
     "## Discovery & Metadata",
@@ -582,11 +583,7 @@ function escapeXml(value: string): string {
     .replace(/'/g, "&apos;");
 }
 
-function respondHtmlOrMarkdown(
-  c: Context<AppBindings>,
-  htmlBody: string,
-  markdownBody: string
-) {
+function respondHtmlOrMarkdown(c: Context<AppBindings>, htmlBody: string, markdownBody: string) {
   c.header("Cache-Control", "public, max-age=300");
   c.header("Vary", "Accept");
   c.header("X-Content-Type-Options", "nosniff");
@@ -604,11 +601,7 @@ function respondHtmlOrMarkdown(
 export function docsPageHandler(c: Context<AppBindings>) {
   const baseUrl = resolveBaseUrl(c);
   const network = c.env.X402_NETWORK || "eip155:8453";
-  return respondHtmlOrMarkdown(
-    c,
-    renderDocsHtml(baseUrl, network),
-    buildLlmsTxt(baseUrl, network)
-  );
+  return respondHtmlOrMarkdown(c, renderDocsHtml(baseUrl, network), buildLlmsTxt(baseUrl, network));
 }
 
 export function pricingPageHandler(c: Context<AppBindings>) {

@@ -2,12 +2,12 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   CATALOG,
+  getPackEndpoints,
   MAX_BAZAAR_DESCRIPTION_LENGTH,
   MAX_MCP_TOOLS_PER_PACK,
-  PACKS,
   PACK_IDS,
+  PACKS,
   SERVICE_VERSION,
-  getPackEndpoints,
 } from "../src/config/catalog";
 import { renderMcpManifestSource } from "./sync-mcp-manifest";
 
@@ -31,14 +31,14 @@ function main() {
   const rootPkg = readJson<{ version: string }>("package.json");
   if (rootPkg.version !== SERVICE_VERSION) {
     failures.push(
-      `package.json version '${rootPkg.version}' !== SERVICE_VERSION '${SERVICE_VERSION}'`
+      `package.json version '${rootPkg.version}' !== SERVICE_VERSION '${SERVICE_VERSION}'`,
     );
   }
 
   const mcpPkg = readJson<{ version: string; files?: string[] }>("mcp/package.json");
   if (mcpPkg.version !== SERVICE_VERSION) {
     failures.push(
-      `mcp/package.json version '${mcpPkg.version}' !== SERVICE_VERSION '${SERVICE_VERSION}'`
+      `mcp/package.json version '${mcpPkg.version}' !== SERVICE_VERSION '${SERVICE_VERSION}'`,
     );
   }
   if (!mcpPkg.files?.includes("catalog.generated.mjs")) {
@@ -55,16 +55,15 @@ function main() {
   }>("mcp/server.json");
   if (serverJson.version !== SERVICE_VERSION) {
     failures.push(
-      `mcp/server.json version '${serverJson.version}' !== SERVICE_VERSION '${SERVICE_VERSION}'`
+      `mcp/server.json version '${serverJson.version}' !== SERVICE_VERSION '${SERVICE_VERSION}'`,
     );
   }
   if (serverJson.packages?.[0]?.version !== SERVICE_VERSION) {
     failures.push(
-      `mcp/server.json packages[0].version '${serverJson.packages?.[0]?.version ?? ""}' !== '${SERVICE_VERSION}'`
+      `mcp/server.json packages[0].version '${serverJson.packages?.[0]?.version ?? ""}' !== '${SERVICE_VERSION}'`,
     );
   }
-  const serverEnvNames =
-    serverJson.packages?.[0]?.environmentVariables?.map((e) => e.name) ?? [];
+  const serverEnvNames = serverJson.packages?.[0]?.environmentVariables?.map((e) => e.name) ?? [];
   if (!serverEnvNames.includes("EXACTJSON_PACK")) {
     failures.push("mcp/server.json packages[0].environmentVariables missing 'EXACTJSON_PACK'");
   }
@@ -74,7 +73,7 @@ function main() {
     const toolCount = 1 + getPackEndpoints([packId]).length;
     if (toolCount > MAX_MCP_TOOLS_PER_PACK) {
       failures.push(
-        `Pack '${packId}' has ${toolCount} MCP tools (exceeds ${MAX_MCP_TOOLS_PER_PACK} MCP tool ceiling)`
+        `Pack '${packId}' has ${toolCount} MCP tools (exceeds ${MAX_MCP_TOOLS_PER_PACK} MCP tool ceiling)`,
       );
     }
   }
@@ -84,17 +83,17 @@ function main() {
     const mcpDesc = `Paid (${entry.priceFormatted} USDC): ${entry.description}`;
     if (mcpDesc.length > MAX_BAZAAR_DESCRIPTION_LENGTH) {
       failures.push(
-        `Endpoint '${entry.id}' MCP description is ${mcpDesc.length} chars (exceeds ${MAX_BAZAAR_DESCRIPTION_LENGTH})`
+        `Endpoint '${entry.id}' MCP description is ${mcpDesc.length} chars (exceeds ${MAX_BAZAAR_DESCRIPTION_LENGTH})`,
       );
     }
     if (!/\bDo NOT use for\b/.test(entry.description)) {
-      failures.push(`Endpoint '${entry.id}' description missing 'Do NOT use for' negative boundary`);
+      failures.push(
+        `Endpoint '${entry.id}' description missing 'Do NOT use for' negative boundary`,
+      );
     }
     const expectedDisclaimer = PACKS[entry.pack].disclaimer;
     if (!entry.description.includes(expectedDisclaimer)) {
-      failures.push(
-        `Endpoint '${entry.id}' description missing pack '${entry.pack}' disclaimer`
-      );
+      failures.push(`Endpoint '${entry.id}' description missing pack '${entry.pack}' disclaimer`);
     }
   }
 
@@ -104,37 +103,58 @@ function main() {
     const actualGenerated = normalizeNewlines(readText("mcp/catalog.generated.mjs"));
     if (actualGenerated !== expectedGenerated) {
       failures.push(
-        "mcp/catalog.generated.mjs is out of sync with CATALOG (run `npm run sync:mcp`)"
+        "mcp/catalog.generated.mjs is out of sync with CATALOG (run `npm run sync:mcp`)",
       );
     }
   } catch {
     failures.push(
-      "Missing mcp/catalog.generated.mjs (run `npm run sync:mcp` to generate from CATALOG)"
+      "Missing mcp/catalog.generated.mjs (run `npm run sync:mcp` to generate from CATALOG)",
     );
   }
 
   const paymentScript = readText("scripts/test-payment.ts");
   const paymentBlocks = Array.from(
-    paymentScript.matchAll(/\{\s*key:\s*"[^"]+",\s*label:\s*"([^"]+)",\s*url:\s*`([^`]+)`/g)
+    paymentScript.matchAll(/\{\s*key:\s*"([^"]+)",\s*label:\s*"([^"]+)",\s*url:\s*`([^`]+)`/g),
   );
+  const declaredTargetKeys = new Set(paymentBlocks.map((m) => m[1] ?? ""));
+  const packSetMatches = Array.from(
+    paymentScript.matchAll(
+      /const\s+(markets|security|world|commerce|research)Keys\s*=\s*new\s+Set\(\[([\s\S]*?)\]\);/g,
+    ),
+  );
+  const unionPackKeys = new Set<string>();
+  for (const pm of packSetMatches) {
+    for (const km of (pm[2] ?? "").matchAll(/"([^"]+)"/g)) {
+      if (km[1]) unionPackKeys.add(km[1]);
+    }
+  }
+  for (const tk of declaredTargetKeys) {
+    if (!unionPackKeys.has(tk)) {
+      failures.push(`scripts/test-payment.ts target key '${tk}' missing from pack key sets`);
+    }
+  }
+  for (const pk of unionPackKeys) {
+    if (!declaredTargetKeys.has(pk)) {
+      failures.push(`scripts/test-payment.ts pack key '${pk}' does not match any target key`);
+    }
+  }
+
   for (const entry of CATALOG) {
-    const matchedBlock = paymentBlocks.find((m) => m[2]?.includes(entry.path));
+    const matchedBlock = paymentBlocks.find((m) => m[3]?.includes(entry.path));
     if (!matchedBlock) {
       failures.push(`scripts/test-payment.ts missing endpoint '${entry.path}'`);
       continue;
     }
-    const label = matchedBlock[1] ?? "";
+    const label = matchedBlock[2] ?? "";
     if (!label.includes(`(${entry.priceFormatted})`)) {
       failures.push(
-        `scripts/test-payment.ts label '${label}' for '${entry.path}' missing price '(${entry.priceFormatted})'`
+        `scripts/test-payment.ts label '${label}' for '${entry.path}' missing price '(${entry.priceFormatted})'`,
       );
     }
   }
 
   const dashboardHtml = readText("public/dashboard/index.html");
-  const filterSelectMatch = dashboardHtml.match(
-    /<select id="filter-endpoint"[\s\S]*?<\/select>/
-  );
+  const filterSelectMatch = dashboardHtml.match(/<select id="filter-endpoint"[\s\S]*?<\/select>/);
   const filterSelectHtml = filterSelectMatch?.[0] ?? "";
   for (const entry of CATALOG) {
     if (!filterSelectHtml.includes(`value="${entry.path}"`)) {
@@ -148,11 +168,11 @@ function main() {
       failures.push(`skills/exactjson/SKILL.md missing endpoint '${entry.path}'`);
     }
     const rowPattern = new RegExp(
-      `\\|\\s*\`GET ${entry.path.replace(/\//g, "\\/")}\`\\s*\\|\\s*\`${entry.priceFormatted.replace("$", "\\$")}\``
+      `\\|\\s*\`GET ${entry.path.replace(/\//g, "\\/")}\`\\s*\\|\\s*\`${entry.priceFormatted.replace("$", "\\$")}\``,
     );
     if (!rowPattern.test(skillMd)) {
       failures.push(
-        `skills/exactjson/SKILL.md endpoint table row for '${entry.path}' does not match price '${entry.priceFormatted}'`
+        `skills/exactjson/SKILL.md endpoint table row for '${entry.path}' does not match price '${entry.priceFormatted}'`,
       );
     }
   }
@@ -166,7 +186,7 @@ function main() {
   }
 
   console.log(
-    `CATALOG sync-check passed: ${CATALOG.length} endpoints & ${1 + CATALOG.length} MCP tools synced across v${SERVICE_VERSION} (<= ${MAX_MCP_TOOLS_PER_PACK} tools/pack).`
+    `CATALOG sync-check passed: ${CATALOG.length} endpoints & ${1 + CATALOG.length} MCP tools synced across v${SERVICE_VERSION} (<= ${MAX_MCP_TOOLS_PER_PACK} tools/pack).`,
   );
 }
 

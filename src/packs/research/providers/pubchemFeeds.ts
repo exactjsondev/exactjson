@@ -1,5 +1,5 @@
 import { type BoundedTtlCache, TTL_MS, withTwoTierCache } from "../../../lib/cache";
-import { UpstreamError, fetchJsonWithTimeout } from "../../../lib/http";
+import { fetchJsonWithTimeout, UpstreamError } from "../../../lib/http";
 import { roundToOrNull, toFiniteNumber } from "../../../lib/numbers";
 import { type ChemHazardInput, isValidCasRegistryNumber } from "../validation";
 
@@ -9,7 +9,7 @@ const PROPERTY_LIST =
   "Title,MolecularFormula,MolecularWeight,IUPACName,ConnectivitySMILES,SMILES,InChIKey,XLogP";
 
 const EC_NUMBER_REGEX = /^\d{3}-\d{3}-\d$/;
-const CAS_CANDIDATE_REGEX = /^\d{2,7}-\d{2}-\d$/;
+const CAS_CANDIDATE_REGEX = /^[1-9]\d{1,6}-\d{2}-\d$/;
 
 const PICTOGRAM_LABELS: Readonly<Record<string, string>> = {
   GHS01: "Explosive",
@@ -77,7 +77,10 @@ export interface PubChemHazardBundle {
   degraded?: boolean;
 }
 
-function collectInfoItems(node: unknown, out: Array<Record<string, unknown>> = []): Array<Record<string, unknown>> {
+function collectInfoItems(
+  node: unknown,
+  out: Array<Record<string, unknown>> = [],
+): Array<Record<string, unknown>> {
   if (!node || typeof node !== "object") return out;
   const obj = node as Record<string, unknown>;
   if (Array.isArray(obj.Information)) {
@@ -116,6 +119,7 @@ export function parsePubChemGhsView(raw: unknown): ParsedGhsClassification {
 
     if (name === "Pictogram(s)") {
       for (const item of swm) {
+        if (!item || typeof item !== "object") continue;
         const markups = Array.isArray(item.Markup) ? item.Markup : [];
         for (const m of markups) {
           if (!m || typeof m !== "object") continue;
@@ -133,6 +137,7 @@ export function parsePubChemGhsView(raw: unknown): ParsedGhsClassification {
       }
     } else if (name === "Signal") {
       for (const item of swm) {
+        if (!item || typeof item !== "object") continue;
         const s = typeof item.String === "string" ? item.String.trim().toLowerCase() : "";
         if (s.includes("danger")) {
           signalWord = "Danger";
@@ -142,6 +147,7 @@ export function parsePubChemGhsView(raw: unknown): ParsedGhsClassification {
       }
     } else if (name === "GHS Hazard Statements") {
       for (const item of swm) {
+        if (!item || typeof item !== "object") continue;
         const rawStr = typeof item.String === "string" ? item.String.trim() : "";
         if (/^not\s+classified$/i.test(rawStr)) {
           explicitlyNotClassified = true;
@@ -161,6 +167,7 @@ export function parsePubChemGhsView(raw: unknown): ParsedGhsClassification {
       }
     } else if (name === "Precautionary Statement Codes") {
       for (const item of swm) {
+        if (!item || typeof item !== "object") continue;
         const rawStr = typeof item.String === "string" ? item.String : "";
         const matches = rawStr.match(/P\d{3}(?:\+P\d{3})*/g);
         if (matches) {
@@ -171,6 +178,7 @@ export function parsePubChemGhsView(raw: unknown): ParsedGhsClassification {
       }
     } else if (name === "ECHA C&L Notifications Summary" || name === "Note") {
       for (const item of swm) {
+        if (!item || typeof item !== "object") continue;
         const s = typeof item.String === "string" ? item.String.trim() : "";
         if (name === "ECHA C&L Notifications Summary" && !echaSummary && s.length > 0) {
           echaSummary = s.split(/(?<=\.)\s+/)[0] ?? s;
@@ -214,10 +222,12 @@ export function parsePubChemNfpaView(raw: unknown): Nfpa704Diamond | null {
 
   for (const info of infos) {
     const name = typeof info.Name === "string" ? info.Name.trim() : "";
-    const valObj = info.Value as {
-      StringWithMarkup?: Array<Record<string, unknown>>;
-      Number?: unknown[];
-    } | undefined;
+    const valObj = info.Value as
+      | {
+          StringWithMarkup?: Array<Record<string, unknown>>;
+          Number?: unknown[];
+        }
+      | undefined;
     const swm = Array.isArray(valObj?.StringWithMarkup) ? valObj.StringWithMarkup : [];
     const firstStr = typeof swm[0]?.String === "string" ? swm[0].String.trim() : "";
     const firstNum = Array.isArray(valObj?.Number) ? toFiniteNumber(valObj?.Number[0]) : null;
@@ -230,11 +240,13 @@ export function parsePubChemNfpaView(raw: unknown): Nfpa704Diamond | null {
 
     if (name === "NFPA 704 Diamond") {
       for (const item of swm) {
+        if (!item || typeof item !== "object") continue;
         const markups = Array.isArray(item.Markup) ? item.Markup : [];
         for (const m of markups) {
-          const extra = typeof (m as Record<string, unknown>)?.Extra === "string"
-            ? String((m as Record<string, unknown>).Extra)
-            : "";
+          const extra =
+            typeof (m as Record<string, unknown>)?.Extra === "string"
+              ? String((m as Record<string, unknown>).Extra)
+              : "";
           const parts = extra.split("-");
           if (parts.length >= 3) {
             const h = toFiniteNumber(parts[0]);
@@ -324,7 +336,7 @@ export async function fetchPubChemHazardBundle(
   input: ChemHazardInput,
   cache: BoundedTtlCache,
   fetchImpl: typeof fetch = fetch,
-  waitUntil?: (promise: Promise<unknown>) => void
+  waitUntil?: (promise: Promise<unknown>) => void,
 ): Promise<{ data: PubChemHazardBundle; cacheHit: boolean }> {
   const queryCacheKey = `chem:pubchem:${input.kind}:${input.normalizedValue}`;
 
@@ -369,7 +381,7 @@ export async function fetchPubChemHazardBundle(
         throw new UpstreamError(
           "PUBCHEM",
           "PUBCHEM_BAD_PROPS_SCHEMA",
-          "Invalid PubChem PropertyTable response"
+          "Invalid PubChem PropertyTable response",
         );
       }
 
@@ -397,6 +409,7 @@ export async function fetchPubChemHazardBundle(
       };
 
       let degraded = false;
+      let nfpaError: unknown = null;
       // Fetch GHS (primary safety gate), synonyms (CAS/EC), and NFPA 704 (optional) in parallel
       const [ghsRes, synSettled, nfpaSettled] = await Promise.all([
         fetchJsonWithTimeout<unknown>(
@@ -406,7 +419,7 @@ export async function fetchPubChemHazardBundle(
             allow404: true,
             timeoutMs: 6000,
             fetchImpl,
-          }
+          },
         ),
         fetchJsonWithTimeout<unknown>(`${PUBCHEM_PUG}/compound/cid/${cidNum}/synonyms/JSON`, {
           provider: "PUBCHEM",
@@ -424,9 +437,10 @@ export async function fetchPubChemHazardBundle(
             allow404: true,
             timeoutMs: 4500,
             fetchImpl,
-          }
-        ).catch(() => {
+          },
+        ).catch((err) => {
           degraded = true;
+          nfpaError = err;
           return { status: "not_found" as const };
         }),
       ]);
@@ -437,6 +451,15 @@ export async function fetchPubChemHazardBundle(
         sources.push("nih_pubchem_ghs");
         ghs = parsePubChemGhsView(ghsRes.data);
       } else {
+        if (nfpaError !== null) {
+          throw nfpaError instanceof UpstreamError
+            ? nfpaError
+            : new UpstreamError(
+                "PUBCHEM",
+                "PUBCHEM_UNAVAILABLE",
+                "PubChem safety views unavailable",
+              );
+        }
         ghs = {
           sectionFound: false,
           explicitlyNotClassified: false,
@@ -461,8 +484,7 @@ export async function fetchPubChemHazardBundle(
         synonyms.casRn = input.normalizedValue;
       }
 
-      const nfpa =
-        nfpaSettled.status === "ok" ? parsePubChemNfpaView(nfpaSettled.data) : null;
+      const nfpa = nfpaSettled.status === "ok" ? parsePubChemNfpaView(nfpaSettled.data) : null;
       if (nfpa !== null) {
         sources.push("nih_pubchem_nfpa");
       }

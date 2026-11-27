@@ -179,7 +179,25 @@ function initEndpointSearch() {
   const sections = Array.from(document.querySelectorAll("[data-pack-section]"));
   const liveStatus = document.getElementById("endpoint-count-live");
   const allTabRadio = document.getElementById("pack-tab-all");
+  const allTabLabel = document.querySelector('label[for="pack-tab-all"]');
   const packRadios = Array.from(document.querySelectorAll('input[name="pack-tab"]'));
+  const docTocLinks = Array.from(document.querySelectorAll('.toc-link[href^="#docs-pack-"]'));
+
+  const updatePackCounter = () => {
+    if (!liveStatus) return;
+    const checkedRadio = packRadios.find(
+      (r) => r instanceof HTMLInputElement && r.checked && r.id !== "pack-tab-all",
+    );
+    if (checkedRadio instanceof HTMLInputElement) {
+      const packId = checkedRadio.id.replace("pack-tab-", "");
+      const packCount = rows.filter(
+        (r) => r instanceof HTMLElement && r.dataset.pack === packId,
+      ).length;
+      liveStatus.textContent = `${packCount} ${packId.toUpperCase()} ENDPOINTS`;
+    } else {
+      liveStatus.textContent = `${rows.length} LIVE ENDPOINTS`;
+    }
+  };
 
   const applyFilter = () => {
     const query = input.value.trim().toLowerCase();
@@ -209,19 +227,41 @@ function initEndpointSearch() {
     }
 
     if (liveStatus) {
-      liveStatus.textContent =
-        query.length === 0
-          ? `${rows.length} LIVE ENDPOINTS`
-          : `${visibleCount} OF ${rows.length} MATCHING`;
+      if (query.length === 0) {
+        updatePackCounter();
+      } else {
+        liveStatus.textContent = `${visibleCount} OF ${rows.length} MATCHING`;
+      }
     }
   };
 
   input.addEventListener("input", applyFilter);
 
+  if (allTabLabel instanceof HTMLElement) {
+    allTabLabel.addEventListener("click", () => {
+      if (input.value.length > 0) {
+        input.value = "";
+        applyFilter();
+      }
+    });
+  }
+
   for (const radio of packRadios) {
     if (!(radio instanceof HTMLInputElement)) continue;
     radio.addEventListener("change", () => {
-      if (radio.id !== "pack-tab-all" && input.value.length > 0) {
+      if (input.value.length > 0) {
+        input.value = "";
+        applyFilter();
+      } else {
+        updatePackCounter();
+      }
+    });
+  }
+
+  for (const link of docTocLinks) {
+    if (!(link instanceof HTMLElement)) continue;
+    link.addEventListener("click", () => {
+      if (input.value.length > 0) {
         input.value = "";
         applyFilter();
       }

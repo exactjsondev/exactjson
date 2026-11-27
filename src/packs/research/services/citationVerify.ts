@@ -28,27 +28,43 @@ const STOPWORDS = new Set([
   "with",
 ]);
 
-function normalizeTextTokens(text: string): string[] {
-  return text
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, " ")
-    .split(/\s+/)
-    .filter((tok) => tok.length >= 2 && !STOPWORDS.has(tok));
-}
-
 function normalizeAsciiFold(text: string): string {
   return text
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/ß/g, "ss")
+    .replace(/ø/g, "o")
+    .replace(/ł/g, "l")
+    .replace(/æ/g, "ae")
+    .replace(/œ/g, "oe")
+    .replace(/đ/g, "d");
+}
+
+const CJK_CHAR_GLOBAL_RE =
+  /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu;
+
+function normalizeTextTokens(text: string): string[] {
+  // Separate CJK characters with spaces so unspaced CJK titles/queries tokenize cleanly per character
+  const spaced = normalizeAsciiFold(text).replace(CJK_CHAR_GLOBAL_RE, " $& ");
+  return spaced
+    .replace(/[^\p{L}\p{N}\s]/gu, " ")
+    .split(/\s+/)
+    .filter((tok) => {
+      if (!tok || STOPWORDS.has(tok)) return false;
+      CJK_CHAR_GLOBAL_RE.lastIndex = 0;
+      return CJK_CHAR_GLOBAL_RE.test(tok) ? tok.length >= 1 : tok.length >= 2;
+    });
 }
 
 export function computeTitleOverlap(expected: string, actual: string): number {
   const expTokens = normalizeTextTokens(expected);
   const actSet = new Set(normalizeTextTokens(actual));
-  if (expTokens.length === 0) return actSet.size === 0 ? 1 : 0;
+  if (expTokens.length === 0) {
+    const normE = normalizeAsciiFold(expected).replace(/[^\p{L}\p{N}]/gu, "");
+    const normA = normalizeAsciiFold(actual).replace(/[^\p{L}\p{N}]/gu, "");
+    return normE.length > 0 && normE === normA ? 1 : 0;
+  }
   let hits = 0;
   for (const tok of expTokens) {
     if (actSet.has(tok)) hits += 1;
@@ -68,27 +84,30 @@ function extractExpectedSurname(rawAuthor: string): { fullClean: string; surname
   const surnameSegment =
     commaParts.length >= 2 && commaParts[0]?.trim() ? commaParts[0].trim() : folded;
   const tokens = surnameSegment
-    .replace(/[^a-z0-9\s'-]/g, " ")
+    .replace(/[^\p{L}\p{N}\s'-]/gu, " ")
     .trim()
     .split(/\s+/)
     .filter(Boolean);
   const surname = tokens[tokens.length - 1] ?? "";
-  const fullClean = folded.replace(/[^a-z0-9\s'-]/g, " ").replace(/\s+/g, " ").trim();
+  const fullClean = folded
+    .replace(/[^\p{L}\p{N}\s'-]/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   return { fullClean, surname };
 }
 
 export function matchesRegisteredAuthor(
   expectedAuthor: string,
-  registeredAuthors: readonly string[]
+  registeredAuthors: readonly string[],
 ): boolean {
   const { fullClean, surname } = extractExpectedSurname(expectedAuthor);
   if (!surname && !fullClean) return false;
 
   const surnameWordRegex = surname
-    ? new RegExp(`(?:^|[\\s,'-])${escapeRegExp(surname)}(?:$|[\\s,'-])`)
+    ? new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(surname)}(?![\\p{L}\\p{N}])`, "u")
     : null;
   const fullPhraseRegex = fullClean.includes(" ")
-    ? new RegExp(`(?:^|[\\s,'-])${escapeRegExp(fullClean)}(?:$|[\\s,'-])`)
+    ? new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(fullClean)}(?![\\p{L}\\p{N}])`, "u")
     : null;
 
   return registeredAuthors.some((a) => {
@@ -98,10 +117,7 @@ export function matchesRegisteredAuthor(
   });
 }
 
-function scoreCandidateAgainstQuery(
-  candidate: NormalizedCitationWork,
-  queryText: string
-): number {
+function scoreCandidateAgainstQuery(candidate: NormalizedCitationWork, queryText: string): number {
   const qTokens = normalizeTextTokens(queryText);
   if (qTokens.length === 0) return 0;
 
@@ -149,7 +165,7 @@ export function computeCitationVerify(params: {
         throw new UpstreamError(
           "DATACITE",
           bundle.dataciteErrorCode,
-          "DataCite search unavailable during bibliographic verification"
+          "DataCite search unavailable during bibliographic verification",
         );
       }
       selectedWork = best;
@@ -159,7 +175,7 @@ export function computeCitationVerify(params: {
         throw new UpstreamError(
           "DATACITE",
           bundle.dataciteErrorCode,
-          "DataCite search unavailable; refusing to mark preprint/citation as NOT_FOUND"
+          "DataCite search unavailable; refusing to mark preprint/citation as NOT_FOUND",
         );
       }
       selectedWork = null;
@@ -170,7 +186,7 @@ export function computeCitationVerify(params: {
     flags.push(
       input.mode === "doi"
         ? "UNREGISTERED_OR_HALLUCINATED_DOI"
-        : "NO_CONFIDENT_BIBLIOGRAPHIC_MATCH"
+        : "NO_CONFIDENT_BIBLIOGRAPHIC_MATCH",
     );
     return {
       query: {
@@ -218,7 +234,7 @@ export function computeCitationVerify(params: {
     selectedWork.titleIndicatesRetractionNotice ||
     selectedWork.updates.some((u) => u.type === "retraction_notice");
   const hasExpressionOfConcern = selectedWork.updates.some(
-    (u) => u.type === "expression_of_concern"
+    (u) => u.type === "expression_of_concern",
   );
   const hasCorrection = selectedWork.updates.some((u) => u.type === "correction");
 
@@ -263,13 +279,10 @@ export function computeCitationVerify(params: {
 
   const metadataChecked =
     input.expectedTitle !== null || input.expectedAuthor !== null || input.expectedYear !== null;
-  const hasMetadataMismatch =
-    titleMatch === false || authorMatch === false || yearMatch === false;
+  const hasMetadataMismatch = titleMatch === false || authorMatch === false || yearMatch === false;
 
   const isLowConfidenceQuery =
-    input.mode === "bibliographic" &&
-    queryMatchConfidence !== null &&
-    queryMatchConfidence < 0.6;
+    input.mode === "bibliographic" && queryMatchConfidence !== null && queryMatchConfidence < 0.6;
   if (isLowConfidenceQuery) {
     flags.push("LOW_CONFIDENCE_QUERY_MATCH");
   }

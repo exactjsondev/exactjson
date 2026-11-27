@@ -63,6 +63,7 @@ export function renderEndpointRows(
                   <button type="button" class="copy-btn" command="--copy" commandfor="${escapeHtml(snippetId)}" aria-label="Copy sample JSON for ${escapeHtml(entry.path)}">
                     <span class="copy-text-idle" aria-hidden="true">[ COPY ]</span>
                     <span class="copy-text-done" aria-hidden="true">[ ✓ COPIED ]</span>
+                    <span class="copy-text-fail" aria-hidden="true">[ ! FAILED ]</span>
                   </button>
                   <span class="copy-tip" role="status"></span>
                 </span>
@@ -252,7 +253,7 @@ console.log(await res.json());`;
           <span class="sig-badge ok"><span class="sig-dot ok" aria-hidden="true"></span>Pay-Only-On-Success · HTTP 200</span>
         </div>
 
-        <h1 class="display-title" tabindex="-1">Live, deterministic x402 APIs for AI agents.</h1>
+        <h1 class="display-title">Live, deterministic x402 APIs for AI agents.</h1>
 
         <p class="lead">
           <strong>${escapeHtml(SERVICE_NAME)}</strong> replaces 200 KB raw upstream API dumps with pre-computed ~2 KB strict-schema JSON. Paid per call in Base USDC ($0.005–$0.02) on <code>${escapeHtml(networkLabel)}</code> with zero API keys, zero accounts, and fail-closed <code>502</code> safety.
@@ -264,7 +265,7 @@ console.log(await res.json());`;
           <a class="swiss-btn" href="${safeBase}/health">Free /health</a>
         </div>
 
-        <div class="kpi-strip" aria-label="Key Service Specifications">
+        <div class="kpi-strip" role="group" aria-label="Key Service Specifications">
           <div class="kpi-cell">
             <div class="kpi-val">${CATALOG.length}</div>
             <div class="kpi-lbl">Paid Endpoints</div>
@@ -284,14 +285,13 @@ console.log(await res.json());`;
         </div>
       </div>
 
-      <div class="hero-inspector" aria-label="Protocol Payload and MCP Inspector">
-        <input type="radio" name="hero-mode" id="hero-mode-payload" class="sr-control" checked>
-        <input type="radio" name="hero-mode" id="hero-mode-mcp" class="sr-control">
-        <input type="radio" name="hero-mode" id="hero-mode-accept" class="sr-control">
-
-        <div class="inspector-tabs" role="group" aria-label="Inspector View">
+      <div class="hero-inspector" role="region" aria-label="Protocol Payload and MCP Inspector">
+        <div class="inspector-tabs" role="radiogroup" aria-label="Inspector View">
+          <input type="radio" name="hero-mode" id="hero-mode-payload" class="sr-control" checked>
           <label class="tab-trigger" for="hero-mode-payload">01 Payload [214KB → 1.8KB]</label>
+          <input type="radio" name="hero-mode" id="hero-mode-mcp" class="sr-control">
           <label class="tab-trigger" for="hero-mode-mcp">02 Connect MCP</label>
+          <input type="radio" name="hero-mode" id="hero-mode-accept" class="sr-control">
           <label class="tab-trigger" for="hero-mode-accept">03 Accept Header</label>
         </div>
 
@@ -367,14 +367,14 @@ console.log(await res.json());`;
     </section>
 
     <section id="endpoints" class="swiss-section" aria-labelledby="endpoints-heading">
-      ${packTabRadios}
       <div class="section-bar">
         <h2 id="endpoints-heading" class="coord" style="color: var(--ink-primary);">+ 04 // PAID ENDPOINT CATALOG (${CATALOG.length} LIVE ON ${escapeHtml(networkLabel.toUpperCase())})</h2>
         <span id="endpoint-count-live" class="coord ok" role="status" aria-live="polite">${CATALOG.length} LIVE ENDPOINTS</span>
       </div>
 
       <div class="catalog-toolbar">
-        <div class="pack-tabs" role="group" aria-label="Filter by vertical pack">
+        <div class="pack-tabs" role="radiogroup" aria-label="Filter by vertical pack">
+          ${packTabRadios}
           ${packTabLabels}
         </div>
         <div class="search-cluster">

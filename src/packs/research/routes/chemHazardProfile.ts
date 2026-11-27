@@ -41,7 +41,7 @@ export function createChemHazardProfileHandler(deps: ChemHazardDeps = {}) {
             error: "CHEMICAL_NOT_FOUND",
             message: `No NIH PubChem compound matched '${input.rawQuery}'. Payment was not settled.`,
           },
-          404
+          404,
         );
       }
 
@@ -62,7 +62,7 @@ export function createChemHazardProfileHandler(deps: ChemHazardDeps = {}) {
           message:
             "NIH PubChem PUG-REST or GHS hazard feed unavailable; refusing to synthesize chemical safety profile. Payment was not settled.",
         },
-        502
+        502,
       );
     }
   };

@@ -132,6 +132,7 @@ export function renderCodeWell(opts: CodeWellOptions): string {
         <button type="button" class="copy-btn" command="--copy" commandfor="${safeId}" aria-label="${escapeHtml(opts.copyLabel)}">
           <span class="copy-text-idle" aria-hidden="true">[ COPY ]</span>
           <span class="copy-text-done" aria-hidden="true">[ ✓ COPIED ]</span>
+          <span class="copy-text-fail" aria-hidden="true">[ ! FAILED ]</span>
         </button>
         <span class="copy-tip" role="status"></span>
       </span>

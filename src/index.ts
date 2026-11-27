@@ -1,9 +1,17 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { getEndpointByPath } from "./config/catalog";
+import { negotiateContentType } from "./lib/contentNegotiation";
+import { applyHtmlSecurityHeaders } from "./lib/securityHeaders";
 import { adminAuthMiddleware } from "./middleware/adminAuth";
 import { serviceControlMiddleware } from "./middleware/serviceControl";
 import { telemetryMiddleware } from "./middleware/telemetry";
 import { x402PaywallMiddleware } from "./middleware/x402";
+import { registerCommercePackRoutes } from "./packs/commerce";
+import { registerMarketsPackRoutes } from "./packs/markets";
+import { registerResearchPackRoutes } from "./packs/research";
+import { registerSecurityPackRoutes } from "./packs/security";
+import { registerWorldPackRoutes } from "./packs/world";
 import {
   dashboardGetControlHandler,
   dashboardOverviewHandler,
@@ -28,14 +36,6 @@ import {
   sitemapXmlHandler,
   wellKnownX402Handler,
 } from "./routes/discovery";
-import { getEndpointByPath } from "./config/catalog";
-import { negotiateContentType } from "./lib/contentNegotiation";
-import { applyHtmlSecurityHeaders } from "./lib/securityHeaders";
-import { registerCommercePackRoutes } from "./packs/commerce";
-import { registerMarketsPackRoutes } from "./packs/markets";
-import { registerResearchPackRoutes } from "./packs/research";
-import { registerSecurityPackRoutes } from "./packs/security";
-import { registerWorldPackRoutes } from "./packs/world";
 import { renderNotFoundHtml } from "./routes/landingHtml";
 import { createMcpHandler } from "./routes/mcp";
 import type { AppBindings, Env } from "./types";
@@ -44,7 +44,7 @@ const app = new Hono<AppBindings>({ strict: false });
 
 const x402Cors = cors({
   origin: "*",
-  allowMethods: ["GET", "OPTIONS"],
+  allowMethods: ["GET", "HEAD", "OPTIONS"],
   allowHeaders: ["Content-Type", "PAYMENT-SIGNATURE", "X-PAYMENT"],
   exposeHeaders: [
     "PAYMENT-REQUIRED",
@@ -88,8 +88,8 @@ app.use("/openapi.json", x402Cors);
 app.use("/llms.txt", x402Cors);
 app.use("/llms-full.txt", x402Cors);
 
-const { mcpPostHandler, mcpMethodNotAllowedHandler } = createMcpHandler(
-  (req, env, ctx) => app.fetch(req, env, ctx)
+const { mcpPostHandler, mcpMethodNotAllowedHandler } = createMcpHandler((req, env, ctx) =>
+  app.fetch(req, env, ctx),
 );
 
 // Free discovery & health routes (never load x402 middleware)
@@ -140,7 +140,7 @@ app.all("/v1/*", (c, next) => {
         allowed_methods: ["GET", "HEAD", "OPTIONS"],
         endpoint: endpoint.path,
       },
-      405
+      405,
     );
   }
   return next();
@@ -204,20 +204,32 @@ app.notFound((c) => {
         health: `${baseUrl}/health`,
       },
     },
-    404
+    404,
+  );
+});
+
+app.onError((err, c) => {
+  console.error("Unhandled Worker error:", err instanceof Error ? err.message : err);
+  c.header("Cache-Control", "no-store");
+  c.header("X-Content-Type-Options", "nosniff");
+  return c.json(
+    {
+      error: "INTERNAL_ERROR",
+      message: "Unexpected internal server error. Payment was not settled.",
+    },
+    500,
   );
 });
 
 const RETENTION_DAYS_402 = 7;
 const RETENTION_DAYS_VERIFY_FAILED = 14;
 const PRUNE_BATCH_LIMIT = 5000;
+const MAX_PRUNE_ITERATIONS = 4;
 
 export async function pruneOldChallengedRequests(db: Env["DB"]): Promise<number> {
-  const cutoff402 = new Date(
-    Date.now() - RETENTION_DAYS_402 * 24 * 60 * 60 * 1000
-  ).toISOString();
+  const cutoff402 = new Date(Date.now() - RETENTION_DAYS_402 * 24 * 60 * 60 * 1000).toISOString();
   const cutoffVerifyFailed = new Date(
-    Date.now() - RETENTION_DAYS_VERIFY_FAILED * 24 * 60 * 60 * 1000
+    Date.now() - RETENTION_DAYS_VERIFY_FAILED * 24 * 60 * 60 * 1000,
   ).toISOString();
 
   // Covering index scan on idx_api_requests_outcome_created via rowid; SETTLED revenue and UNSETTLED_ERROR rows are kept
@@ -229,12 +241,21 @@ export async function pruneOldChallengedRequests(db: Env["DB"]): Promise<number>
          LIMIT ?
        )`;
 
-  const [res402, resVerify] = await Promise.all([
-    db.prepare(deleteSql).bind("CHALLENGED_402", cutoff402, PRUNE_BATCH_LIMIT).run(),
-    db.prepare(deleteSql).bind("VERIFY_FAILED", cutoffVerifyFailed, PRUNE_BATCH_LIMIT).run(),
-  ]);
+  let totalDeleted = 0;
+  for (let i = 0; i < MAX_PRUNE_ITERATIONS; i += 1) {
+    const [res402, resVerify] = await Promise.all([
+      db.prepare(deleteSql).bind("CHALLENGED_402", cutoff402, PRUNE_BATCH_LIMIT).run(),
+      db.prepare(deleteSql).bind("VERIFY_FAILED", cutoffVerifyFailed, PRUNE_BATCH_LIMIT).run(),
+    ]);
+    const c402 = Number(res402.meta?.changes ?? 0);
+    const cVer = Number(resVerify.meta?.changes ?? 0);
+    totalDeleted += c402 + cVer;
+    if (c402 < PRUNE_BATCH_LIMIT && cVer < PRUNE_BATCH_LIMIT) {
+      break;
+    }
+  }
 
-  return Number(res402.meta?.changes ?? 0) + Number(resVerify.meta?.changes ?? 0);
+  return totalDeleted;
 }
 
 export { app };
@@ -245,20 +266,20 @@ export default {
   async scheduled(
     _controller: ScheduledController,
     env: Env,
-    ctx: ExecutionContext
+    ctx: ExecutionContext,
   ): Promise<void> {
     ctx.waitUntil(
       pruneOldChallengedRequests(env.DB)
         .then((deleted) => {
           if (deleted > 0) {
             console.log(
-              `Pruned ${deleted} unpaid rows (CHALLENGED_402 > ${RETENTION_DAYS_402}d, VERIFY_FAILED > ${RETENTION_DAYS_VERIFY_FAILED}d)`
+              `Pruned ${deleted} unpaid rows (CHALLENGED_402 > ${RETENTION_DAYS_402}d, VERIFY_FAILED > ${RETENTION_DAYS_VERIFY_FAILED}d)`,
             );
           }
         })
         .catch((err) => {
           console.error("Daily D1 unpaid telemetry prune failed:", err);
-        })
+        }),
     );
   },
 };

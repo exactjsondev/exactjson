@@ -1,25 +1,17 @@
 import type { Context } from "hono";
 import {
   CATALOG,
-  PACK_IDS,
-  SERVICE_VERSION,
+  type EndpointCatalogEntry,
   getActivePacks,
   getPackEndpoints,
-  parsePackSelector,
-  type EndpointCatalogEntry,
+  PACK_IDS,
   type PackId,
+  parsePackSelector,
+  SERVICE_VERSION,
 } from "../config/catalog";
 import { prefersHtml } from "../lib/contentNegotiation";
-import {
-  encodeBase64Json,
-  extractPaymentRequired,
-  extractPaymentResponse,
-} from "../lib/headers";
-import {
-  buildMcpInstructions,
-  buildMcpTools,
-  resolveMcpToolEndpoint,
-} from "../lib/mcpTools";
+import { encodeBase64Json, extractPaymentRequired, extractPaymentResponse } from "../lib/headers";
+import { buildMcpInstructions, buildMcpTools, resolveMcpToolEndpoint } from "../lib/mcpTools";
 import {
   applyHtmlSecurityHeaders,
   readJsonBodyWithLimit,
@@ -39,7 +31,7 @@ const MCP_SERVER_TITLE = "ExactJSON — Live, deterministic x402 APIs for AI age
 export type InternalRequestDispatcher = (
   req: Request,
   env: Env,
-  ctx?: Context["executionCtx"]
+  ctx?: Context["executionCtx"],
 ) => Response | Promise<Response>;
 
 export interface McpHandlerOptions {
@@ -75,10 +67,7 @@ function safeExecutionCtx(c: Context<AppBindings>): Context["executionCtx"] | un
 }
 
 function resolveProtocolVersion(c: Context<AppBindings>, requestedVersion?: unknown): string {
-  if (
-    typeof requestedVersion === "string" &&
-    SUPPORTED_PROTOCOL_VERSIONS.has(requestedVersion)
-  ) {
+  if (typeof requestedVersion === "string" && SUPPORTED_PROTOCOL_VERSIONS.has(requestedVersion)) {
     return requestedVersion;
   }
   const headerVersion = c.req.header("mcp-protocol-version")?.trim();
@@ -101,7 +90,7 @@ function jsonRpcErrorResponse(
   id: string | number | null,
   code: number,
   message: string,
-  protocolVersion: string
+  protocolVersion: string,
 ) {
   applyMcpHeaders(c, protocolVersion);
   return c.json(
@@ -110,7 +99,7 @@ function jsonRpcErrorResponse(
       id,
       error: { code, message },
     },
-    httpStatus
+    httpStatus,
   );
 }
 
@@ -118,7 +107,7 @@ function jsonRpcResultResponse(
   c: Context<AppBindings>,
   id: string | number | null,
   result: Record<string, unknown>,
-  protocolVersion: string
+  protocolVersion: string,
 ) {
   applyMcpHeaders(c, protocolVersion);
   return c.json(
@@ -127,7 +116,7 @@ function jsonRpcResultResponse(
       id,
       result,
     },
-    200
+    200,
   );
 }
 
@@ -147,7 +136,7 @@ type ResolvedPackContext =
 
 function resolveRequestPackContext(
   c: Context<AppBindings>,
-  catalogEntries: readonly EndpointCatalogEntry[]
+  catalogEntries: readonly EndpointCatalogEntry[],
 ): ResolvedPackContext {
   const pathPack = c.req.param("pack");
   const queryPack = c.req.query("pack");
@@ -163,11 +152,7 @@ function resolveRequestPackContext(
     };
   }
 
-  if (
-    pathPack !== undefined &&
-    queryPack !== undefined &&
-    queryPack.trim().length > 0
-  ) {
+  if (pathPack !== undefined && queryPack !== undefined && queryPack.trim().length > 0) {
     return {
       ok: false,
       status: 400,
@@ -224,11 +209,101 @@ function resolveRequestPackContext(
   };
 }
 
-function buildToolTargetUrl(
-  origin: string,
-  path: string,
-  args: Record<string, unknown>
-): string {
+function validateMcpToolArguments(
+  entry: EndpointCatalogEntry,
+  args: Record<string, unknown>,
+): { ok: true } | { ok: false; message: string } {
+  for (const [key, val] of Object.entries(args)) {
+    if (val === undefined || val === null) continue;
+    if (typeof val !== "string" && typeof val !== "number" && typeof val !== "boolean") {
+      return {
+        ok: false,
+        message: `Invalid params: argument '${key}' must be a string, number, or boolean.`,
+      };
+    }
+  }
+
+  for (const reqKey of entry.inputSchema.required ?? []) {
+    const val = args[reqKey];
+    if (val === undefined || val === null || (typeof val === "string" && val.trim().length === 0)) {
+      return {
+        ok: false,
+        message: `Invalid params: missing required argument '${reqKey}'.`,
+      };
+    }
+  }
+
+  for (const [key, prop] of Object.entries(entry.inputSchema.properties)) {
+    const val = args[key];
+    if (val === undefined || val === null || (typeof val === "string" && val.trim().length === 0)) {
+      continue;
+    }
+
+    const effectiveType = prop.mcpType ?? prop.type;
+    if (effectiveType === "integer" || effectiveType === "number") {
+      const num = typeof val === "number" ? val : Number(String(val).trim());
+      if (!Number.isFinite(num) || (effectiveType === "integer" && !Number.isInteger(num))) {
+        return {
+          ok: false,
+          message: `Invalid params: argument '${key}' must be a valid ${effectiveType}.`,
+        };
+      }
+      if (prop.minimum !== undefined && num < prop.minimum) {
+        return {
+          ok: false,
+          message: `Invalid params: argument '${key}' must be >= ${prop.minimum}.`,
+        };
+      }
+      if (prop.maximum !== undefined && num > prop.maximum) {
+        return {
+          ok: false,
+          message: `Invalid params: argument '${key}' must be <= ${prop.maximum}.`,
+        };
+      }
+      continue;
+    }
+
+    if (effectiveType === "boolean") {
+      if (typeof val !== "boolean" && val !== "true" && val !== "false") {
+        return {
+          ok: false,
+          message: `Invalid params: argument '${key}' must be a boolean.`,
+        };
+      }
+      continue;
+    }
+
+    const str = typeof val === "string" ? val : String(val);
+    if (prop.minLength !== undefined && str.length < prop.minLength) {
+      return {
+        ok: false,
+        message: `Invalid params: argument '${key}' must be at least ${prop.minLength} characters.`,
+      };
+    }
+    if (prop.maxLength !== undefined && str.length > prop.maxLength) {
+      return {
+        ok: false,
+        message: `Invalid params: argument '${key}' exceeds max length of ${prop.maxLength} characters.`,
+      };
+    }
+    if (prop.enum && prop.enum.length > 0 && !prop.enum.includes(str)) {
+      return {
+        ok: false,
+        message: `Invalid params: argument '${key}' must be one of [${prop.enum.join(", ")}].`,
+      };
+    }
+    if (prop.pattern && !new RegExp(prop.pattern).test(str)) {
+      return {
+        ok: false,
+        message: `Invalid params: argument '${key}' does not match expected format.`,
+      };
+    }
+  }
+
+  return { ok: true };
+}
+
+function buildToolTargetUrl(origin: string, path: string, args: Record<string, unknown>): string {
   const url = new URL(`${origin}${path}`);
   for (const [key, val] of Object.entries(args)) {
     if (val === undefined || val === null) {
@@ -247,7 +322,7 @@ function buildToolTargetUrl(
 
 function resolvePaymentHeaders(
   c: Context<AppBindings>,
-  meta: Record<string, unknown> | undefined
+  meta: Record<string, unknown> | undefined,
 ): Headers {
   const headers = new Headers({ Accept: "application/json" });
   const mcpPayment = meta?.["x402/payment"];
@@ -278,7 +353,7 @@ function resolvePaymentHeaders(
 
 async function handleHealthToolCall(
   c: Context<AppBindings>,
-  dispatchInternal: InternalRequestDispatcher
+  dispatchInternal: InternalRequestDispatcher,
 ): Promise<Record<string, unknown>> {
   const origin = resolveBaseUrl(c);
   const req = new Request(`${origin}/health`, {
@@ -301,7 +376,7 @@ async function handlePaidToolCall(
   entry: EndpointCatalogEntry,
   args: Record<string, unknown>,
   meta: Record<string, unknown> | undefined,
-  dispatchInternal: InternalRequestDispatcher
+  dispatchInternal: InternalRequestDispatcher,
 ): Promise<Record<string, unknown>> {
   const origin = resolveBaseUrl(c);
   const url = buildToolTargetUrl(origin, entry.path, args);
@@ -310,7 +385,7 @@ async function handlePaidToolCall(
     new Request(url, {
       method: "GET",
       headers,
-    })
+    }),
   );
 
   const res = await dispatchInternal(internalReq, c.env, safeExecutionCtx(c));
@@ -335,10 +410,8 @@ async function handlePaidToolCall(
     }
 
     const parsedBody = safeParseJsonObject(bodyText);
-    const nonEmptyBody =
-      parsedBody && Object.keys(parsedBody).length > 0 ? parsedBody : null;
-    const challengePayload =
-      paymentRequired ??
+    const nonEmptyBody = parsedBody && Object.keys(parsedBody).length > 0 ? parsedBody : null;
+    const challengePayload = paymentRequired ??
       nonEmptyBody ?? {
         x402Version: 2,
         error: "Payment required",
@@ -371,7 +444,7 @@ async function handlePaidToolCall(
 
 export function createMcpHandler(
   dispatchInternal: InternalRequestDispatcher,
-  options: McpHandlerOptions = {}
+  options: McpHandlerOptions = {},
 ) {
   const catalogEntries = options.catalogEntries ?? CATALOG;
 
@@ -379,14 +452,7 @@ export function createMcpHandler(
     const defaultVersion = resolveProtocolVersion(c);
     const packCtx = resolveRequestPackContext(c, catalogEntries);
     if (!packCtx.ok) {
-      return jsonRpcErrorResponse(
-        c,
-        packCtx.status,
-        null,
-        -32602,
-        packCtx.message,
-        defaultVersion
-      );
+      return jsonRpcErrorResponse(c, packCtx.status, null, -32602, packCtx.message, defaultVersion);
     }
 
     const parsedBody = await readJsonBodyWithLimit(c.req.raw, MAX_MCP_BODY_BYTES);
@@ -402,7 +468,7 @@ export function createMcpHandler(
               message: `Request body exceeds ${MAX_MCP_BODY_BYTES} byte limit.`,
             },
           },
-          413
+          413,
         );
       }
       return jsonRpcErrorResponse(c, 400, null, -32700, "Parse error", defaultVersion);
@@ -451,7 +517,7 @@ export function createMcpHandler(
           },
           instructions: buildMcpInstructions(packCtx.packs, packCtx.isAll, catalogEntries),
         },
-        protocolVersion
+        protocolVersion,
       );
     }
 
@@ -469,7 +535,7 @@ export function createMcpHandler(
             catalogEntries,
           }),
         },
-        defaultVersion
+        defaultVersion,
       );
     }
 
@@ -481,7 +547,7 @@ export function createMcpHandler(
           rpcId,
           -32602,
           "Invalid params: expected object with string 'name'.",
-          defaultVersion
+          defaultVersion,
         );
       }
 
@@ -493,7 +559,7 @@ export function createMcpHandler(
           rpcId,
           -32602,
           "Invalid params: 'arguments' must be an object when provided.",
-          defaultVersion
+          defaultVersion,
         );
       }
 
@@ -505,7 +571,7 @@ export function createMcpHandler(
           rpcId,
           -32602,
           "Invalid params: '_meta' must be an object when provided.",
-          defaultVersion
+          defaultVersion,
         );
       }
 
@@ -521,7 +587,7 @@ export function createMcpHandler(
           rpcId,
           -32602,
           `Unknown tool: ${req.params.name}`,
-          defaultVersion
+          defaultVersion,
         );
       }
 
@@ -533,14 +599,28 @@ export function createMcpHandler(
           rpcId,
           -32602,
           `Tool '${req.params.name}' belongs to pack '${target.entry.pack}' (active scope: '${packCtx.canonical}'). Connect to ${origin}/mcp/${target.entry.pack} or ${origin}/mcp/all (stdio: --pack ${target.entry.pack} or --pack all).`,
-          defaultVersion
+          defaultVersion,
         );
       }
 
-      const result =
-        target.kind === "health"
-          ? await handleHealthToolCall(c, dispatchInternal)
-          : await handlePaidToolCall(c, target.entry, rawArgs ?? {}, rawMeta, dispatchInternal);
+      if (target.kind === "health") {
+        const result = await handleHealthToolCall(c, dispatchInternal);
+        return jsonRpcResultResponse(c, rpcId, result, defaultVersion);
+      }
+
+      const normalizedArgs = rawArgs ?? {};
+      const argCheck = validateMcpToolArguments(target.entry, normalizedArgs);
+      if (!argCheck.ok) {
+        return jsonRpcErrorResponse(c, 200, rpcId, -32602, argCheck.message, defaultVersion);
+      }
+
+      const result = await handlePaidToolCall(
+        c,
+        target.entry,
+        normalizedArgs,
+        rawMeta,
+        dispatchInternal,
+      );
 
       return jsonRpcResultResponse(c, rpcId, result, defaultVersion);
     }
@@ -551,7 +631,7 @@ export function createMcpHandler(
       rpcId,
       -32601,
       `Method not found: ${req.method}`,
-      defaultVersion
+      defaultVersion,
     );
   };
 
@@ -564,7 +644,7 @@ export function createMcpHandler(
         null,
         -32602,
         packCtx.message,
-        resolveProtocolVersion(c)
+        resolveProtocolVersion(c),
       );
     }
 
@@ -588,7 +668,7 @@ export function createMcpHandler(
           message: `Method not allowed. Send JSON-RPC 2.0 requests via POST ${packCtx.mcpPath}.`,
         },
       },
-      405
+      405,
     );
   };
 

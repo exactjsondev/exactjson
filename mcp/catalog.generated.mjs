@@ -439,7 +439,7 @@ export const ENDPOINTS = [
         "base": {
           "type": "string",
           "minLength": 2,
-          "maxLength": 8,
+          "maxLength": 16,
           "description": "Optional carry benchmark currency or ISO-2 jurisdiction (default USD; e.g., USD, EUR, JPY, CHF, GBP, CAD, XM, US).",
           "example": "USD"
         },
@@ -458,7 +458,7 @@ export const ENDPOINTS = [
         "countries": {
           "type": "string",
           "minLength": 2,
-          "maxLength": 120,
+          "maxLength": 160,
           "description": "Optional comma-separated ISO-2 or currency codes (e.g., 'US,XM,JP,GB,CA,BR,MX'; Eurozone states map to XM/EUR).",
           "example": "US,XM,JP,GB,CA,BR"
         }
@@ -882,7 +882,7 @@ export const ENDPOINTS = [
         "vat": {
           "type": "string",
           "minLength": 4,
-          "maxLength": 20,
+          "maxLength": 28,
           "description": "EU-27 or Northern Ireland (XI) VAT number (e.g., IE6388047V, DE122268496, EL094019245; Greece GR prefix auto-normalizes to VIES EL). Supply at least one of vat, iban, bic, or lei.",
           "example": "IE6388047V"
         },
@@ -910,7 +910,7 @@ export const ENDPOINTS = [
         "country": {
           "type": "string",
           "minLength": 2,
-          "maxLength": 3,
+          "maxLength": 64,
           "description": "Optional expected vendor ISO country code (e.g., IE, DE, GB, CH) to flag offshore IBAN/BIC bank-redirect mismatches.",
           "example": "IE"
         }
@@ -966,7 +966,7 @@ export const ENDPOINTS = [
         "country": {
           "type": "string",
           "minLength": 2,
-          "maxLength": 3,
+          "maxLength": 64,
           "description": "Optional ISO country code filter (e.g., US, IE, DE, GB) to disambiguate subsidiaries.",
           "example": "US"
         }
@@ -1025,7 +1025,7 @@ export const ENDPOINTS = [
         "doi": {
           "type": "string",
           "minLength": 7,
-          "maxLength": 200,
+          "maxLength": 220,
           "description": "Academic DOI (10.xxxx/...), https://doi.org/... URL, or arXiv ID (e.g., 10.1038/s41586-021-03819-2, 10.48550/arXiv.1706.03762, or arXiv:1706.03762). Provide at least one of doi or query.",
           "example": "10.1038/s41586-021-03819-2"
         },

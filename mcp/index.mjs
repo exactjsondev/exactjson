@@ -2,11 +2,11 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
-import { ENDPOINTS, PACKS, PACK_IDS, SERVICE_VERSION } from "./catalog.generated.mjs";
+import { ENDPOINTS, PACK_IDS, PACKS, SERVICE_VERSION } from "./catalog.generated.mjs";
 
 const BASE_URL = (process.env.EXACTJSON_BASE_URL?.trim() || "https://exactjson.com").replace(
   /\/+$/,
-  ""
+  "",
 );
 const parsedBaseUrl = new URL(BASE_URL);
 const isLocalHost =
@@ -16,7 +16,7 @@ const isLocalHost =
   parsedBaseUrl.hostname === "[::1]";
 if (parsedBaseUrl.protocol !== "https:" && !(parsedBaseUrl.protocol === "http:" && isLocalHost)) {
   throw new Error(
-    `Unsafe EXACTJSON_BASE_URL protocol '${parsedBaseUrl.protocol}': HTTPS is required for non-localhost hosts.`
+    `Unsafe EXACTJSON_BASE_URL protocol '${parsedBaseUrl.protocol}': HTTPS is required for non-localhost hosts.`,
   );
 }
 const MAX_PAYMENT = process.env.MAX_PAYMENT_USD?.trim() || "$0.05";
@@ -30,18 +30,14 @@ function extractCliPackArg(argv) {
     if (arg === "--pack") {
       const next = argv[i + 1];
       if (!next || next.trim().length === 0 || next.startsWith("--")) {
-        throw new Error(
-          `Missing value after --pack. Valid packs: ${PACK_IDS.join(", ")}, all.`
-        );
+        throw new Error(`Missing value after --pack. Valid packs: ${PACK_IDS.join(", ")}, all.`);
       }
       cliPack = next;
       i += 1;
     } else if (typeof arg === "string" && arg.startsWith("--pack=")) {
       const val = arg.slice("--pack=".length);
       if (val.trim().length === 0) {
-        throw new Error(
-          `Missing value in --pack=. Valid packs: ${PACK_IDS.join(", ")}, all.`
-        );
+        throw new Error(`Missing value in --pack=. Valid packs: ${PACK_IDS.join(", ")}, all.`);
       }
       cliPack = val;
     }
@@ -77,12 +73,12 @@ function resolveActivePackContext(argv, envPack) {
   for (const part of parts) {
     if (!VALID_PACK_SET.has(part)) {
       throw new Error(
-        `Unknown MCP pack '${part}'. Valid packs: ${PACK_IDS.join(", ")}, all (active: ${activeLabels}).`
+        `Unknown MCP pack '${part}'. Valid packs: ${PACK_IDS.join(", ")}, all (active: ${activeLabels}).`,
       );
     }
     if (!activePackIds.includes(part)) {
       throw new Error(
-        `MCP pack '${part}' currently has 0 active endpoints. Active packs: ${activeLabels}.`
+        `MCP pack '${part}' currently has 0 active endpoints. Active packs: ${activeLabels}.`,
       );
     }
     if (!seen.has(part)) {
@@ -100,9 +96,7 @@ function resolveActivePackContext(argv, envPack) {
 
 function buildInstructions(packs, isAll) {
   const workflows = packs.flatMap((id) => PACKS[id]?.workflows ?? []);
-  const disclaimers = Array.from(
-    new Set(packs.map((id) => PACKS[id]?.disclaimer).filter(Boolean))
-  );
+  const disclaimers = Array.from(new Set(packs.map((id) => PACKS[id]?.disclaimer).filter(Boolean)));
   const scopeLabel = isAll ? "all" : packs.join(",");
 
   return [
@@ -165,13 +159,13 @@ async function getPaidFetch() {
   const rawKey = process.env.BUYER_PRIVATE_KEY?.trim();
   if (!rawKey) {
     throw new Error(
-      "BUYER_PRIVATE_KEY environment variable is required to call paid ExactJSON endpoints (Base Mainnet USDC). Set BUYER_PRIVATE_KEY to a dedicated low-balance Base wallet key (and MAX_PAYMENT_USD, e.g. $0.05) — or call exactjson_health for free. Docs: https://exactjson.com/#quickstart"
+      "BUYER_PRIVATE_KEY environment variable is required to call paid ExactJSON endpoints (Base Mainnet USDC). Set BUYER_PRIVATE_KEY to a dedicated low-balance Base wallet key (and MAX_PAYMENT_USD, e.g. $0.05) — or call exactjson_health for free. Docs: https://exactjson.com/#quickstart",
     );
   }
   const normalizedKey = /^0x/i.test(rawKey) ? `0x${rawKey.slice(2)}` : `0x${rawKey}`;
   if (!/^0x[0-9a-fA-F]{64}$/.test(normalizedKey)) {
     throw new Error(
-      "Invalid BUYER_PRIVATE_KEY format: expected a 64-character hex EVM private key (with or without 0x prefix) for a low-balance Base Mainnet USDC wallet. Replace any placeholder value in your MCP config. Docs: https://exactjson.com/#quickstart"
+      "Invalid BUYER_PRIVATE_KEY format: expected a 64-character hex EVM private key (with or without 0x prefix) for a low-balance Base Mainnet USDC wallet. Replace any placeholder value in your MCP config. Docs: https://exactjson.com/#quickstart",
     );
   }
 
@@ -187,12 +181,16 @@ async function getPaidFetch() {
     import("viem/accounts"),
   ])
     .then(
-      ([{ registerExactEvmScheme }, { wrapFetchWithPayment, x402Client }, { privateKeyToAccount }]) => {
+      ([
+        { registerExactEvmScheme },
+        { wrapFetchWithPayment, x402Client },
+        { privateKeyToAccount },
+      ]) => {
         const account = privateKeyToAccount(normalizedKey);
         const client = new x402Client().setSpendControls({ maxAmountPerPayment: MAX_PAYMENT });
         registerExactEvmScheme(client, { signer: account });
         return wrapFetchWithPayment(fetch, client);
-      }
+      },
     )
     .catch((err) => {
       paidFetchPromise = null;
@@ -216,6 +214,16 @@ function buildUrl(path, params) {
   return url.toString();
 }
 
+function decodeBase64JsonHeader(raw) {
+  if (!raw || typeof raw !== "string") return null;
+  try {
+    const normalized = raw.trim().replace(/-/g, "+").replace(/_/g, "/");
+    return JSON.parse(Buffer.from(normalized, "base64").toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+
 async function callPaidEndpoint(path, params = {}) {
   try {
     const fetchWithPay = await getPaidFetch();
@@ -225,12 +233,24 @@ async function callPaidEndpoint(path, params = {}) {
     });
     const text = await res.text();
     if (!res.ok) {
+      let detail = text;
+      if (res.status === 402 && (!detail || detail.trim() === "{}")) {
+        const payResp = decodeBase64JsonHeader(
+          res.headers.get("PAYMENT-RESPONSE") ?? res.headers.get("X-PAYMENT-RESPONSE"),
+        );
+        if (payResp?.errorReason) {
+          detail = JSON.stringify({
+            error: payResp.errorReason,
+            payment_response: payResp,
+          });
+        }
+      }
       return {
         isError: true,
         content: [
           {
             type: "text",
-            text: `ExactJSON returned HTTP ${res.status} (unsettled): ${text}`,
+            text: `ExactJSON returned HTTP ${res.status} (unsettled): ${detail}`,
           },
         ],
       };
@@ -266,13 +286,21 @@ const server = new McpServer(
   },
   {
     instructions: buildInstructions(packCtx.packs, packCtx.isAll),
-  }
+  },
 );
+
+const READ_ONLY_ANNOTATIONS = {
+  readOnlyHint: true,
+  destructiveHint: false,
+  idempotentHint: true,
+  openWorldHint: true,
+};
 
 server.tool(
   "exactjson_health",
   "Free: Check ExactJSON API availability, version, network (Base eip155:8453), and paused status before running paid workflows.",
   {},
+  READ_ONLY_ANNOTATIONS,
   async () => {
     try {
       const res = await fetch(`${BASE_URL}/health`, {
@@ -300,7 +328,7 @@ server.tool(
         ],
       };
     }
-  }
+  },
 );
 
 const allowedPackSet = new Set(packCtx.packs);
@@ -310,7 +338,8 @@ for (const entry of ENDPOINTS) {
     `exactjson_${entry.id}`,
     `Paid (${entry.priceFormatted} USDC): ${entry.description}`,
     buildZodShape(entry.inputSchema),
-    async (args) => callPaidEndpoint(entry.path, args)
+    READ_ONLY_ANNOTATIONS,
+    async (args) => callPaidEndpoint(entry.path, args),
   );
 }
 

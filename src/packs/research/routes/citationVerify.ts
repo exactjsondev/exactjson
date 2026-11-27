@@ -3,10 +3,7 @@ import { type BoundedTtlCache, isolateCache } from "../../../lib/cache";
 import { UpstreamError } from "../../../lib/http";
 import { createWaitUntil } from "../../../middleware/telemetry";
 import type { AppBindings } from "../../../types";
-import {
-  fetchCitationByBibliographicQuery,
-  fetchCitationByDoi,
-} from "../providers/citationFeeds";
+import { fetchCitationByBibliographicQuery, fetchCitationByDoi } from "../providers/citationFeeds";
 import { computeCitationVerify } from "../services/citationVerify";
 import { parseCitationVerifyInput } from "../validation";
 
@@ -44,12 +41,7 @@ export function createCitationVerifyHandler(deps: CitationVerifyDeps = {}) {
       const lookup =
         input.mode === "doi" && input.doi !== null
           ? await fetchCitationByDoi(input.doi, cache, fetchImpl, waitUntil)
-          : await fetchCitationByBibliographicQuery(
-              input.query ?? "",
-              cache,
-              fetchImpl,
-              waitUntil
-            );
+          : await fetchCitationByBibliographicQuery(input.query ?? "", cache, fetchImpl, waitUntil);
 
       c.set("cache_status", lookup.cacheHit ? "HIT" : "MISS");
       const body = computeCitationVerify({
@@ -70,7 +62,7 @@ export function createCitationVerifyHandler(deps: CitationVerifyDeps = {}) {
           message:
             "Crossref Polite Pool or DataCite DOI registry unavailable; refusing to guess citation existence or retraction status. Payment was not settled.",
         },
-        502
+        502,
       );
     }
   };

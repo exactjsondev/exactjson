@@ -53,7 +53,7 @@ export function computeDrugTrialBrief(params: {
   const todayUtcMs = Date.UTC(
     new Date(nowMs).getUTCFullYear(),
     new Date(nowMs).getUTCMonth(),
-    new Date(nowMs).getUTCDate()
+    new Date(nowMs).getUTCDate(),
   );
 
   interface EnrichedStudy {
@@ -70,27 +70,20 @@ export function computeDrugTrialBrief(params: {
     const days = compMs !== null ? Math.round((compMs - todayUtcMs) / MS_PER_DAY) : null;
     const isOverdueStale = isActive && days !== null && days < -90;
     const rankBucket: 0 | 1 | 2 | 3 =
-      !isActive || isOverdueStale
-        ? 3
-        : days !== null && days >= 0
-          ? 0
-          : days !== null
-            ? 1
-            : 2;
+      !isActive || isOverdueStale ? 3 : days !== null && days >= 0 ? 0 : days !== null ? 1 : 2;
     return { study, isActive, daysToPrimaryCompletion: days, isOverdueStale, rankBucket };
   });
 
   const activeSampledCount = enriched.filter((e) => e.isActive).length;
   const effectiveTotalActive = input.nct ? activeSampledCount : trials.totalCount;
-  const phase3Count = enriched.filter((e) => e.isActive && e.study.phases.includes("PHASE3")).length;
+  const phase3Count = enriched.filter(
+    (e) => e.isActive && e.study.phases.includes("PHASE3"),
+  ).length;
   const phase2Count = enriched.filter(
-    (e) =>
-      e.isActive &&
-      e.study.phases.includes("PHASE2") &&
-      !e.study.phases.includes("PHASE3")
+    (e) => e.isActive && e.study.phases.includes("PHASE2") && !e.study.phases.includes("PHASE3"),
   ).length;
   const industryCount = enriched.filter(
-    (e) => e.isActive && e.study.sponsorClass === "INDUSTRY"
+    (e) => e.isActive && e.study.sponsorClass === "INDUSTRY",
   ).length;
   const overdueCount = enriched.filter((e) => e.isOverdueStale).length;
   const upcoming12mCount = enriched.filter(
@@ -98,7 +91,7 @@ export function computeDrugTrialBrief(params: {
       e.isActive &&
       e.daysToPrimaryCompletion !== null &&
       e.daysToPrimaryCompletion >= 0 &&
-      e.daysToPrimaryCompletion <= 365
+      e.daysToPrimaryCompletion <= 365,
   ).length;
 
   // Bucket 0: future upcoming (days >= 0, earliest first) -> Bucket 1: recently passed readout (-90..-1, most recent first) -> Bucket 2: active undated -> Bucket 3: overdue/inactive
@@ -121,33 +114,33 @@ export function computeDrugTrialBrief(params: {
   });
 
   const nearestUpcoming = ranked.find((e) => e.rankBucket === 0 && e.study.primaryCompletionDate);
-  const selectedCatalysts = ranked.slice(0, input.limit).map(({ study, daysToPrimaryCompletion }) => ({
-    nct_id: study.nctId,
-    brief_title: study.briefTitle,
-    overall_status: study.overallStatus,
-    phases: study.phases,
-    sponsor_name: study.sponsorName,
-    sponsor_class: study.sponsorClass,
-    enrollment: study.enrollment,
-    start_date: study.startDate,
-    primary_completion_date: study.primaryCompletionDate,
-    primary_completion_type: study.primaryCompletionType,
-    days_to_primary_completion: daysToPrimaryCompletion,
-    conditions: study.conditions,
-    interventions: study.interventions.map((i) => i.name),
-    primary_outcome: study.primaryOutcome,
-    has_results: study.hasResults,
-    last_update_posted: study.lastUpdatePosted,
-    url: `https://clinicaltrials.gov/study/${study.nctId}`,
-  }));
+  const selectedCatalysts = ranked
+    .slice(0, input.limit)
+    .map(({ study, daysToPrimaryCompletion }) => ({
+      nct_id: study.nctId,
+      brief_title: study.briefTitle,
+      overall_status: study.overallStatus,
+      phases: study.phases,
+      sponsor_name: study.sponsorName,
+      sponsor_class: study.sponsorClass,
+      enrollment: study.enrollment,
+      start_date: study.startDate,
+      primary_completion_date: study.primaryCompletionDate,
+      primary_completion_type: study.primaryCompletionType,
+      days_to_primary_completion: daysToPrimaryCompletion,
+      conditions: study.conditions,
+      interventions: study.interventions.map((i) => i.name),
+      primary_outcome: study.primaryOutcome,
+      has_results: study.hasResults,
+      last_update_posted: study.lastUpdatePosted,
+      url: `https://clinicaltrials.gov/study/${study.nctId}`,
+    }));
 
   const flags: string[] = [];
   if (
     enriched.some(
       (e) =>
-        e.rankBucket === 0 &&
-        e.daysToPrimaryCompletion !== null &&
-        e.daysToPrimaryCompletion <= 90
+        e.rankBucket === 0 && e.daysToPrimaryCompletion !== null && e.daysToPrimaryCompletion <= 90,
     )
   ) {
     flags.push("IMMINENT_PRIMARY_COMPLETION_90D");

@@ -695,7 +695,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(paywallHtml).toContain("&quot;--pack&quot;");
     expect(paywallHtml).toContain("&quot;security&quot;");
 
-    // Shell-active characters in reflected 402 URLs are percent-encoded against pastejacking
+    // Shell-active characters in reflected 402 URLs are percent-encoded while keeping '&' query delimiters intact
     const hostilePaywallHtml = renderPaywallHtml(
       cveEntry,
       "https://exactjson.com",
@@ -704,7 +704,29 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     );
     expect(hostilePaywallHtml).not.toContain("$(whoami)");
     expect(hostilePaywallHtml).not.toContain("`id`");
-    expect(hostilePaywallHtml).toContain("%24%28whoami%29");
+    expect(hostilePaywallHtml).toContain("%24%28whoami%29&amp;x=");
+    expect(hostilePaywallHtml).not.toContain("%26x=");
+
+    // Percent-encoded slashes must never match getEndpointByPath or trigger false 402s
+    expect(getEndpointByPath("/v1/sec%2Fcve-triage")).toBeUndefined();
+    const encodedSlashRes = await app.request(
+      "http://localhost:8787/v1/sec%2Fcve-triage?cve=CVE-2024-3094",
+      {},
+      env,
+    );
+    expect(encodedSlashRes.status).toBe(404);
+
+    // Signed HEAD /v1/* is rejected with 405 before facilitator verification so HEAD never settles USDC for a null body
+    const signedHeadRes = await app.request(
+      "http://localhost:8787/v1/perps/snapshot?coin=BTC",
+      {
+        method: "HEAD",
+        headers: { "PAYMENT-SIGNATURE": "eyJ4NDAyVmVyc2lvbiI6Mn0=" },
+      },
+      env,
+    );
+    expect(signedHeadRes.status).toBe(405);
+    expect(signedHeadRes.headers.get("allow")).toBe("GET, HEAD, OPTIONS");
   });
 
   it("keeps /dashboard/api/* strictly same-origin and toggles 503 pause gate before x402", async () => {

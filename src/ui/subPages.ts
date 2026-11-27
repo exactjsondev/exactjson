@@ -135,7 +135,7 @@ export function renderDocsHtml(baseUrl: string, network: string): string {
 
         <section class="swiss-section">
           <div class="catalog-toolbar">
-            <span class="coord" style="color: var(--ink-primary);">+ 03 // ENDPOINT REFERENCE (${CATALOG.length} PAID + FREE /HEALTH)</span>
+            <h2 class="coord" style="color: var(--ink-primary);">+ 03 // ENDPOINT REFERENCE (${CATALOG.length} PAID + FREE /HEALTH)</h2>
             <div class="search-cluster">
               <span id="endpoint-count-live" class="coord ok" role="status" aria-live="polite">${CATALOG.length} LIVE ENDPOINTS</span>
               <label for="endpoint-search" class="visually-hidden">Filter documentation endpoints</label>
@@ -177,6 +177,8 @@ export function renderPricingHtml(baseUrl: string, network: string): string {
   const networkLabel = formatNetworkLabel(network);
   const activePacks = getActivePacks();
   const p = (id: Parameters<typeof getEndpointById>[0]) => getEndpointById(id).priceFormatted;
+  const sumUsd = (...ids: Array<Parameters<typeof getEndpointById>[0]>) =>
+    `$${ids.reduce((acc, id) => acc + getEndpointById(id).priceUsd, 0).toFixed(3)} Total`;
 
   const offerCatalogJsonLd = JSON.stringify({
     "@context": "https://schema.org",
@@ -203,7 +205,7 @@ export function renderPricingHtml(baseUrl: string, network: string): string {
         .map(
           (entry) => `<tr>
             <th scope="row" class="ep-cell"><code>${escapeHtml(entry.method)} ${escapeHtml(entry.path)}</code></th>
-            <td class="price">${escapeHtml(entry.priceFormatted)} USD</td>
+            <td class="price">${escapeHtml(entry.priceFormatted)} USDC</td>
             <td><strong>${escapeHtml(entry.summary)}</strong><div class="desc">Asset: USDC on ${escapeHtml(networkLabel)} · Settles strictly on HTTP 200</div></td>
           </tr>`,
         )
@@ -287,18 +289,33 @@ export function renderPricingHtml(baseUrl: string, network: string): string {
       <div class="grid-3">
         <div class="spec-cell">
           <span class="coord">RECIPE 01 // PRE-SWAP EVM GUARD</span>
-          <h3 style="color: var(--signal-ok); font-family: var(--font-mono);">$0.020 Total</h3>
+          <h3 style="color: var(--signal-ok); font-family: var(--font-mono);">${sumUsd("evm_safety", "execution_quote_check")}</h3>
           <p>Pair <code>/v1/evm/safety</code> (${p("evm_safety")}) + <code>/v1/execution/quote-check</code> (${p("execution_quote_check")}) before swapping unfamiliar ERC-20 tokens.</p>
         </div>
         <div class="spec-cell">
-          <span class="coord">RECIPE 02 // SUPPLY-CHAIN GATE</span>
-          <h3 style="color: var(--signal-ok); font-family: var(--font-mono);">$0.015 Total</h3>
+          <span class="coord">RECIPE 02 // GLOBAL MACRO &amp; VOL PULSE</span>
+          <h3 style="color: var(--signal-ok); font-family: var(--font-mono);">${sumUsd("macro_global_rates", "options_surface")}</h3>
+          <p>Pair <code>/v1/macro/global-rates</code> (${p("macro_global_rates")}) + <code>/v1/options/surface</code> (${p("options_surface")}) for G10/EM policy carry and Deribit implied vol.</p>
+        </div>
+        <div class="spec-cell">
+          <span class="coord">RECIPE 03 // SUPPLY-CHAIN &amp; CVE GATE</span>
+          <h3 style="color: var(--signal-ok); font-family: var(--font-mono);">${sumUsd("oss_package_audit", "oss_runtime_eol")}</h3>
           <p>Pair <code>/v1/oss/package-audit</code> (${p("oss_package_audit")}) + <code>/v1/oss/runtime-eol</code> (${p("oss_runtime_eol")}) before installing packages or upgrading runtimes.</p>
         </div>
         <div class="spec-cell">
-          <span class="coord">RECIPE 03 // DRONE &amp; SITE DISPATCH</span>
-          <h3 style="color: var(--signal-ok); font-family: var(--font-mono);">$0.020 Total</h3>
+          <span class="coord">RECIPE 04 // DRONE &amp; SITE DISPATCH</span>
+          <h3 style="color: var(--signal-ok); font-family: var(--font-mono);">${sumUsd("space_weather_gnss", "solar_site_window")}</h3>
           <p>Pair <code>/v1/space/weather-gnss</code> (${p("space_weather_gnss")}) + <code>/v1/solar/site-window</code> (${p("solar_site_window")}) before autonomous field operations.</p>
+        </div>
+        <div class="spec-cell">
+          <span class="coord">RECIPE 05 // B2B INVOICE &amp; KYB GATE</span>
+          <h3 style="color: var(--signal-ok); font-family: var(--font-mono);">${sumUsd("commerce_vat_verify", "entity_company_verify")}</h3>
+          <p>Pair <code>/v1/commerce/vat-verify</code> (${p("commerce_vat_verify")}) + <code>/v1/entity/company-verify</code> (${p("entity_company_verify")}) before releasing cross-border vendor wires.</p>
+        </div>
+        <div class="spec-cell">
+          <span class="coord">RECIPE 06 // CITATION &amp; TRIAL VERIFIER</span>
+          <h3 style="color: var(--signal-ok); font-family: var(--font-mono);">${sumUsd("science_citation_verify", "bio_drug_trial_brief")}</h3>
+          <p>Pair <code>/v1/science/citation-verify</code> (${p("science_citation_verify")}) + <code>/v1/bio/drug-trial-brief</code> (${p("bio_drug_trial_brief")}) to screen DOIs, retractions, and Phase 2/3 catalysts.</p>
         </div>
       </div>
     </section>

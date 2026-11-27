@@ -45,7 +45,7 @@ export const RESEARCH_CATALOG: readonly EndpointCatalogEntry[] = [
         doi: {
           type: "string",
           minLength: 7,
-          maxLength: 200,
+          maxLength: 220,
           description:
             "Academic DOI (10.xxxx/...), https://doi.org/... URL, or arXiv ID (e.g., 10.1038/s41586-021-03819-2, 10.48550/arXiv.1706.03762, or arXiv:1706.03762). Provide at least one of doi or query.",
           example: "10.1038/s41586-021-03819-2",
@@ -70,8 +70,7 @@ export const RESEARCH_CATALOG: readonly EndpointCatalogEntry[] = [
           type: "string",
           minLength: 2,
           maxLength: 80,
-          description:
-            "Optional claimed author surname to verify against registered authors.",
+          description: "Optional claimed author surname to verify against registered authors.",
           example: "Jumper",
         },
         expected_year: {
@@ -214,7 +213,7 @@ export const RESEARCH_CATALOG: readonly EndpointCatalogEntry[] = [
         smiles: "C1=CC=CC=C1",
         inchikey: "UHOVQNZJYSORNB-UHFFFAOYSA-N",
         xlogp: 2.1,
-        synonyms: ["benzene", "benzol", "cyclohexatriene"],
+        synonyms: ["benzol", "cyclohexatriene"],
         pubchem_url: "https://pubchem.ncbi.nlm.nih.gov/compound/241",
       },
       hazard_tier: "EXTREME",
@@ -251,12 +250,12 @@ export const RESEARCH_CATALOG: readonly EndpointCatalogEntry[] = [
         flammable: true,
         oxidizer_or_explosive: false,
         corrosive: false,
-        environmental_hazard: true,
+        environmental_hazard: false,
       },
       flags: ["GHS_DANGER", "CMR_HAZARD_H340_H350_H360", "HIGH_FLAMMABILITY"],
       metadata: {
         fetched_at: "2026-11-27T20:00:00.000Z",
-        sources: ["nih_pubchem_pug", "nih_pubchem_ghs"],
+        sources: ["nih_pubchem_pug", "nih_pubchem_ghs", "nih_pubchem_nfpa"],
         disclaimer: RESEARCH_DISCLAIMER,
       },
     },
@@ -319,16 +318,14 @@ export const RESEARCH_CATALOG: readonly EndpointCatalogEntry[] = [
         nct: {
           type: "string",
           pattern: "^[Nn][Cc][Tt]\\d{8}$",
-          description:
-            "Optional exact ClinicalTrials.gov identifier (e.g., NCT05382286).",
+          description: "Optional exact ClinicalTrials.gov identifier (e.g., NCT05382286).",
           example: "NCT05382286",
         },
         condition: {
           type: "string",
           minLength: 2,
           maxLength: 120,
-          description:
-            "Optional disease or indication filter (e.g., obesity, MASH, NSCLC).",
+          description: "Optional disease or indication filter (e.g., obesity, MASH, NSCLC).",
           example: "obesity",
         },
         phase: {
@@ -391,7 +388,7 @@ export const RESEARCH_CATALOG: readonly EndpointCatalogEntry[] = [
           start_date: "2024-03-15",
           primary_completion_date: "2026-12",
           primary_completion_type: "ESTIMATED",
-          days_to_primary_completion: 4,
+          days_to_primary_completion: 34,
           conditions: ["MASH", "Obesity"],
           interventions: ["Semaglutide"],
           primary_outcome: "Change in liver fat content at Week 52",

@@ -200,7 +200,7 @@ export const COMMERCE_CATALOG: readonly EndpointCatalogEntry[] = [
         vat: {
           type: "string",
           minLength: 4,
-          maxLength: 20,
+          maxLength: 28,
           description:
             "EU-27 or Northern Ireland (XI) VAT number (e.g., IE6388047V, DE122268496, EL094019245; Greece GR prefix auto-normalizes to VIES EL). Supply at least one of vat, iban, bic, or lei.",
           example: "IE6388047V",
@@ -232,7 +232,7 @@ export const COMMERCE_CATALOG: readonly EndpointCatalogEntry[] = [
         country: {
           type: "string",
           minLength: 2,
-          maxLength: 3,
+          maxLength: 64,
           description:
             "Optional expected vendor ISO country code (e.g., IE, DE, GB, CH) to flag offshore IBAN/BIC bank-redirect mismatches.",
           example: "IE",
@@ -334,7 +334,8 @@ export const COMMERCE_CATALOG: readonly EndpointCatalogEntry[] = [
           pattern: "^[A-Za-z0-9]{20}$",
           minLength: 20,
           maxLength: 20,
-          description: "Exact 20-character ISO 17442 Legal Entity Identifier (e.g., HWUPKR0MPOU8FGXBT394).",
+          description:
+            "Exact 20-character ISO 17442 Legal Entity Identifier (e.g., HWUPKR0MPOU8FGXBT394).",
           example: "HWUPKR0MPOU8FGXBT394",
         },
         cik: {
@@ -356,14 +357,16 @@ export const COMMERCE_CATALOG: readonly EndpointCatalogEntry[] = [
           type: "string",
           minLength: 12,
           maxLength: 12,
-          description: "12-character ISO 6166 securities ISIN mapped via GLEIF/ANNA (e.g., US0378331005).",
+          description:
+            "12-character ISO 6166 securities ISIN mapped via GLEIF/ANNA (e.g., US0378331005).",
           example: "US0378331005",
         },
         country: {
           type: "string",
           minLength: 2,
-          maxLength: 3,
-          description: "Optional ISO country code filter (e.g., US, IE, DE, GB) to disambiguate subsidiaries.",
+          maxLength: 64,
+          description:
+            "Optional ISO country code filter (e.g., US, IE, DE, GB) to disambiguate subsidiaries.",
           example: "US",
         },
       },

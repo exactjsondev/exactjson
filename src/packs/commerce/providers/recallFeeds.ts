@@ -1,5 +1,5 @@
-import { type BoundedTtlCache, TTL_MS, isolateCache, withTwoTierCache } from "../../../lib/cache";
-import { UpstreamError, fetchJsonWithTimeout } from "../../../lib/http";
+import { type BoundedTtlCache, isolateCache, TTL_MS, withTwoTierCache } from "../../../lib/cache";
+import { fetchJsonWithTimeout, UpstreamError } from "../../../lib/http";
 
 export type RecallSeverity = "LOW" | "MODERATE" | "HIGH" | "CRITICAL_CLASS_I";
 
@@ -54,19 +54,19 @@ function truncateClean(text: string | null | undefined, maxLen = 220): string | 
 function classifyCpscSeverity(
   title: string,
   hazard: string | null,
-  injuries: string | null
+  injuries: string | null,
 ): RecallSeverity {
   const combined = `${title} ${hazard ?? ""} ${injuries ?? ""}`.toLowerCase();
   if (
     /\b(death|deaths|fatal|fatality|suffocation|strangulation|drowning|electrocution|ingestion|lead poisoning|anaphylaxis)\b/.test(
-      combined
+      combined,
     )
   ) {
     return "HIGH";
   }
   if (
     /\b(serious injury|choking|fire|burn|laceration|fall hazard|tip-over|entrapment|amputation|explosion|lithium)\b/.test(
-      combined
+      combined,
     )
   ) {
     return "HIGH";
@@ -76,7 +76,7 @@ function classifyCpscSeverity(
 
 function mapCpscRowsNewestFirst(
   rawRows: unknown[],
-  brandLower: string | null
+  brandLower: string | null,
 ): NormalizedRecallItem[] {
   // CPSC returns rows in ascending RecallID (oldest 1970s-2000s first).
   // Sort newest-first by RecallDate DESC then RecallID DESC BEFORE slicing to 25 so active 2024-2026 recalls are never truncated!
@@ -175,9 +175,12 @@ export async function fetchCpscRecalls(
   brand: string | null,
   cache: BoundedTtlCache = isolateCache,
   fetchImpl: typeof fetch = fetch,
-  waitUntil?: (promise: Promise<unknown>) => void
+  waitUntil?: (promise: Promise<unknown>) => void,
 ): Promise<{ items: NormalizedRecallItem[]; cacheHit: boolean }> {
-  const normKey = `${query.trim().toLowerCase()}|${(brand ?? "").trim().toLowerCase()}`;
+  const normKey = JSON.stringify([
+    query.trim().replace(/\s+/g, " ").toLowerCase(),
+    (brand ?? "").trim().replace(/\s+/g, " ").toLowerCase(),
+  ]);
   const { value, cacheHit } = await withTwoTierCache<NormalizedRecallItem[]>({
     key: `commerce:cpsc:${normKey}`,
     ttlMs: TTL_MS.COMMERCE_CPSC_RECALLS,
@@ -196,14 +199,14 @@ export async function fetchCpscRecalls(
             timeoutMs: 6000,
             allow404: true,
             fetchImpl,
-          }
+          },
         );
         if (res.status === "not_found" || res.data === null) return [];
         if (!Array.isArray(res.data)) {
           throw new UpstreamError(
             "US_CPSC",
             "CPSC_BAD_SCHEMA",
-            "Invalid US CPSC Recall JSON array"
+            "Invalid US CPSC Recall JSON array",
           );
         }
         return res.data;
@@ -259,11 +262,17 @@ export async function fetchOpenFdaRecalls(
   brand: string | null,
   cache: BoundedTtlCache = isolateCache,
   fetchImpl: typeof fetch = fetch,
-  waitUntil?: (promise: Promise<unknown>) => void
+  waitUntil?: (promise: Promise<unknown>) => void,
 ): Promise<{ items: NormalizedRecallItem[]; cacheHit: boolean }> {
-  const cleanQuery = query.replace(/["\\()+:^~*?[\]{}]/g, " ").replace(/\s+/g, " ").trim();
+  const cleanQuery = query
+    .replace(/["\\()+:^~*?[\]{}]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   const cleanBrand = brand
-    ? brand.replace(/["\\()+:^~*?[\]{}]/g, " ").replace(/\s+/g, " ").trim()
+    ? brand
+        .replace(/["\\()+:^~*?[\]{}]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim()
     : null;
 
   const normKey = `${vertical}|${cleanQuery.toLowerCase()}|${(cleanBrand ?? "").toLowerCase()}`;
@@ -294,7 +303,7 @@ export async function fetchOpenFdaRecalls(
         throw new UpstreamError(
           "OPENFDA",
           "OPENFDA_BAD_SCHEMA",
-          "Invalid openFDA enforcement results payload"
+          "Invalid openFDA enforcement results payload",
         );
       }
 
@@ -331,12 +340,12 @@ export async function fetchOpenFdaRecalls(
           classification,
           firm: truncateClean(
             typeof row.recalling_firm === "string" ? row.recalling_firm : null,
-            100
+            100,
           ),
           title: truncateClean(prodDesc, 180)!,
           hazard_or_reason: truncateClean(
             typeof row.reason_for_recall === "string" ? row.reason_for_recall : null,
-            200
+            200,
           ),
           remedy: null,
           url: null,

@@ -62,6 +62,7 @@ export const SWISS_CSS = `
       --ink-muted: #7b8494;
       --ink-on-invert: #070708;
       --ink-on-recessed: #f4f3ee;
+      --ink-on-signal: #04130d;
 
       --signal-ok: #10b981;
       --signal-ok-subtle: rgba(16, 185, 129, 0.11);
@@ -99,6 +100,7 @@ export const SWISS_CSS = `
       --ink-muted: #585d67;
       --ink-on-invert: #f6f5f0;
       --ink-on-recessed: #f4f3ee;
+      --ink-on-signal: #ffffff;
 
       --signal-ok: #047857;
       --signal-ok-subtle: rgba(4, 120, 87, 0.09);
@@ -245,6 +247,7 @@ export const SWISS_CSS = `
     }
 
     .polarity-switch {
+      position: relative;
       display: inline-flex;
       align-items: center;
       min-block-size: 30px;
@@ -345,7 +348,13 @@ export const SWISS_CSS = `
     }
     .pack-matrix {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+    .pack-matrix > :nth-child(-n+2) {
+      grid-column: span 3;
+    }
+    .pack-matrix > :nth-child(n+3) {
+      grid-column: span 2;
     }
     .status-matrix {
       display: grid;
@@ -363,24 +372,32 @@ export const SWISS_CSS = `
     }
     .grid-3 > :nth-child(3n),
     .grid-2 > :nth-child(2n),
+    .pack-matrix > :nth-child(2),
+    .pack-matrix > :nth-child(5),
     .status-matrix > :nth-child(5n),
     .discovery-matrix > :nth-child(3n) {
       border-inline-end: none;
     }
 
     @media (max-width: 960px) {
+      .pack-matrix,
       .status-matrix {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
+      .pack-matrix > * {
+        grid-column: span 1 !important;
+        border-inline-end: 1px solid var(--grid-line);
+      }
+      .pack-matrix > :nth-child(2n) { border-inline-end: none; }
       .status-matrix > * { border-inline-end: 1px solid var(--grid-line); }
       .status-matrix > :nth-child(2n) { border-inline-end: none; }
     }
 
     @media (max-width: 820px) {
-      .grid-3, .grid-2, .discovery-matrix {
+      .grid-3, .grid-2, .pack-matrix, .discovery-matrix {
         grid-template-columns: minmax(0, 1fr);
       }
-      .grid-3 > *, .grid-2 > *, .discovery-matrix > *, .status-matrix > * {
+      .grid-3 > *, .grid-2 > *, .pack-matrix > *, .discovery-matrix > *, .status-matrix > * {
         border-inline-end: none;
       }
       .status-matrix {
@@ -524,7 +541,7 @@ export const SWISS_CSS = `
     .swiss-btn.primary:hover {
       background: var(--signal-ok);
       border-color: var(--signal-ok);
-      color: #04130d;
+      color: var(--ink-on-signal);
     }
 
     .kpi-strip {
@@ -565,6 +582,7 @@ export const SWISS_CSS = `
 
     /* 3-Mode Swiss Inspector (Pure CSS :has() state machine) */
     .inspector-tabs {
+      position: relative;
       display: flex;
       flex-wrap: wrap;
       background: var(--bg-elevated);
@@ -684,7 +702,8 @@ export const SWISS_CSS = `
       border-color: #10b981;
       color: #10b981;
     }
-    .copy-btn .copy-text-done { display: none; }
+    .copy-btn .copy-text-done,
+    .copy-btn .copy-text-fail { display: none; }
     .copy-btn[data-copied] {
       border-color: #10b981;
       color: #10b981;
@@ -695,6 +714,8 @@ export const SWISS_CSS = `
       border-color: #ff5216;
       color: #ff5216;
     }
+    .copy-btn[data-failed] .copy-text-idle { display: none; }
+    .copy-btn[data-failed] .copy-text-fail { display: inline; }
 
     .copy-tip {
       position: absolute;
@@ -739,6 +760,9 @@ export const SWISS_CSS = `
       gap: 0.45rem;
       color: #10b981;
       font-weight: 600;
+    }
+    .receipt-ok .sig-dot.ok {
+      background: #10b981;
     }
     .receipt-meta {
       color: #9ca3af;
@@ -802,6 +826,7 @@ export const SWISS_CSS = `
     }
 
     .pack-tabs {
+      position: relative;
       display: flex;
       flex-wrap: wrap;
       align-items: center;
@@ -907,9 +932,10 @@ export const SWISS_CSS = `
       border-collapse: separate;
       border-spacing: 0;
       font-size: 0.88rem;
-      --label-1: "Endpoint";
       --label-2: "Price (USDC)";
-      --label-3: "Specification & Sample";
+    }
+    table.param-table {
+      --label-2: "Requirement";
     }
 
     thead {
@@ -1076,7 +1102,8 @@ export const SWISS_CSS = `
       tbody tr td:last-child {
         border-bottom: none;
       }
-      tbody td.price::before {
+      tbody td.price::before,
+      tbody td.req-cell::before {
         content: var(--label-2) ": ";
         color: var(--ink-muted);
         font-weight: 500;
@@ -1157,12 +1184,16 @@ export const SWISS_CSS = `
       text-transform: uppercase;
       letter-spacing: 0.05em;
     }
-    .footer-links a:hover {
+    .footer-links a:hover,
+    .footer-links a[aria-current="page"] {
       color: var(--signal-ok);
     }
   }
 
   @layer utilities {
+    [hidden] {
+      display: none !important;
+    }
     .visually-hidden:where(:not(:focus-within, :active)),
     .sr-control {
       position: absolute !important;
@@ -1186,7 +1217,7 @@ export const SWISS_CSS = `
       z-index: 100;
       padding: 0.55rem 0.95rem;
       background: var(--signal-ok);
-      color: #04130d;
+      color: var(--ink-on-signal);
       font-family: var(--font-mono);
       font-size: 0.75rem;
       font-weight: 700;

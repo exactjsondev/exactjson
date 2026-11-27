@@ -4,9 +4,9 @@ export const MARKETS_PACK: PackDefinition = {
   id: "markets",
   title: "Crypto, Derivatives, Predictions & Macro",
   subtitle:
-    "Fail-closed EVM/Solana token safety, multi-tier swap & L2 perp slippage, cross-venue funding & prediction arbitrage, Deribit vol surfaces, and US macro liquidity.",
+    "Fail-closed EVM/Solana token safety, multi-tier swap & L2 perp slippage, cross-venue funding & prediction arbitrage, Deribit vol surfaces, US macro liquidity, and 38-country central bank policy rates.",
   shortDescription:
-    "Token safety, pre-trade slippage, perps, prediction markets, options surface, and macro liquidity.",
+    "Token safety, pre-trade slippage, perps, prediction markets, options surface, US macro liquidity, and global central bank rates.",
   mcpPath: "/mcp/markets",
   disclaimer: DISCLAIMER,
   workflows: [
@@ -799,7 +799,8 @@ export const MARKETS_CATALOG: readonly EndpointCatalogEntry[] = [
     method: "GET",
     path: "/v1/macro/liquidity",
     routeKey: "GET /v1/macro/liquidity",
-    summary: "Official US Treasury debt, TGA cash, NY Fed ON RRP, SOFR/EFFR & net liquidity impulse",
+    summary:
+      "Official US Treasury debt, TGA cash, NY Fed ON RRP, SOFR/EFFR & net liquidity impulse",
     description: `Measure the USD macro liquidity regime from 5 official US Treasury and NY Fed feeds: public debt, TGA cash flows, ON RRP balance, EFFR/SOFR funding spread (bps), and net USD liquidity impulse. Do NOT use for non-US central bank rates or token-level DeFi metrics. ${DISCLAIMER}`,
     tags: ["macro", "treasury", "liquidity"],
     priceAmount: "0.01",
@@ -1144,8 +1145,7 @@ export const MARKETS_CATALOG: readonly EndpointCatalogEntry[] = [
           type: "string",
           minLength: 1,
           pattern: "^[A-Za-z0-9]{1,16}(?:-[Pp][Ee][Rr][Pp])?$",
-          description:
-            "Required when mode=perps: Hyperliquid ticker symbol (e.g., BTC, ETH, SOL).",
+          description: "Required when mode=perps: Hyperliquid ticker symbol (e.g., BTC, ETH, SOL).",
           example: "BTC",
         },
         side: {
@@ -1317,7 +1317,7 @@ export const MARKETS_CATALOG: readonly EndpointCatalogEntry[] = [
         base: {
           type: "string",
           minLength: 2,
-          maxLength: 8,
+          maxLength: 16,
           description:
             "Optional carry benchmark currency or ISO-2 jurisdiction (default USD; e.g., USD, EUR, JPY, CHF, GBP, CAD, XM, US).",
           example: "USD",
@@ -1332,7 +1332,7 @@ export const MARKETS_CATALOG: readonly EndpointCatalogEntry[] = [
         countries: {
           type: "string",
           minLength: 2,
-          maxLength: 120,
+          maxLength: 160,
           description:
             "Optional comma-separated ISO-2 or currency codes (e.g., 'US,XM,JP,GB,CA,BR,MX'; Eurozone states map to XM/EUR).",
           example: "US,XM,JP,GB,CA,BR",

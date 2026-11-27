@@ -4,48 +4,48 @@ import { RESEARCH_CATALOG, RESEARCH_PACK } from "./research";
 import { SECURITY_CATALOG, SECURITY_PACK } from "./security";
 import {
   DISCLAIMER,
-  MAX_BAZAAR_DESCRIPTION_LENGTH,
-  MAX_MCP_TOOLS_PER_PACK,
-  PACK_IDS,
-  SERVICE_NAME,
-  SERVICE_VERSION,
-  USER_AGENT,
-  toHttpInputSchema,
   type EndpointCatalogEntry,
   type EndpointId,
   type EndpointInputSchema,
   type EndpointParamSchema,
   type EndpointPath,
   type EndpointSubgroup,
+  MAX_BAZAAR_DESCRIPTION_LENGTH,
+  MAX_MCP_TOOLS_PER_PACK,
   type McpPackSelector,
+  PACK_IDS,
   type PackDefinition,
   type PackId,
+  SERVICE_NAME,
+  SERVICE_VERSION,
+  toHttpInputSchema,
+  USER_AGENT,
 } from "./types";
 import { WORLD_CATALOG, WORLD_PACK } from "./world";
 
 export {
   COMMERCE_PACK,
   DISCLAIMER,
-  MARKETS_PACK,
-  MAX_BAZAAR_DESCRIPTION_LENGTH,
-  MAX_MCP_TOOLS_PER_PACK,
-  PACK_IDS,
-  RESEARCH_PACK,
-  SECURITY_PACK,
-  SERVICE_NAME,
-  SERVICE_VERSION,
-  USER_AGENT,
-  WORLD_PACK,
-  toHttpInputSchema,
   type EndpointCatalogEntry,
   type EndpointId,
   type EndpointInputSchema,
   type EndpointParamSchema,
   type EndpointPath,
   type EndpointSubgroup,
+  MARKETS_PACK,
+  MAX_BAZAAR_DESCRIPTION_LENGTH,
+  MAX_MCP_TOOLS_PER_PACK,
   type McpPackSelector,
+  PACK_IDS,
   type PackDefinition,
   type PackId,
+  RESEARCH_PACK,
+  SECURITY_PACK,
+  SERVICE_NAME,
+  SERVICE_VERSION,
+  toHttpInputSchema,
+  USER_AGENT,
+  WORLD_PACK,
 };
 
 export const PACKS: Readonly<Record<PackId, PackDefinition>> = {
@@ -71,11 +71,11 @@ export const CATALOG: readonly EndpointCatalogEntry[] = [
 ];
 
 export const CATALOG_BY_PATH: Readonly<Record<string, EndpointCatalogEntry>> = Object.fromEntries(
-  CATALOG.map((entry) => [entry.path, entry])
+  CATALOG.map((entry) => [entry.path, entry]),
 );
 
 export const CATALOG_BY_ID: Readonly<Record<EndpointId, EndpointCatalogEntry>> = Object.fromEntries(
-  CATALOG.map((entry) => [entry.id, entry])
+  CATALOG.map((entry) => [entry.id, entry]),
 ) as Record<EndpointId, EndpointCatalogEntry>;
 
 export function getEndpointById(id: EndpointId): EndpointCatalogEntry {
@@ -83,6 +83,9 @@ export function getEndpointById(id: EndpointId): EndpointCatalogEntry {
 }
 
 export function getEndpointByPath(path: string): EndpointCatalogEntry | undefined {
+  if (/%2f|%5c/i.test(path)) {
+    return undefined;
+  }
   let decoded = path;
   try {
     decoded = decodeURIComponent(path);
@@ -95,14 +98,14 @@ export function getEndpointByPath(path: string): EndpointCatalogEntry | undefine
 
 export function getPackEndpoints(
   packs: readonly PackId[],
-  catalogEntries: readonly EndpointCatalogEntry[] = CATALOG
+  catalogEntries: readonly EndpointCatalogEntry[] = CATALOG,
 ): EndpointCatalogEntry[] {
   const wanted = new Set<PackId>(packs);
   return catalogEntries.filter((entry) => wanted.has(entry.pack));
 }
 
 export function getActivePacks(
-  catalogEntries: readonly EndpointCatalogEntry[] = CATALOG
+  catalogEntries: readonly EndpointCatalogEntry[] = CATALOG,
 ): PackDefinition[] {
   const populated = new Set<PackId>(catalogEntries.map((entry) => entry.pack));
   return PACK_IDS.filter((id) => populated.has(id)).map((id) => PACKS[id]);

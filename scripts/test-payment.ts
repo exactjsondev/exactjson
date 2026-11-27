@@ -1,9 +1,5 @@
 import { registerExactEvmScheme } from "@x402/evm/exact/client";
-import {
-  decodePaymentResponseHeader,
-  wrapFetchWithPayment,
-  x402Client,
-} from "@x402/fetch";
+import { decodePaymentResponseHeader, wrapFetchWithPayment, x402Client } from "@x402/fetch";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
 const MAX_SPEND_USD = "$0.05";
@@ -24,7 +20,7 @@ function getExplorerTxUrl(network: string | undefined, txHash: string | undefine
 async function runPaidProbe(
   fetchWithPay: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
   label: string,
-  url: string
+  url: string,
 ): Promise<boolean> {
   console.log(`\n--- [${label}] GET ${url} ---`);
   const started = Date.now();
@@ -39,9 +35,7 @@ async function runPaidProbe(
   const extensionResponses = res.headers.get("EXTENSION-RESPONSES");
 
   console.log(`HTTP Status: ${res.status} (${elapsed}ms)`);
-  console.log(
-    `EXTENSION-RESPONSES: ${extensionResponses ? extensionResponses : "Not emitted"}`
-  );
+  console.log(`EXTENSION-RESPONSES: ${extensionResponses ? extensionResponses : "Not emitted"}`);
 
   if (paymentResponseRaw) {
     try {
@@ -75,7 +69,9 @@ async function main() {
   const allowMainnet = args.includes("--allow-mainnet");
   const onlyArg = args.find((arg: string) => arg.startsWith("--only="));
   const onlyTarget = onlyArg ? onlyArg.slice("--only=".length).trim().toLowerCase() : null;
-  const urlArg = args.find((arg: string) => arg.startsWith("http://") || arg.startsWith("https://"));
+  const urlArg = args.find(
+    (arg: string) => arg.startsWith("http://") || arg.startsWith("https://"),
+  );
   const baseUrl = (urlArg ?? process.env.TARGET_BASE_URL ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
 
   const rawKey = process.env.TEST_BUYER_PRIVATE_KEY?.trim();
@@ -110,8 +106,12 @@ async function main() {
 
   console.log(`Buyer Address: ${account.address}`);
   console.log(`Target Server: ${baseUrl}`);
-  console.log(`Hard Spend Cap: ${MAX_SPEND_USD} per payment (${MAX_USDC_ATOMIC.toString()} atomic USDC)`);
-  console.log(`Mode: ${allowMainnet ? "MAINNET ALLOWED (--allow-mainnet)" : "Base Sepolia testnet only"}`);
+  console.log(
+    `Hard Spend Cap: ${MAX_SPEND_USD} per payment (${MAX_USDC_ATOMIC.toString()} atomic USDC)`,
+  );
+  console.log(
+    `Mode: ${allowMainnet ? "MAINNET ALLOWED (--allow-mainnet)" : "Base Sepolia testnet only"}`,
+  );
 
   const client = new x402Client();
   registerExactEvmScheme(client, { signer: account });
@@ -304,10 +304,10 @@ async function main() {
     "trending",
     "perps",
     "screener",
-    "funding_arb",
-    "scanner",
-    "options_surface",
-    "macro_liquidity",
+    "arb",
+    "predictions",
+    "options",
+    "macro",
     "evm_safety",
     "predictions_arb",
     "quote_check",
@@ -359,7 +359,7 @@ async function main() {
 
   if (selected.length === 0) {
     throw new Error(
-      `Unknown --only=${onlyTarget}. Valid values: all, markets, security, world, commerce, research, ${targets.map((t) => t.key).join(", ")}`
+      `Unknown --only=${onlyTarget}. Valid values: all, markets, security, world, commerce, research, ${targets.map((t) => t.key).join(", ")}`,
     );
   }
 
@@ -370,10 +370,7 @@ async function main() {
   }
 
   console.log("\n==============================================================");
-  console.log(
-    "Summary:",
-    results.map((r) => `${r.key}=${r.ok ? "SETTLED" : "FAILED"}`).join(", ")
-  );
+  console.log("Summary:", results.map((r) => `${r.key}=${r.ok ? "SETTLED" : "FAILED"}`).join(", "));
   console.log("==============================================================");
 
   if (results.some((r) => !r.ok)) {
