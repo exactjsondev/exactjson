@@ -77,11 +77,10 @@ export function renderSetupHtml(baseUrl: string, network: string): string {
         receiptRight: "Base Mainnet",
       })}
       <div class="callout-box ok">
-        <strong>Zero ETH needed for gas:</strong> <a href="${WALLET_LINKS.x402}" target="_blank" rel="noopener noreferrer">x402 ↗</a> uses gasless USDC authorizations on <a href="${WALLET_LINKS.baseHome}" target="_blank" rel="noopener noreferrer">Base ↗</a>, so your pocket wallet does not need any ETH.
+        <strong>Zero ETH needed for gas:</strong> <a href="${WALLET_LINKS.x402}" target="_blank" rel="noopener noreferrer">x402 ↗</a> uses gasless USDC authorizations on <a href="${WALLET_LINKS.baseDocs}" target="_blank" rel="noopener noreferrer">Base ↗</a>, so your pocket wallet does not need any ETH.
       </div>`,
     footerHtml: `
       <div class="btn-row">
-        <a class="swiss-btn" href="${WALLET_LINKS.baseHome}" target="_blank" rel="noopener noreferrer">base.org ↗</a>
         <a class="swiss-btn" href="${WALLET_LINKS.baseDocs}" target="_blank" rel="noopener noreferrer">Base Docs ↗</a>
         <a class="swiss-btn" href="${WALLET_LINKS.x402}" target="_blank" rel="noopener noreferrer">x402.org ↗</a>
       </div>
@@ -297,7 +296,7 @@ export function buildSetupMarkdown(baseUrl: string, network: string): string {
       WALLET_LINKS.metamask +
       "`) and fund it with **$2–$5 of native Base USDC** (100–1,000 calls). Never paste your main wallet's private key, and avoid passkey-only smart wallets that do not export a `0x...` key.",
     `- **Official Native Base Mainnet USDC Contract:** \`${WALLET_LINKS.baseUsdcContract}\` (do not use bridged \`USDbC\`).`,
-    `- **Funding links:** Send USDC directly to Base from Coinbase (zero bridge) or follow Base docs (${WALLET_LINKS.baseDocs}) · Base (${WALLET_LINKS.baseHome}) · x402 (${WALLET_LINKS.x402}).`,
+    `- **Funding links:** Send USDC directly to Base from Coinbase (zero bridge) or follow Base Docs (${WALLET_LINKS.baseDocs}) · x402 (${WALLET_LINKS.x402}).`,
     "",
     "## Step 3 — Connect Your AI Tool",
     "",

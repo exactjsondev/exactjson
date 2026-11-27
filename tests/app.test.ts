@@ -445,6 +445,8 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(html).toContain("data-setup-generator");
     expect(html).toContain('class="faq-item"');
     expect(html).toContain('class="compare-visual"');
+    expect(html).not.toContain('<span class="meta-tag">v1.');
+    expect(html).not.toContain("https://www.base.org/");
     expect(html).toContain("og-image.jpg");
     expect(html).toContain("apple-touch-icon.png");
     expect(html).toContain('"@type":"Organization"');

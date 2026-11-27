@@ -4,7 +4,6 @@ import {
   getPackEndpoints,
   PACKS,
   SERVICE_NAME,
-  SERVICE_VERSION,
 } from "../config/catalog";
 import {
   escapeHtml,
@@ -267,7 +266,7 @@ export function renderMcpGuideHtml(
     <section class="spec-cell swiss-section" style="padding: 2.25rem 2rem;">
       <div class="eyebrow-row">
         <span class="sig-badge warn"><span class="sig-dot warn" aria-hidden="true"></span>HTTP 405 · POST Required</span>
-        <span class="sig-badge ok"><span class="sig-dot ok" aria-hidden="true"></span>MCP Streamable HTTP · v${escapeHtml(SERVICE_VERSION)}</span>
+        <span class="sig-badge ok"><span class="sig-dot ok" aria-hidden="true"></span>MCP Streamable HTTP</span>
       </div>
       <h1 class="page-title"><code>POST ${safeBase}${escapeHtml(mcpPath)}</code></h1>
       <p class="lead">

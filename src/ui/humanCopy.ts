@@ -24,7 +24,6 @@ export const POPULAR_ENDPOINT_SET: ReadonlySet<EndpointId> = new Set(POPULAR_END
 export const WALLET_LINKS = {
   rabby: "https://rabby.io/",
   metamask: "https://metamask.io/",
-  baseHome: "https://www.base.org/",
   baseDocs: "https://docs.base.org/",
   x402: "https://x402.org",
   baseUsdcContract: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",

@@ -1,4 +1,4 @@
-import { CATALOG, DISCLAIMER, SERVICE_NAME, SERVICE_VERSION } from "../config/catalog";
+import { CATALOG, DISCLAIMER, SERVICE_NAME } from "../config/catalog";
 import { CONTACT_EMAIL, escapeHtml, GLAMA_URL, NPM_URL, REPO_URL, X402SCAN_URL } from "./escape";
 import { renderDialog } from "./humanCopy";
 import { SWISS_CSS } from "./styles";
@@ -147,7 +147,6 @@ export function renderSwissShell(opts: SwissShellOptions): string {
           <span class="brand-mark" aria-hidden="true">{:}</span>
           <span>${escapeHtml(SERVICE_NAME)}</span>
         </a>
-        <span class="meta-tag">v${escapeHtml(SERVICE_VERSION)}</span>
         ${opts.headerMetaHtml ?? ""}
       </div>
       <nav class="nav-cluster" aria-label="Primary">
