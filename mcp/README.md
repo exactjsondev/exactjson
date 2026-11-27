@@ -7,13 +7,14 @@
 
 **ExactJSON — Live, deterministic x402 APIs for AI agents** (Model Context Protocol server).
 
-Exposes **27 Base USDC pay-per-call endpoints + free `exactjson_health`** organized into focused vertical packs (`<= 15` tools per pack for zero-bloat LLM tool selection) with client-side spend caps (`MAX_PAYMENT_USD`) and Pay-Only-On-Success guarantees:
+Exposes **31 Base USDC pay-per-call endpoints + free `exactjson_health`** organized into 5 focused vertical packs (`<= 15` tools per pack for zero-bloat LLM tool selection) with client-side spend caps (`MAX_PAYMENT_USD`) and Pay-Only-On-Success guarantees:
 
-- **`markets` (default, 12 tools):** `https://exactjson.com/mcp` or `npx -y exactjson-mcp`
+- **`markets` (default, 13 tools):** `https://exactjson.com/mcp` or `npx -y exactjson-mcp`
 - **`security` (8 tools):** `https://exactjson.com/mcp/security` or `npx -y exactjson-mcp --pack security`
 - **`world` (6 tools):** `https://exactjson.com/mcp/world` or `npx -y exactjson-mcp --pack world`
 - **`commerce` (5 tools):** `https://exactjson.com/mcp/commerce` or `npx -y exactjson-mcp --pack commerce`
-- **`all` (28 tools):** `https://exactjson.com/mcp/all` or `npx -y exactjson-mcp --pack all`
+- **`research` (4 tools):** `https://exactjson.com/mcp/research` or `npx -y exactjson-mcp --pack research`
+- **`all` (32 tools):** `https://exactjson.com/mcp/all` or `npx -y exactjson-mcp --pack all`
 
 - **Website & Docs:** https://exactjson.com · https://exactjson.com/docs · https://exactjson.com/pricing
 - **Official MCP Registry:** `io.github.exactjsondev/exactjson`
@@ -23,7 +24,7 @@ Exposes **27 Base USDC pay-per-call endpoints + free `exactjson_health`** organi
 
 ## Quickstart (Remote Streamable HTTP or Stdio)
 
-For x402-native MCP clients, connect directly to the stateless Remote Streamable HTTP endpoints (`https://exactjson.com/mcp`, `https://exactjson.com/mcp/security`, `https://exactjson.com/mcp/world`, `https://exactjson.com/mcp/commerce`, or `https://exactjson.com/mcp/all`).
+For x402-native MCP clients, connect directly to the stateless Remote Streamable HTTP endpoints (`https://exactjson.com/mcp`, `https://exactjson.com/mcp/security`, `https://exactjson.com/mcp/world`, `https://exactjson.com/mcp/commerce`, `https://exactjson.com/mcp/research`, or `https://exactjson.com/mcp/all`).
 
 For local desktop hosts (Claude Desktop / Cursor / OpenClaw):
 
@@ -61,6 +62,14 @@ For local desktop hosts (Claude Desktop / Cursor / OpenClaw):
         "BUYER_PRIVATE_KEY": "0xYOUR_LOW_BALANCE_BASE_WALLET_KEY",
         "MAX_PAYMENT_USD": "$0.05"
       }
+    },
+    "exactjson-research": {
+      "command": "npx",
+      "args": ["-y", "exactjson-mcp", "--pack", "research"],
+      "env": {
+        "BUYER_PRIVATE_KEY": "0xYOUR_LOW_BALANCE_BASE_WALLET_KEY",
+        "MAX_PAYMENT_USD": "$0.05"
+      }
     }
   }
 }
@@ -73,7 +82,7 @@ For local desktop hosts (Claude Desktop / Cursor / OpenClaw):
 | `BUYER_PRIVATE_KEY` | For paid tools | — | Dedicated low-balance Base EVM wallet private key (`0x...` or 64-char hex) holding USDC for paid x402 calls. |
 | `MAX_PAYMENT_USD` | No | `$0.05` | Maximum USDC spend per call enforced client-side before signing. |
 | `EXACTJSON_BASE_URL` | No | `https://exactjson.com` | Optional base URL override when self-hosting ExactJSON. |
-| `EXACTJSON_PACK` | No | `markets` | Vertical tool pack filter (`markets`, `security`, `world`, `commerce`, comma-separated, or `all`; also available via `--pack`). |
+| `EXACTJSON_PACK` | No | `markets` | Vertical tool pack filter (`markets`, `security`, `world`, `commerce`, `research`, comma-separated, or `all`; also available via `--pack`). |
 
 ## Security & Spend Controls
 
@@ -81,7 +90,7 @@ For local desktop hosts (Claude Desktop / Cursor / OpenClaw):
 - **Hard client-side cap:** `MAX_PAYMENT_USD` (default `$0.05`) enforces `maxAmountPerPayment` locally before any authorization is signed. Use a dedicated low-balance operational wallet.
 - **Pay-Only-On-Success:** Unpaid probes (`402`), bad inputs (`400`/`404`), fail-closed upstream outages (`502`), and operator pauses (`503`) never settle payment.
 
-## Tools (28 Total Across Active Packs)
+## Tools (32 Total Across All 5 Active Packs)
 
 | Pack | Tool | Price (USDC) | Endpoint |
 | --- | --- | --- | --- |
@@ -97,6 +106,7 @@ For local desktop hosts (Claude Desktop / Cursor / OpenClaw):
 | `markets` | `exactjson_predictions_scanner` | `$0.01` | `GET /v1/predictions/scanner` |
 | `markets` | `exactjson_options_surface` | `$0.015` | `GET /v1/options/surface` |
 | `markets` | `exactjson_macro_liquidity` | `$0.01` | `GET /v1/macro/liquidity` |
+| `markets` | `exactjson_macro_global_rates` | `$0.01` | `GET /v1/macro/global-rates` |
 | `security` | `exactjson_oss_package_audit` | `$0.01` | `GET /v1/oss/package-audit` |
 | `security` | `exactjson_net_domain_trust` | `$0.01` | `GET /v1/net/domain-trust` |
 | `security` | `exactjson_sec_cve_triage` | `$0.01` | `GET /v1/sec/cve-triage` |
@@ -113,6 +123,9 @@ For local desktop hosts (Claude Desktop / Cursor / OpenClaw):
 | `commerce` | `exactjson_commerce_vat_verify` | `$0.01` | `GET /v1/commerce/vat-verify` |
 | `commerce` | `exactjson_entity_company_verify` | `$0.01` | `GET /v1/entity/company-verify` |
 | `commerce` | `exactjson_consumer_safety_recall` | `$0.01` | `GET /v1/consumer/safety-recall` |
+| `research` | `exactjson_science_citation_verify` | `$0.005` | `GET /v1/science/citation-verify` |
+| `research` | `exactjson_chem_hazard_profile` | `$0.01` | `GET /v1/chem/hazard-profile` |
+| `research` | `exactjson_bio_drug_trial_brief` | `$0.015` | `GET /v1/bio/drug-trial-brief` |
 
 ## References
 
@@ -120,4 +133,4 @@ For local desktop hosts (Claude Desktop / Cursor / OpenClaw):
 - [OpenAPI 3.1 Spec](https://exactjson.com/openapi.json) · [llms.txt](https://exactjson.com/llms.txt)
 - [MCP Server Card](https://exactjson.com/.well-known/mcp/server-card.json) · [x402scan](https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc)
 
-> Informational market, security, weather/hazard, and entity/compliance data only; not financial, legal, tax, accounting, or sole life-safety/flight-navigation advice.
+> Informational market, security, weather/hazard, entity/compliance, and scientific/clinical metadata only; not financial, legal, tax, accounting, medical, or sole life-safety/flight-navigation advice.

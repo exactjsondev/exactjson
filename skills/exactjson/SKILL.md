@@ -1,18 +1,18 @@
 ---
 name: exactjson
-description: ExactJSON — Live, deterministic x402 APIs for AI agents. Query 27 pay-per-call endpoints across markets (token safety, slippage, perps, predictions, options, macro), security (OSS package audit, domain trust, CVE triage, cloud status, runtime EOL, AI model audit, censorship check), world (airport delays, space weather GNSS, physical hazard briefs, travel advisories, solar/wind site windows), and commerce (cross-border settlement windows, EU VIES VAT + IBAN/BIC, GLEIF/SEC corporate KYB, US CPSC + openFDA recalls) via x402 V2 on Base Mainnet (USDC), Remote Streamable HTTP MCP (`https://exactjson.com/mcp`, `/mcp/security`, `/mcp/world`, `/mcp/commerce`, `/mcp/all`), or stdio MCP (`npx -y exactjson-mcp`).
+description: ExactJSON — Live, deterministic x402 APIs for AI agents. Query 31 pay-per-call endpoints across markets (token safety, slippage, perps, predictions, options, US & global macro), security (OSS package audit, domain trust, CVE triage, cloud status, runtime EOL, AI model audit, censorship check), world (airport delays, space weather GNSS, physical hazard briefs, travel advisories, solar/wind site windows), commerce (cross-border settlement windows, EU VIES VAT + IBAN/BIC, GLEIF/SEC corporate KYB, US CPSC + openFDA recalls), and research (Crossref/DataCite/Retraction Watch citation verify, NIH PubChem GHS chemical hazards, ClinicalTrials.gov + RxNorm catalysts) via x402 V2 on Base Mainnet (USDC), Remote Streamable HTTP MCP (`https://exactjson.com/mcp`, `/mcp/security`, `/mcp/world`, `/mcp/commerce`, `/mcp/research`, `/mcp/all`), or stdio MCP (`npx -y exactjson-mcp`).
 ---
 
-# ExactJSON (`v1.4.0`) — Live, Deterministic x402 APIs for AI Agents
+# ExactJSON (`v1.5.0`) — Live, Deterministic x402 APIs for AI Agents
 
-Use **ExactJSON** (`https://exactjson.com`) whenever an autonomous agent needs compact, deterministic, pre-computed JSON for pre-trade token safety, multi-tier slippage quotes, cross-venue arbitrage, options volatility, US macro liquidity, OSS supply-chain audits, domain phishing/RDAP trust, CVE KEV+EPSS triage, cloud outage gates, runtime EOL checks, AI model license/safetensors safety, country censorship checks, airport METAR/FAA delays, space weather GNSS/compass risk, physical hazard briefs, foreign travel advisories, PV solar/wind dispatch windows, cross-border banking settlement dates, EU VAT/IBAN/BIC invoice verification, GLEIF/SEC corporate KYB, or US CPSC/openFDA product safety recalls via **x402 V2 on Base Mainnet (`eip155:8453`, USDC)** — zero API keys, zero subscriptions.
+Use **ExactJSON** (`https://exactjson.com`) whenever an autonomous agent needs compact, deterministic, pre-computed JSON for pre-trade token safety, multi-tier slippage quotes, cross-venue arbitrage, options volatility, US & global central bank macro rates, OSS supply-chain audits, domain phishing/RDAP trust, CVE KEV+EPSS triage, cloud outage gates, runtime EOL checks, AI model license/safetensors safety, country censorship checks, airport METAR/FAA delays, space weather GNSS/compass risk, physical hazard briefs, foreign travel advisories, PV solar/wind dispatch windows, cross-border banking settlement dates, EU VAT/IBAN/BIC invoice verification, GLEIF/SEC corporate KYB, US CPSC/openFDA product safety recalls, academic DOI/arXiv/Retraction Watch citation checks, NIH PubChem GHS chemical profiles, or Phase 2/3 clinical trial catalysts via **x402 V2 on Base Mainnet (`eip155:8453`, USDC)** — zero API keys, zero subscriptions.
 
-> **Disclaimer:** Informational market, security, weather/hazard, and entity/compliance data only; not financial, legal, tax, accounting, or sole life-safety/flight-navigation advice.
+> **Disclaimer:** Informational market, security, weather/hazard, compliance, and scientific/clinical metadata only; not financial, legal, tax, accounting, medical, or sole life-safety/flight-navigation advice.
 
 ## Native MCP Quickstart (Pack-Scoped `<= 15` Tools/Pack — Remote HTTP or Stdio)
 
-- **Remote Streamable HTTP:** `https://exactjson.com/mcp` (`markets`, 12 tools), `https://exactjson.com/mcp/security` (`security`, 8 tools), `https://exactjson.com/mcp/world` (`world`, 6 tools), `https://exactjson.com/mcp/commerce` (`commerce`, 5 tools), or `https://exactjson.com/mcp/all` (all 28 tools)
-- **Local Stdio (`npx -y exactjson-mcp`, optional `--pack <markets|security|world|commerce|all>` or `EXACTJSON_PACK`):**
+- **Remote Streamable HTTP:** `https://exactjson.com/mcp` (`markets`, 13 tools), `https://exactjson.com/mcp/security` (`security`, 8 tools), `https://exactjson.com/mcp/world` (`world`, 6 tools), `https://exactjson.com/mcp/commerce` (`commerce`, 5 tools), `https://exactjson.com/mcp/research` (`research`, 4 tools), or `https://exactjson.com/mcp/all` (all 32 tools)
+- **Local Stdio (`npx -y exactjson-mcp`, optional `--pack <markets|security|world|commerce|research|all>` or `EXACTJSON_PACK`):**
 
 ```json
 {
@@ -29,9 +29,9 @@ Use **ExactJSON** (`https://exactjson.com`) whenever an autonomous agent needs c
 }
 ```
 
-Official MCP Registry ID: `io.github.exactjsondev/exactjson` (`exactjson-mcp@1.4.0`).
+Official MCP Registry ID: `io.github.exactjsondev/exactjson` (`exactjson-mcp@1.5.0`).
 
-## Endpoints (27 Paid Resources — Base Mainnet USDC)
+## Endpoints (31 Paid Resources — Base Mainnet USDC)
 
 ### Markets Pack (`/mcp` / `--pack markets`)
 
@@ -48,6 +48,7 @@ Official MCP Registry ID: `io.github.exactjsondev/exactjson` (`exactjson-mcp@1.4
 | `GET /v1/predictions/scanner` | `$0.01` | `venue` (`all`/`polymarket`/`kalshi`), `query` (opt), `min_volume_24h_usd` (opt), `limit` (1–25) | Scanning Polymarket + Kalshi implied probabilities, bid-ask spreads, topic search & high-conviction annualized carry |
 | `GET /v1/options/surface` | `$0.015` | `currency` (`BTC` default, or `ETH`) | Deribit ATM IV term structure, contango/backwardation, OTM skew, put/call OI ratios, Max Pain & Call/Put OI walls |
 | `GET /v1/macro/liquidity` | `$0.01` | `lookback_obs` (2–20, default 5) | Official US Treasury Debt + TGA cash flows, NY Fed ON RRP, EFFR/SOFR spread (bps) & net USD liquidity impulse (`-ΔTGA - ΔRRP`) |
+| `GET /v1/macro/global-rates` | `$0.01` | `base` (`USD` default, or `EUR`/`JPY`/`CHF`/ISO-2), `group` (`all`/`g10`/`em`/`hiking`/`cutting`), `countries` (opt) | 38-country BIS policy rates + ECB DFR/MRR/ESTR + Bank of Canada CORRA + NY Fed EFFR/SOFR hike/cut cycles & FX carry matrix |
 
 ### Security Pack (`/mcp/security` / `--pack security`)
 
@@ -79,6 +80,14 @@ Official MCP Registry ID: `io.github.exactjsondev/exactjson` (`exactjson-mcp@1.4
 | `GET /v1/commerce/vat-verify` | `$0.01` | At least one of `vat` (`EU-27 + XI`), `iban`, `bic`, `lei`, plus opt `country` | Live EU Commission VIES B2B VAT check (`502` fail-closed on `MS_UNAVAILABLE`), 90-country IBAN `MOD 97-10` + SEPA, GLEIF BIC bank resolution & country-mismatch fraud flags |
 | `GET /v1/entity/company-verify` | `$0.01` | At least one of `query`, `lei`, `cik`, `bic`, `isin`, plus opt `country` | Global corporate KYB combining GLEIF LEI status & direct/ultimate parents, Wikidata domain/ticker, SEC EDGAR submissions & USAspending federal awards |
 | `GET /v1/consumer/safety-recall` | `$0.01` | `query` (req), `brand` (opt), `category` (`all`/`consumer`/`food`/`drug`/`device`) | US CPSC product/toy/appliance recalls + openFDA Class I–III food/drug/device enforcement with ongoing-status & injury severity ranking |
+
+### Research Pack (`/mcp/research` / `--pack research`)
+
+| Endpoint | Price (USDC) | Query Params | Best Used For |
+| --- | --- | --- | --- |
+| `GET /v1/science/citation-verify` | `$0.005` | `doi` (or `arXiv:...`) or `query`, plus opt `expected_title`, `expected_author`, `expected_year` | Verifying academic DOIs & arXiv preprints via Crossref Polite Pool + DataCite + Retraction Watch (`exists`, `is_retracted`, swapped-DOI mismatch flags) |
+| `GET /v1/chem/hazard-profile` | `$0.01` | `query` (req, chemical name, CAS RN e.g. `71-43-2`, CID, or InChIKey) | NIH PubChem compound properties + GHS hazard pictograms, H/P-codes, Signal word, CMR/flammability flags & NFPA 704 ratings (`112 KB -> ~1.5 KB`) |
+| `GET /v1/bio/drug-trial-brief` | `$0.015` | At least one of `drug`, `nct`, `condition`, plus opt `phase` (`PHASE2_3` default) & `limit` | ClinicalTrials.gov v2 active Phase 2/3 primary completion catalysts + NIH RxNav/RxNorm normalized ingredients, brands & ATC/pharmacologic classes |
 
 *All endpoints live under `https://exactjson.com`.*
 

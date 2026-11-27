@@ -19,8 +19,8 @@ import {
 } from "../src/packs/commerce/validation";
 
 describe("commerce pack — catalog contract, ISO financial checksums, and input validation", () => {
-  it("defines 4 commerce endpoints at v1.4.0 within Glama TDQS and Bazaar 500-char limits", () => {
-    expect(SERVICE_VERSION).toBe("1.4.0");
+  it("defines 4 commerce endpoints at v1.5.0 within Glama TDQS and Bazaar 500-char limits", () => {
+    expect(SERVICE_VERSION).toBe("1.5.0");
     expect(COMMERCE_CATALOG.length).toBe(4);
     expect(1 + getPackEndpoints(["commerce"]).length).toBe(5);
     expect(1 + getPackEndpoints(["commerce"]).length).toBeLessThanOrEqual(MAX_MCP_TOOLS_PER_PACK);

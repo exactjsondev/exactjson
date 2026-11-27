@@ -117,7 +117,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
     expect(initJson.id).toBe(1);
     expect(initJson.result.protocolVersion).toBe("2025-03-26");
     expect(initJson.result.serverInfo.name).toBe("io.github.exactjsondev/exactjson");
-    expect(initJson.result.serverInfo.version).toBe("1.4.0");
+    expect(initJson.result.serverInfo.version).toBe("1.5.0");
     expect(initJson.result.instructions).toContain("https://exactjson.com/mcp");
 
     const notifRes = await rpcCall(
@@ -169,7 +169,7 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
     };
     expect(healthJson.result.isError).toBe(false);
     expect(healthJson.result.structuredContent.status).toBe("ok");
-    expect(healthJson.result.structuredContent.version).toBe("1.4.0");
+    expect(healthJson.result.structuredContent.version).toBe("1.5.0");
 
     // Free MCP routes must never write paid /v1/* telemetry rows
     await new Promise((r) => setTimeout(r, 10));
@@ -622,19 +622,21 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
     expect(liveCommerceJson.result.tools.length).toBe(1 + getPackEndpoints(["commerce"]).length);
     expect(liveCommerceJson.result.tools.length).toBe(5);
 
-    const emptyPackRes = await app.request(
+    const liveResearchRes = await app.request(
       "http://localhost:8787/mcp/research",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 3, method: "tools/list" }),
+        body: JSON.stringify({ jsonrpc: "2.0", id: 33, method: "tools/list" }),
       },
       env
     );
-    expect(emptyPackRes.status).toBe(404);
-    const emptyPackErr = (await emptyPackRes.json()) as { error: { code: number; message: string } };
-    expect(emptyPackErr.error.code).toBe(-32602);
-    expect(emptyPackErr.error.message).toContain("0 active endpoints");
+    expect(liveResearchRes.status).toBe(200);
+    const liveResearchJson = (await liveResearchRes.json()) as {
+      result: { tools: Array<{ name: string }> };
+    };
+    expect(liveResearchJson.result.tools.length).toBe(1 + getPackEndpoints(["research"]).length);
+    expect(liveResearchJson.result.tools.length).toBe(4);
 
     const unknownPackRes = await app.request(
       "http://localhost:8787/mcp?pack=nonexistent",
@@ -758,5 +760,20 @@ describe("Remote Streamable HTTP /mcp endpoint & x402 MCP wire contract", () => 
     expect(crossPackErr.error.code).toBe(-32602);
     expect(crossPackErr.error.message).toContain("belongs to pack 'security'");
     expect(crossPackErr.error.message).toContain("http://localhost:8787/mcp/security");
+
+    // Unpopulated pack in custom catalog fixture still returns 404 with '0 active endpoints'
+    const emptyFixtureRes = await multiApp.request(
+      "http://localhost:8787/mcp/research",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ jsonrpc: "2.0", id: 13, method: "tools/list" }),
+      },
+      env
+    );
+    expect(emptyFixtureRes.status).toBe(404);
+    expect(
+      ((await emptyFixtureRes.json()) as { error: { message: string } }).error.message
+    ).toContain("0 active endpoints");
   });
 });

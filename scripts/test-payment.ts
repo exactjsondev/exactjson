@@ -198,6 +198,11 @@ async function main() {
       url: `${baseUrl}/v1/execution/quote-check?mode=perps&coin=${TEST_PERP_COIN}`,
     },
     {
+      key: "macro_global_rates",
+      label: "Global Central Bank Policy Rates ($0.01)",
+      url: `${baseUrl}/v1/macro/global-rates?base=USD&group=all`,
+    },
+    {
       key: "oss_package_audit",
       label: "OSS Package Audit npm lodash ($0.01)",
       url: `${baseUrl}/v1/oss/package-audit?package=lodash&ecosystem=npm`,
@@ -277,6 +282,21 @@ async function main() {
       label: "Consumer Safety Recall Stroller ($0.01)",
       url: `${baseUrl}/v1/consumer/safety-recall?query=stroller&category=consumer`,
     },
+    {
+      key: "science_citation_verify",
+      label: "Science Citation Verify AlphaFold ($0.005)",
+      url: `${baseUrl}/v1/science/citation-verify?doi=10.1038%2Fs41586-021-03819-2`,
+    },
+    {
+      key: "chem_hazard_profile",
+      label: "Chem Hazard Profile Benzene ($0.01)",
+      url: `${baseUrl}/v1/chem/hazard-profile?query=71-43-2`,
+    },
+    {
+      key: "bio_drug_trial_brief",
+      label: "Bio Drug Trial Brief Semaglutide ($0.015)",
+      url: `${baseUrl}/v1/bio/drug-trial-brief?drug=semaglutide`,
+    },
   ];
 
   const v3Keys = new Set(["evm_safety", "predictions_arb", "quote_check"]);
@@ -302,6 +322,18 @@ async function main() {
     "entity_company_verify",
     "consumer_safety_recall",
   ]);
+  const researchKeys = new Set([
+    "science_citation_verify",
+    "chem_hazard_profile",
+    "bio_drug_trial_brief",
+  ]);
+  const wave4Keys = new Set([...researchKeys, "macro_global_rates"]);
+  const new20Keys = new Set([
+    ...securityKeys,
+    ...worldKeys,
+    ...commerceKeys,
+    ...wave4Keys,
+  ]);
   const selected =
     onlyTarget === "all"
       ? targets
@@ -313,13 +345,19 @@ async function main() {
             ? targets.filter((t) => worldKeys.has(t.key))
             : onlyTarget === "commerce"
               ? targets.filter((t) => commerceKeys.has(t.key))
-              : onlyTarget
-                ? targets.filter((t) => t.key === onlyTarget)
-                : targets.filter((t) => t.key === "safety" || t.key === "perps");
+              : onlyTarget === "research"
+                ? targets.filter((t) => researchKeys.has(t.key))
+                : onlyTarget === "wave4"
+                  ? targets.filter((t) => wave4Keys.has(t.key))
+                  : onlyTarget === "new20"
+                    ? targets.filter((t) => new20Keys.has(t.key))
+                    : onlyTarget
+                      ? targets.filter((t) => t.key === onlyTarget)
+                      : targets.filter((t) => t.key === "safety" || t.key === "perps");
 
   if (selected.length === 0) {
     throw new Error(
-      `Unknown --only=${onlyTarget}. Valid values: all, v3, security, world, commerce, ${targets.map((t) => t.key).join(", ")}`
+      `Unknown --only=${onlyTarget}. Valid values: all, v3, security, world, commerce, research, wave4, new20, ${targets.map((t) => t.key).join(", ")}`
     );
   }
 

@@ -1,7 +1,7 @@
 export const SERVICE_NAME = "ExactJSON" as const;
-export const SERVICE_VERSION = "1.4.0" as const;
+export const SERVICE_VERSION = "1.5.0" as const;
 export const USER_AGENT =
-  "ExactJSON/1.4 (+https://exactjson.com; mailto:hello@exactjson.com)" as const;
+  "ExactJSON/1.5 (+https://exactjson.com; mailto:hello@exactjson.com)" as const;
 export const DISCLAIMER =
   "Informational market/security data only; not financial advice." as const;
 
@@ -42,6 +42,7 @@ export type EndpointId =
   | "evm_safety"
   | "predictions_arb"
   | "execution_quote_check"
+  | "macro_global_rates"
   | "oss_package_audit"
   | "net_domain_trust"
   | "sec_cve_triage"
@@ -57,7 +58,10 @@ export type EndpointId =
   | "commerce_settlement_window"
   | "commerce_vat_verify"
   | "entity_company_verify"
-  | "consumer_safety_recall";
+  | "consumer_safety_recall"
+  | "science_citation_verify"
+  | "chem_hazard_profile"
+  | "bio_drug_trial_brief";
 
 export type EndpointPath =
   | "/v1/solana/safety"
@@ -71,6 +75,7 @@ export type EndpointPath =
   | "/v1/evm/safety"
   | "/v1/predictions/arb"
   | "/v1/execution/quote-check"
+  | "/v1/macro/global-rates"
   | "/v1/oss/package-audit"
   | "/v1/net/domain-trust"
   | "/v1/sec/cve-triage"
@@ -86,7 +91,10 @@ export type EndpointPath =
   | "/v1/commerce/settlement-window"
   | "/v1/commerce/vat-verify"
   | "/v1/entity/company-verify"
-  | "/v1/consumer/safety-recall";
+  | "/v1/consumer/safety-recall"
+  | "/v1/science/citation-verify"
+  | "/v1/chem/hazard-profile"
+  | "/v1/bio/drug-trial-brief";
 
 export interface EndpointParamSchema {
   type: "string";

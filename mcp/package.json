@@ -1,8 +1,8 @@
 {
   "name": "exactjson-mcp",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "mcpName": "io.github.exactjsondev/exactjson",
-  "description": "ExactJSON — Live, deterministic x402 APIs for AI agents: 27 pay-per-call Base USDC endpoints across markets, security, world, and commerce (cross-border settlement windows, EU VIES VAT + IBAN/BIC, GLEIF/SEC corporate KYB, US CPSC + openFDA recalls).",
+  "description": "ExactJSON — Live, deterministic x402 APIs for AI agents: 31 pay-per-call Base USDC endpoints across markets, security, world, commerce, and research (global policy rates, DOI/retraction checks, PubChem GHS hazards, clinical trial catalysts).",
   "license": "MIT",
   "author": "ExactJSON <hello@exactjson.com> (https://exactjson.com)",
   "type": "module",
@@ -49,7 +49,11 @@
     "gleif",
     "kyb",
     "cpsc",
-    "fda"
+    "fda",
+    "crossref",
+    "pubchem",
+    "clinical-trials",
+    "central-banks"
   ],
   "repository": {
     "type": "git",

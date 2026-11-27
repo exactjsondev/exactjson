@@ -33,6 +33,7 @@ import { negotiateContentType } from "./lib/contentNegotiation";
 import { applyHtmlSecurityHeaders } from "./lib/securityHeaders";
 import { registerCommercePackRoutes } from "./packs/commerce";
 import { registerMarketsPackRoutes } from "./packs/markets";
+import { registerResearchPackRoutes } from "./packs/research";
 import { registerSecurityPackRoutes } from "./packs/security";
 import { registerWorldPackRoutes } from "./packs/world";
 import { renderNotFoundHtml } from "./routes/landingHtml";
@@ -125,6 +126,7 @@ registerMarketsPackRoutes(app);
 registerSecurityPackRoutes(app);
 registerWorldPackRoutes(app);
 registerCommercePackRoutes(app);
+registerResearchPackRoutes(app);
 
 // Return 405 Method Not Allowed when a known /v1/* endpoint is called with a non-GET/HEAD method
 app.all("/v1/*", (c, next) => {

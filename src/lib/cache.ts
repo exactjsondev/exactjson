@@ -55,6 +55,12 @@ export const TTL_MS = {
   COMMERCE_USASPENDING: 21_600_000, // 6 hr
   COMMERCE_CPSC_RECALLS: 21_600_000, // 6 hr
   COMMERCE_OPENFDA_RECALLS: 21_600_000, // 6 hr (protects keyless 1,000 req/day IP cap)
+  SCIENCE_CITATION_DOI: 86_400_000, // 24 hr
+  SCIENCE_CITATION_QUERY: 21_600_000, // 6 hr
+  CHEM_PUBCHEM: 86_400_000, // 24 hr (protects PubChem 5 req/s cap)
+  BIO_CLINICAL_TRIALS: 21_600_000, // 6 hr
+  BIO_RXNAV: 86_400_000, // 24 hr
+  MACRO_GLOBAL_RATES: 21_600_000, // 6 hr (BIS WS_CBPOL, ECB SDMX, BoC Valet)
 } as const;
 
 interface CacheEntry<T> {

@@ -3,6 +3,7 @@ import type { AppBindings } from "../../types";
 import { evmSafetyHandler } from "./routes/evmSafety";
 import { executionQuoteCheckHandler } from "./routes/executionQuoteCheck";
 import { fundingArbHandler } from "./routes/fundingArb";
+import { globalRatesHandler } from "./routes/globalRates";
 import { macroLiquidityHandler } from "./routes/macroLiquidity";
 import { optionsSurfaceHandler } from "./routes/optionsSurface";
 import { perpsScreenerHandler } from "./routes/perpsScreener";
@@ -24,4 +25,5 @@ export function registerMarketsPackRoutes(app: Hono<AppBindings>): void {
   app.get("/v1/evm/safety", evmSafetyHandler);
   app.get("/v1/predictions/arb", predictionsArbHandler);
   app.get("/v1/execution/quote-check", executionQuoteCheckHandler);
+  app.get("/v1/macro/global-rates", globalRatesHandler);
 }

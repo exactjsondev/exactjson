@@ -5,21 +5,21 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/exactjsondev/exactjson/blob/main/LICENSE)
 [![ExactJSON MCP server](https://glama.ai/mcp/servers/exactjsondev/exactjson/badge)](https://glama.ai/mcp/servers/exactjsondev/exactjson)
 
-**Website:** https://exactjson.com ([Docs](https://exactjson.com/docs) · [Pricing](https://exactjson.com/pricing)) · **Remote MCP:** `https://exactjson.com/mcp` · **Security MCP:** `https://exactjson.com/mcp/security` · **World MCP:** `https://exactjson.com/mcp/world` · **Commerce MCP:** `https://exactjson.com/mcp/commerce` · **Stdio MCP:** `npx -y exactjson-mcp` · **x402scan:** [Listing](https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc) · **Security:** [SECURITY.md](SECURITY.md) · **Contact:** hello@exactjson.com
+**Website:** https://exactjson.com ([Docs](https://exactjson.com/docs) · [Pricing](https://exactjson.com/pricing)) · **Remote MCP:** `https://exactjson.com/mcp` · **Security MCP:** `https://exactjson.com/mcp/security` · **World MCP:** `https://exactjson.com/mcp/world` · **Commerce MCP:** `https://exactjson.com/mcp/commerce` · **Research MCP:** `https://exactjson.com/mcp/research` · **Stdio MCP:** `npx -y exactjson-mcp` · **x402scan:** [Listing](https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc) · **Security:** [SECURITY.md](SECURITY.md) · **Contact:** hello@exactjson.com
 
-**ExactJSON** (`v1.4.0`) serves **27 pre-computed, strict-schema, token-optimized JSON endpoints** for AI agents via **x402 V2** micro-payments on **Base Mainnet (`eip155:8453`, USDC)** — `$0.005–$0.02/call`, zero API keys, zero subscriptions, strict **Pay-Only-On-Success** settlement (`HTTP 200` only).
+**ExactJSON** (`v1.5.0`) serves **31 pre-computed, strict-schema, token-optimized JSON endpoints** across 5 vertical MCP packs for AI agents via **x402 V2** micro-payments on **Base Mainnet (`eip155:8453`, USDC)** — `$0.005–$0.02/call`, zero API keys, zero subscriptions, strict **Pay-Only-On-Success** settlement (`HTTP 200` only).
 
-> **Disclaimer:** Informational market, security, weather/hazard, and entity/compliance data only; not financial, legal, tax, accounting, or sole life-safety/flight-navigation advice.
+> **Disclaimer:** Informational market, security, weather/hazard, entity/compliance, and scientific/clinical metadata only; not financial, legal, tax, accounting, medical, or sole life-safety/flight-navigation advice.
 
 ## Why ExactJSON
 
-- **Cheaper than free raw APIs for LLM agents:** Pulling 600+ Deribit contracts, 180+ Hyperliquid assets, 430 KB registry packuments, 555 KB GDACS/95 KB FCDO feeds, or 313 KB CPSC / 160 KB SEC dumps raw into an LLM context costs `$0.02–$0.15` in input tokens and invites math hallucinations. ExactJSON returns one deterministic ~2 KB JSON payload.
+- **Cheaper than free raw APIs for LLM agents:** Pulling 600+ Deribit contracts, 180+ Hyperliquid assets, 430 KB registry packuments, 555 KB GDACS/95 KB FCDO feeds, 313 KB CPSC / 160 KB SEC dumps, or 112 KB PubChem GHS / SDMX-JSON trees raw into an LLM context costs `$0.02–$0.15` in input tokens and invites math hallucinations. ExactJSON returns one deterministic ~2 KB JSON payload.
 - **Pay-Only-On-Success:** Unpaid probes return `402` with `PAYMENT-REQUIRED` terms. Invalid inputs (`400`/`404`), upstream outages (`502`), and operator pause (`503`) never settle payment.
-- **Fail-Closed Safety:** Missing primary engines (GoPlus + Honeypot.is on EVM; RugCheck on Solana; OSV/deps.dev/CISA KEV/Cloudflare 1.1.1.2 on Security; NOAA AWC/SWPC/GDACS/USGS/FCDO on World; EU VIES `MS_UNAVAILABLE`/GLEIF/CPSC/openFDA on Commerce) return `502` instead of falsely marking a target safe or valid.
+- **Fail-Closed Safety:** Missing primary engines (GoPlus + Honeypot.is on EVM; RugCheck on Solana; OSV/deps.dev/CISA KEV/Cloudflare 1.1.1.2 on Security; NOAA AWC/SWPC/GDACS/USGS/FCDO on World; EU VIES `MS_UNAVAILABLE`/GLEIF/CPSC/openFDA on Commerce; Crossref/DataCite/PubChem/ClinicalTrials.gov/BIS on Research & Global Macro) return `502` instead of falsely marking a target safe or valid.
 
-## Live Endpoints (27 Paid Resources — Base Mainnet USDC)
+## Live Endpoints (31 Paid Resources — Base Mainnet USDC)
 
-### Markets Pack (`/mcp` / `--pack markets` — 11 Paid Tools)
+### Markets Pack (`/mcp` / `--pack markets` — 12 Paid Tools)
 
 | Category | Endpoint | Price (USDC) | What It Returns |
 | --- | --- | --- | --- |
@@ -34,6 +34,7 @@
 | Predictions | `GET /v1/predictions/scanner` | `$0.01` | Polymarket + Kalshi implied probabilities, bid-ask spreads, keyword search & annualized carry |
 | Options | `GET /v1/options/surface` | `$0.015` | Deribit BTC/ETH ATM IV term structure, contango/backwardation, OTM skew, Max Pain & OI walls |
 | Macro | `GET /v1/macro/liquidity` | `$0.01` | Official US Treasury Debt + TGA flows, NY Fed ON RRP, EFFR/SOFR spread & net USD liquidity impulse |
+| Global Macro | `GET /v1/macro/global-rates` | `$0.01` | 38-country BIS policy rates + ECB DFR/MRR/ESTR + Bank of Canada CORRA + NY Fed EFFR/SOFR hike/cut cycles & FX carry matrix |
 
 ### Security Pack (`/mcp/security` / `--pack security` — 7 Paid Tools)
 
@@ -66,10 +67,18 @@
 | Corporate KYB | `GET /v1/entity/company-verify` | `$0.01` | GLEIF LEI status & direct/ultimate parents, Wikidata domain/ticker, SEC EDGAR submissions & USAspending federal awards |
 | Product Safety | `GET /v1/consumer/safety-recall` | `$0.01` | US CPSC consumer product recalls + openFDA Class I–III food/drug/device enforcement with ongoing-status & injury severity ranking |
 
+### Research Pack (`/mcp/research` / `--pack research` — 3 Paid Tools)
+
+| Category | Endpoint | Price (USDC) | What It Returns |
+| --- | --- | --- | --- |
+| Citations | `GET /v1/science/citation-verify` | `$0.005` | Crossref Polite Pool + DataCite (arXiv/Zenodo) + Retraction Watch DOI existence, retraction/concern flags & swapped-DOI checks |
+| Chemistry | `GET /v1/chem/hazard-profile` | `$0.01` | NIH PubChem properties + GHS hazard pictograms, H/P-codes, Signal word, CAS RN, CMR/flammability flags & NFPA 704 ratings |
+| Clinical Trials | `GET /v1/bio/drug-trial-brief` | `$0.015` | ClinicalTrials.gov v2 active Phase 2/3 primary completion catalysts + NIH RxNav/RxNorm normalized ingredients & ATC classes |
+
 ## Native MCP Quickstart (Pack-Scoped `<= 15` Tools/Pack)
 
-- **Remote Streamable HTTP:** `https://exactjson.com/mcp` (`markets`), `https://exactjson.com/mcp/security` (`security`), `https://exactjson.com/mcp/world` (`world`), `https://exactjson.com/mcp/commerce` (`commerce`), or `https://exactjson.com/mcp/all` (`all`)
-- **Local Stdio (`exactjson-mcp@1.4.0`):**
+- **Remote Streamable HTTP:** `https://exactjson.com/mcp` (`markets`), `https://exactjson.com/mcp/security` (`security`), `https://exactjson.com/mcp/world` (`world`), `https://exactjson.com/mcp/commerce` (`commerce`), `https://exactjson.com/mcp/research` (`research`), or `https://exactjson.com/mcp/all` (`all`)
+- **Local Stdio (`exactjson-mcp@1.5.0`):**
 
 ```json
 {

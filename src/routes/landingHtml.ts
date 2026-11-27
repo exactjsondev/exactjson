@@ -289,11 +289,12 @@ function renderBrandJsonLd(baseUrl: string, includeOffers = false): string {
     "@type": "WebAPI",
     "@id": `${baseUrl}/#api`,
     name: "ExactJSON x402 API",
-    serviceType: "x402 pay-per-call market, security, physical-world, and B2B commerce intelligence JSON API",
+    serviceType:
+      "x402 pay-per-call market, security, physical-world, B2B commerce, and scientific research intelligence JSON API",
     url: baseUrl,
     documentation: `${baseUrl}/docs`,
     keywords:
-      "x402 API, AI agent API, MCP server, Base USDC micropayments, EVM token safety, Solana safety, Hyperliquid perpetuals, Polymarket Kalshi arbitrage, Deribit options surface, US macro liquidity, OSS package audit, CVE triage, domain trust, airport delays METAR, space weather GNSS, GDACS hazard brief, travel advisories, NASA POWER solar, EU VIES VAT verify, IBAN checksum, GLEIF LEI KYB, CPSC openFDA recall",
+      "x402 API, AI agent API, MCP server, Base USDC micropayments, EVM token safety, Solana safety, Hyperliquid perpetuals, Polymarket Kalshi arbitrage, Deribit options surface, US macro liquidity, BIS central bank policy rates, OSS package audit, CVE triage, domain trust, airport delays METAR, space weather GNSS, GDACS hazard brief, travel advisories, NASA POWER solar, EU VIES VAT verify, IBAN checksum, GLEIF LEI KYB, CPSC openFDA recall, Crossref DataCite DOI citation verify, PubChem GHS chemical safety, ClinicalTrials.gov RxNorm",
     description:
       "Pre-computed, deterministic, compact JSON endpoints for AI agents via x402 V2 Base Mainnet USDC micro-payments ($0.005-$0.02/call). Pay-only-on-success with zero API keys or subscriptions.",
     provider: { "@id": `${baseUrl}/#organization` },
@@ -1014,7 +1015,7 @@ export function renderAboutHtml(baseUrl: string, network: string): string {
     <section class="grid-2" style="margin-top: 1rem;">
       <div class="card">
         <h2>Data Sources &amp; Coverage</h2>
-        <p>Coverage spans Markets (EVM via GoPlus/Honeypot.is/KyberSwap/DEX Screener, Solana via RugCheck, Hyperliquid/dYdX/Kraken perps, Polymarket/Kalshi predictions, Deribit options, US Treasury &amp; NY Fed macro), Security (deps.dev, OSV.dev, npm/PyPI/crates.io, CISA KEV, FIRST EPSS, MITRE CVE, Cloudflare 1.1.1.1/1.1.1.2 DoH, IANA RDAP, Statuspage, endoflife.date, Hugging Face Hub, OONI), World (NOAA AviationWeather, FAA NAS, NOAA SWPC, CelesTrak, UN/EU GDACS, USGS Seismic, NASA EONET, MET Norway, US Census/EPA TRI, GOV.UK FCDO, Nager.Date, NASA POWER), and Commerce (Frankfurter ECB FX, World Bank, EU Commission VIES, GLEIF LEI, Wikidata, SEC EDGAR, USAspending, US CPSC, and openFDA).</p>
+        <p>Coverage spans Markets (EVM via GoPlus/Honeypot.is/KyberSwap/DEX Screener, Solana via RugCheck, Hyperliquid/dYdX/Kraken perps, Polymarket/Kalshi predictions, Deribit options, US Treasury &amp; NY Fed macro, BIS 38-country + ECB + Bank of Canada policy rates), Security (deps.dev, OSV.dev, npm/PyPI/crates.io, CISA KEV, FIRST EPSS, MITRE CVE, Cloudflare 1.1.1.1/1.1.1.2 DoH, IANA RDAP, Statuspage, endoflife.date, Hugging Face Hub, OONI), World (NOAA AviationWeather, FAA NAS, NOAA SWPC, CelesTrak, UN/EU GDACS, USGS Seismic, NASA EONET, MET Norway, US Census/EPA TRI, GOV.UK FCDO, Nager.Date, NASA POWER), Commerce (Frankfurter ECB FX, World Bank, EU Commission VIES, GLEIF LEI, Wikidata, SEC EDGAR, USAspending, US CPSC, openFDA), and Research (Crossref Polite Pool, DataCite, Retraction Watch, NIH PubChem PUG-REST/GHS/NFPA, ClinicalTrials.gov v2, and NIH RxNav/RxNorm).</p>
       </div>
       <div class="card">
         <h2>Open Source &amp; Machine Discovery</h2>

@@ -1,9 +1,9 @@
 {
   "name": "exactjson",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "type": "module",
-  "description": "ExactJSON — Live, deterministic x402 APIs for AI agents: 27 pay-per-call endpoints across markets (token safety, slippage, perps, predictions, options, macro), security (OSS packages, domain trust, CVE triage, cloud status, runtime EOL, AI models, censorship), world (airport delays, space weather GNSS, hazard briefs, travel advisories, solar/wind site windows), and commerce (settlement windows, EU VAT/IBAN/BIC, corporate KYB, safety recalls) on Cloudflare Workers + D1.",
+  "description": "ExactJSON — Live, deterministic x402 APIs for AI agents: 31 pay-per-call endpoints across markets (token safety, slippage, perps, predictions, options, US & global macro), security (OSS packages, domain trust, CVE triage, cloud status, runtime EOL, AI models, censorship), world (airport delays, space weather GNSS, hazard briefs, travel advisories, solar/wind site windows), commerce (settlement windows, EU VAT/IBAN/BIC, corporate KYB, safety recalls), and research (academic DOI/retraction checks, PubChem GHS hazards, clinical trial catalysts) on Cloudflare Workers + D1.",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",

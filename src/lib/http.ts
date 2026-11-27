@@ -68,7 +68,15 @@ export type UpstreamProviderId =
   | "SEC_EDGAR"
   | "USASPENDING"
   | "US_CPSC"
-  | "OPENFDA";
+  | "OPENFDA"
+  | "CROSSREF"
+  | "DATACITE"
+  | "PUBCHEM"
+  | "CLINICALTRIALS"
+  | "RXNAV"
+  | "BIS"
+  | "ECB"
+  | "BOC";
 
 export interface FetchJsonOptions<T = unknown> {
   provider: UpstreamProviderId;
