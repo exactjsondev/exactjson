@@ -52,16 +52,16 @@ export const SWISS_CSS = `
 
       --bg-canvas: #f6f5f0;
       --bg-surface: #ffffff;
-      --bg-elevated: #eceae2;
+      --bg-elevated: #f0eee7;
       --bg-recessed: #0b0d11;
-      --bg-invert: #0b0c0e;
+      --bg-invert: #111317;
 
-      --grid-line: #d4d0c5;
-      --grid-line-strong: #1f2329;
+      --grid-line: #e2dfd7;
+      --grid-line-strong: #232730;
 
-      --ink-primary: #0b0c0e;
-      --ink-secondary: #2c3138;
-      --ink-muted: #4b505a;
+      --ink-primary: #111317;
+      --ink-secondary: #343942;
+      --ink-muted: #525864;
       --ink-on-invert: #f6f5f0;
       --ink-on-recessed: #f4f3ee;
       --ink-on-signal: #ffffff;
@@ -122,7 +122,7 @@ export const SWISS_CSS = `
       font-family: var(--font-sans);
       font-size-adjust: from-font;
       font-size: 1rem;
-      line-height: 1.62;
+      line-height: 1.68;
       -webkit-font-smoothing: antialiased;
     }
 
@@ -133,10 +133,10 @@ export const SWISS_CSS = `
     }
 
     p code, li code, td code, .desc code {
-      font-size: 0.88em;
-      padding: 0.08rem 0.3rem;
+      font-size: 0.87em;
+      padding: 0.12em 0.38em;
+      border-radius: 4px;
       background: var(--bg-elevated);
-      border: 1px solid var(--grid-line);
     }
 
     a {
@@ -261,17 +261,18 @@ export const SWISS_CSS = `
 
     @media (max-width: 560px) {
       html {
-        scroll-padding-top: 148px;
+        scroll-padding-top: 108px;
       }
       .header-inner {
+        min-block-size: 56px;
         padding: 0.65rem 1rem;
-        gap: 0.55rem;
+        gap: 0.5rem;
       }
       .nav-cluster {
-        gap: 0.35rem 0.8rem;
+        gap: 0.35rem 0.85rem;
       }
       .nav-cluster a {
-        font-size: 0.84rem;
+        font-size: 0.85rem;
         min-block-size: 28px;
       }
     }
@@ -400,7 +401,7 @@ export const SWISS_CSS = `
     }
     .pipeline-strip {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       border-bottom: 1px solid var(--grid-line);
       background: var(--bg-surface);
     }
@@ -419,7 +420,7 @@ export const SWISS_CSS = `
     .pack-matrix > :nth-child(2),
     .pack-matrix > :nth-child(5),
     .status-matrix > :nth-child(5n),
-    .pipeline-strip > :nth-child(4n),
+    .pipeline-strip > :nth-child(3n),
     .discovery-matrix > :nth-child(3n) {
       border-inline-end: none;
     }
@@ -502,8 +503,9 @@ export const SWISS_CSS = `
       display: inline-flex;
       align-items: center;
       gap: 0.45rem;
-      padding: 0.25rem 0.7rem;
+      padding: 0.28rem 0.75rem;
       border: 1px solid var(--grid-line-strong);
+      border-radius: 5px;
       background: var(--bg-surface);
       font-size: 0.8125rem;
       font-weight: 600;
@@ -568,12 +570,13 @@ export const SWISS_CSS = `
       justify-content: center;
       gap: 0.4rem;
       min-block-size: 42px;
-      padding: 0.55rem 1.15rem;
+      padding: 0.55rem 1.2rem;
       border: 1px solid var(--grid-line-strong);
+      border-radius: 6px;
       background: var(--bg-surface);
       color: var(--ink-primary);
       font-family: var(--font-sans);
-      font-size: 0.875rem;
+      font-size: 0.9rem;
       font-weight: 600;
       text-decoration: none;
     }
@@ -734,8 +737,14 @@ export const SWISS_CSS = `
       background: var(--bg-surface);
     }
     .gen-note {
-      font-size: 0.9375rem;
+      font-size: 0.95rem;
       color: var(--ink-secondary);
+      max-width: 66ch;
+    }
+    .gen-remote-note {
+      font-size: 0.875rem;
+      color: var(--ink-muted);
+      max-width: 66ch;
     }
 
     .hero-inspector:has(#hero-mode-payload:checked) label[for="hero-mode-payload"],
@@ -932,10 +941,10 @@ export const SWISS_CSS = `
     .tok-muted { color: var(--tok-muted); }
 
     .spec-cell {
-      padding: 1.75rem 1.5rem;
+      padding: 2rem 1.85rem;
       display: flex;
       flex-direction: column;
-      gap: 0.7rem;
+      gap: 0.85rem;
       background: var(--bg-canvas);
     }
     .spec-cell.surface {
@@ -946,20 +955,22 @@ export const SWISS_CSS = `
     }
 
     .spec-cell h2, .spec-cell h3 {
-      font-size: 1.15rem;
+      font-size: 1.18rem;
       font-weight: 700;
       letter-spacing: -0.02em;
       color: var(--ink-primary);
     }
     .spec-cell p {
-      font-size: 0.95rem;
+      font-size: 0.96rem;
       color: var(--ink-secondary);
+      max-width: 66ch;
     }
 
     .pack-example-q {
-      font-size: 0.9rem;
+      font-size: 0.92rem;
       color: var(--ink-primary);
-      padding: 0.65rem 0.85rem;
+      padding: 0.7rem 0.9rem;
+      border-radius: 0 5px 5px 0;
       background: var(--bg-elevated);
       border-inline-start: 3px solid var(--signal-ok);
     }
@@ -972,17 +983,19 @@ export const SWISS_CSS = `
       align-items: center;
       justify-content: space-between;
       gap: 0.5rem;
-      font-size: 0.85rem;
+      font-size: 0.875rem;
       color: var(--ink-muted);
     }
 
     .callout-box {
-      padding: 0.95rem 1.15rem;
+      padding: 1rem 1.2rem;
       border: 1px solid var(--grid-line);
       border-inline-start-width: 4px;
+      border-radius: 6px;
       background: var(--bg-surface);
-      font-size: 0.9375rem;
+      font-size: 0.95rem;
       color: var(--ink-secondary);
+      max-width: 68ch;
     }
     .callout-box.ok {
       border-inline-start-color: var(--signal-ok);
@@ -998,9 +1011,10 @@ export const SWISS_CSS = `
       padding-inline-start: 1.35rem;
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
-      font-size: 0.95rem;
+      gap: 0.85rem;
+      font-size: 0.96rem;
       color: var(--ink-secondary);
+      max-width: 66ch;
     }
     .step-list li strong {
       color: var(--ink-primary);
@@ -1011,9 +1025,10 @@ export const SWISS_CSS = `
       padding-inline-start: 1.2rem;
       display: flex;
       flex-direction: column;
-      gap: 0.5rem;
-      font-size: 0.95rem;
+      gap: 0.6rem;
+      font-size: 0.96rem;
       color: var(--ink-secondary);
+      max-width: 66ch;
     }
 
     /* Pack-Tabbed Endpoint Explorer */
@@ -1041,11 +1056,12 @@ export const SWISS_CSS = `
       display: inline-flex;
       align-items: center;
       min-block-size: 36px;
-      padding: 0.35rem 0.8rem;
+      padding: 0.35rem 0.85rem;
       border: 1px solid var(--grid-line-strong);
+      border-radius: 6px;
       background: var(--bg-surface);
       font-family: var(--font-sans);
-      font-size: 0.84rem;
+      font-size: 0.85rem;
       font-weight: 600;
       color: var(--ink-secondary);
       cursor: pointer;
@@ -1097,8 +1113,9 @@ export const SWISS_CSS = `
     .search-input {
       min-block-size: 38px;
       inline-size: min(330px, 85vw);
-      padding: 0.4rem 0.8rem;
+      padding: 0.4rem 0.85rem;
       border: 1px solid var(--grid-line-strong);
+      border-radius: 6px;
       background: var(--bg-surface);
       color: var(--ink-primary);
       font-family: var(--font-sans);
@@ -1208,12 +1225,13 @@ export const SWISS_CSS = `
       appearance: none;
       cursor: pointer;
       min-block-size: 34px;
-      padding: 0.3rem 0.75rem;
+      padding: 0.3rem 0.8rem;
       border: 1px solid var(--grid-line-strong);
+      border-radius: 6px;
       background: var(--bg-canvas);
       color: var(--ink-primary);
       font-family: var(--font-sans);
-      font-size: 0.84rem;
+      font-size: 0.85rem;
       font-weight: 600;
     }
     .preview-btn:hover {
@@ -1256,6 +1274,7 @@ export const SWISS_CSS = `
     .sample-details,
     .faq-item {
       border: 1px solid var(--grid-line);
+      border-radius: 6px;
       background: var(--bg-surface);
     }
     .sample-details {
@@ -1263,7 +1282,7 @@ export const SWISS_CSS = `
     }
 
     .faq-list {
-      padding: 1.5rem;
+      padding: 1.5rem 1.85rem;
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
@@ -1305,9 +1324,10 @@ export const SWISS_CSS = `
       border-bottom: 1px solid var(--grid-line);
     }
     .faq-answer {
-      padding: 0.9rem 1.15rem 1.05rem;
-      font-size: 0.95rem;
+      padding: 0.9rem 1.15rem 1.1rem;
+      font-size: 0.96rem;
       color: var(--ink-secondary);
+      max-width: 68ch;
     }
 
     .sample-json-wrap {
@@ -1345,6 +1365,7 @@ export const SWISS_CSS = `
       inline-size: min(680px, calc(100vw - 2rem));
       max-block-size: calc(100dvh - 3rem);
       border: 1px solid var(--grid-line-strong);
+      border-radius: 8px;
       background: var(--bg-surface);
       color: var(--ink-primary);
       box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
@@ -1390,17 +1411,42 @@ export const SWISS_CSS = `
       cursor: pointer;
       flex-shrink: 0;
       min-block-size: 36px;
-      padding: 0.3rem 0.75rem;
+      padding: 0.3rem 0.8rem;
       border: 1px solid var(--grid-line-strong);
+      border-radius: 6px;
       background: var(--bg-surface);
       color: var(--ink-primary);
       font-family: var(--font-sans);
-      font-size: 0.84rem;
+      font-size: 0.85rem;
       font-weight: 600;
     }
     .modal-close:hover {
       border-color: var(--signal-warn);
       color: var(--signal-warn);
+    }
+    .modal-url-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.65rem 0.85rem;
+      border: 1px solid var(--grid-line);
+      border-radius: 6px;
+      background: var(--bg-elevated);
+    }
+    .modal-url-scroll {
+      flex: 1;
+      min-width: 0;
+      overflow-x: auto;
+      white-space: nowrap;
+      font-family: var(--font-mono);
+      font-size: 0.84rem;
+      color: var(--ink-primary);
+    }
+    .modal-url-scroll a {
+      text-decoration: none;
+    }
+    .modal-url-scroll a:hover {
+      text-decoration: underline;
     }
     .modal-body {
       padding: 1.35rem;

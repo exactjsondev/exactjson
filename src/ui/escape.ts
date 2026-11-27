@@ -24,6 +24,12 @@ export function formatNetworkLabel(network: string): string {
   return network;
 }
 
+export function formatHumanNetwork(network: string): string {
+  if (network === "eip155:8453") return "Base";
+  if (network === "eip155:84532") return "Base Sepolia";
+  return network;
+}
+
 export function stripPackDisclaimer(entry: EndpointCatalogEntry): string {
   return entry.description.replace(PACKS[entry.pack].disclaimer, "").trim();
 }

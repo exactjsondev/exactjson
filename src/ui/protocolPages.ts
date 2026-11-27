@@ -218,7 +218,6 @@ curl -s ${baseUrl}/openapi.json`;
     title: `HTTP 402 Payment Required · ${entry.path} | ${SERVICE_NAME}`,
     description: `${entry.summary} (${entry.priceFormatted} USDC via x402 V2 on ${networkLabel}).`,
     noindex: true,
-    headerMetaHtml: `<span class="sig-badge warn"><span class="sig-dot warn" aria-hidden="true"></span>HTTP 402</span><span class="sig-badge ok">${escapeHtml(entry.priceFormatted)} USDC</span>`,
     footerDisclaimer: packDisclaimer,
     mainHtml,
   });
@@ -316,7 +315,6 @@ export function renderMcpGuideHtml(
     title: `Remote MCP Endpoint (POST ${mcpPath}) | ${SERVICE_NAME}`,
     description: `Connect to ExactJSON's Streamable HTTP MCP endpoint via POST ${baseUrl}${mcpPath} (${toolCount} tools).`,
     noindex: true,
-    headerMetaHtml: `<span class="sig-badge warn">HTTP 405 · POST Required</span>`,
     mainHtml,
   });
 }
@@ -345,7 +343,6 @@ export function renderNotFoundHtml(baseUrl: string, requestedPath: string): stri
     title: `404 Not Found | ${SERVICE_NAME}`,
     description: `No ExactJSON route matches ${requestedPath}.`,
     noindex: true,
-    headerMetaHtml: `<span class="sig-badge warn">HTTP 404</span>`,
     mainHtml,
   });
 }

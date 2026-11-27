@@ -26,6 +26,7 @@ export const WALLET_LINKS = {
   metamask: "https://metamask.io/",
   baseDocs: "https://docs.base.org/",
   x402: "https://x402.org",
+  nodejs: "https://nodejs.org/",
   baseUsdcContract: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
 } as const;
 
@@ -215,7 +216,7 @@ Requirements:
 5. Start by testing ${baseUrl}${meta.samplePathWithQuery} and show me the parsed JSON result.`;
 }
 
-export function buildMcpConfigSnippet(baseUrl: string, pack: SetupPackChoice): string {
+export function buildMcpConfigSnippet(_baseUrl: string, pack: SetupPackChoice): string {
   const meta = HUMAN_PACK_META[pack];
   const serverKey = pack === "all" ? "exactjson" : `exactjson-${pack}`;
   return JSON.stringify(
@@ -228,9 +229,6 @@ export function buildMcpConfigSnippet(baseUrl: string, pack: SetupPackChoice): s
             BUYER_PRIVATE_KEY: "0xYOUR_POCKET_WALLET_PRIVATE_KEY",
             MAX_PAYMENT_USD: "$0.05",
           },
-        },
-        [`${serverKey}-remote`]: {
-          url: `${baseUrl}${meta.mcpRemotePath}`,
         },
       },
     },
@@ -303,7 +301,7 @@ export function renderQuickWalletModal(baseUrl: string): string {
     </ol>`;
 
   const footerHtml = `
-    <a class="swiss-btn primary" href="${safeBase}/setup">Open Full 4-Step Setup Guide →</a>
+    <a class="swiss-btn primary" href="${safeBase}/setup">Open Full 3-Step Setup Guide →</a>
     <button type="button" class="swiss-btn" data-close-dialog>Done</button>`;
 
   return renderDialog({
@@ -375,17 +373,18 @@ export function renderPackSetupWidget(opts: PackSetupWidgetOptions): string {
     </div>
 
     <div class="gen-pane" data-gen-pane="mcp">
-      <p class="gen-note">Paste into your MCP client config. Your key stays on your machine — <strong>only HTTP 200 answers settle</strong>.</p>
+      <p class="gen-note">Paste into Claude Desktop, Cursor, or Windsurf. Your key stays on your device, and <strong>only successful answers charge</strong>.</p>
       ${renderCodeWell({
         id: `${opts.idPrefix}-code-mcp`,
-        label: `MCP Config · ${packMeta.mcpRemotePath}`,
+        label: `Local MCP · npx ${packMeta.stdioArgs.join(" ")}`,
         copyLabel: "Copy MCP configuration JSON",
         codeHtml: highlightJson(mcpRaw),
         receiptLeft: "Local signing · MAX_PAYMENT_USD=$0.05",
-        receiptRight: `${opts.networkLabel}`,
+        receiptRight: "$0 ETH gas",
         codeDataAttr: 'data-gen-code="mcp"',
         labelDataAttr: 'data-gen-label="mcp"',
       })}
+      <p class="gen-remote-note">Using an x402-native remote MCP client instead? Connect directly to <code data-gen-remote-url>${escapeHtml(opts.baseUrl)}${escapeHtml(packMeta.mcpRemotePath)}</code>.</p>
     </div>
 
     <div class="gen-pane" data-gen-pane="sdk">

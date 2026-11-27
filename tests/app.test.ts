@@ -517,6 +517,11 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
         expect(body).toContain('<details class="sample-details">');
       }
       if (pagePath === "/setup") {
+        expect(body).toContain("3-Step Setup Pipeline");
+        expect(body).not.toContain("Try it free (no wallet needed)");
+        expect(body).toContain("Settings → Developer → Edit Config");
+        expect(body).toContain("Prefer raw file paths?");
+        expect(body).not.toContain("exactjson-remote");
         expect(body).toContain("guide-rabby-dialog");
         expect(body).toContain("guide-metamask-dialog");
         expect(body).toContain("guide-usdc-dialog");
@@ -528,6 +533,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
         expect(body).toContain("https://metamask.io/");
         expect(body).toContain("https://docs.base.org/");
         expect(body).toContain("https://x402.org");
+        expect(body).toContain("https://nodejs.org/");
         expect(body).toContain("data-setup-generator");
         expect(body).toContain("MAX_PAYMENT_USD");
       }

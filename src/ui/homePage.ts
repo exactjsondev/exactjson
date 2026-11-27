@@ -9,6 +9,7 @@ import {
 } from "../config/catalog";
 import {
   escapeHtml,
+  formatHumanNetwork,
   formatNetworkLabel,
   highlightJson,
   renderCodeWell,
@@ -126,6 +127,7 @@ function renderCompactEndpointRows(
 export function renderLandingHtml(baseUrl: string, network: string): string {
   const safeBase = escapeHtml(baseUrl);
   const networkLabel = formatNetworkLabel(network);
+  const humanNet = formatHumanNetwork(network);
   const activePacks = getActivePacks();
 
   // Hero Tab 1: Flagship Live Answer (/v1/evm/safety)
@@ -152,7 +154,7 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
   // Hero Tab 3: Connect MCP
   const mcpWell = renderCodeWell({
     id: "hero-mcp-json",
-    label: "npx -y exactjson-mcp · Remote /mcp",
+    label: "Local MCP · npx -y exactjson-mcp",
     copyLabel: "Copy MCP client configuration JSON",
     codeHtml: highlightJson(buildMcpConfigSnippet(baseUrl, "markets")),
     receiptLeft: "MAX_PAYMENT_USD=$0.05 · Local signing",
@@ -215,8 +217,10 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
     title: "Live tool preview",
     bodyHtml: `
       <p id="preview-dialog-summary" class="modal-lead"></p>
-      <div class="callout-box" style="display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;">
-        <a id="preview-dialog-url-link" href="#" target="_blank" rel="noopener noreferrer" style="word-break: break-all; font-size: 0.84rem;"><code id="preview-dialog-url"></code></a>
+      <div class="modal-url-bar">
+        <div class="modal-url-scroll">
+          <a id="preview-dialog-url-link" href="#" target="_blank" rel="noopener noreferrer"><span id="preview-dialog-url"></span></a>
+        </div>
         <span class="copy-wrap">
           <button type="button" class="copy-btn" command="--copy" commandfor="preview-dialog-url" aria-label="Copy sample request URL">
             <span class="copy-text-idle" aria-hidden="true">Copy</span>
@@ -256,7 +260,7 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
         <h1 class="display-title">Live facts and exact math for your AI — no API keys, no subscriptions.</h1>
 
         <p class="lead">
-          <strong>${escapeHtml(SERVICE_NAME)}</strong> turns messy 200 KB API dumps into clean ~2 KB verified answers from official sources — making your AI more accurate and far cheaper on tokens. Paid per successful call (between $0.005–$0.02 in Base USDC on <code>${escapeHtml(networkLabel)}</code>) with $0 ETH gas fees.
+          <strong>${escapeHtml(SERVICE_NAME)}</strong> turns messy 200 KB API dumps into clean ~2 KB verified answers from official sources — making your AI more accurate and far cheaper on tokens. Paid per successful call (between $0.005–$0.02 in ${escapeHtml(humanNet)} USDC) with $0 ETH gas fees.
         </p>
 
         <div class="btn-row">
@@ -340,7 +344,7 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
       </div>
       <div class="spec-cell">
         <h2>Pay only when it works</h2>
-        <p>Bad inputs (<code>400</code>), not-found targets (<code>404</code>), and outages (<code>502</code>) cost $0.00. Set a hard <code>$0.05</code> cap per call.</p>
+        <p>Invalid inputs, missing targets, or source outages always cost $0.00. Set a hard $0.05 cap per call so your AI can never overspend.</p>
       </div>
     </section>
 
@@ -394,7 +398,7 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
         <h2 id="quickstart-heading" class="section-title">Connect in 60 seconds</h2>
         <div class="btn-row">
           <button type="button" class="swiss-btn" data-open-dialog="wallet-quick-dialog">Need a $5 wallet?</button>
-          <a class="swiss-btn primary" href="${safeBase}/setup">Full 4-Step Setup →</a>
+          <a class="swiss-btn primary" href="${safeBase}/setup">Full Setup Guide →</a>
         </div>
       </div>
       ${renderPackSetupWidget({ baseUrl, idPrefix: "home-gen", defaultPack: "all", networkLabel })}
@@ -457,7 +461,6 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
     twitterDescription: `${CATALOG.length} live x402 tools for AI agents on Base USDC (between $0.005–$0.02/call) + native MCP.`,
     canonicalPath: "/",
     activeNav: "/",
-    headerMetaHtml: `<span class="sig-badge ok"><span class="sig-dot ok" aria-hidden="true"></span>${escapeHtml(networkLabel)}</span>`,
     jsonLd: renderBrandJsonLd(baseUrl, true),
     mainHtml,
   });

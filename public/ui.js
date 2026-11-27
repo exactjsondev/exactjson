@@ -423,7 +423,7 @@ Requirements:
 5. Start by testing ${baseUrl}${spec.samplePathWithQuery} and show me the parsed JSON result.`;
 }
 
-function buildMcpConfig(baseUrl, packId) {
+function buildMcpConfig(packId) {
   const spec = PACK_SPECS[packId];
   const serverKey = packId === "all" ? "exactjson" : `exactjson-${packId}`;
   return JSON.stringify(
@@ -436,9 +436,6 @@ function buildMcpConfig(baseUrl, packId) {
             BUYER_PRIVATE_KEY: "0xYOUR_POCKET_WALLET_PRIVATE_KEY",
             MAX_PAYMENT_USD: "$0.05",
           },
-        },
-        [`${serverKey}-remote`]: {
-          url: `${baseUrl}${spec.mcpRemotePath}`,
         },
       },
     },
@@ -480,6 +477,7 @@ function initSetupGenerator() {
     const promptCodeEl = gen.querySelector('[data-gen-code="prompt"]');
     const mcpCodeEl = gen.querySelector('[data-gen-code="mcp"]');
     const sdkCodeEl = gen.querySelector('[data-gen-code="sdk"]');
+    const remoteUrlEl = gen.querySelector("[data-gen-remote-url]");
 
     const selectPack = (packId) => {
       if (!Object.hasOwn(PACK_SPECS, packId)) return;
@@ -500,7 +498,7 @@ function initSetupGenerator() {
         promptLabelEl.textContent = `Prompt · ${spec.plainTitle}`;
       }
       if (mcpLabelEl) {
-        mcpLabelEl.textContent = `MCP Config · ${spec.mcpRemotePath}`;
+        mcpLabelEl.textContent = `Local MCP · npx ${spec.stdioArgs.join(" ")}`;
       }
       if (sdkLabelEl) {
         sdkLabelEl.textContent = `TypeScript · ${spec.plainTitle}`;
@@ -509,10 +507,13 @@ function initSetupGenerator() {
         promptCodeEl.textContent = buildVibePrompt(baseUrl, packId);
       }
       if (mcpCodeEl instanceof HTMLElement) {
-        renderJsonTokens(mcpCodeEl, buildMcpConfig(baseUrl, packId));
+        renderJsonTokens(mcpCodeEl, buildMcpConfig(packId));
       }
       if (sdkCodeEl) {
         sdkCodeEl.textContent = buildSdkSnippet(baseUrl, packId);
+      }
+      if (remoteUrlEl) {
+        remoteUrlEl.textContent = `${baseUrl}${spec.mcpRemotePath}`;
       }
     };
 

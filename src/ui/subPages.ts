@@ -2,6 +2,7 @@ import { CATALOG, getActivePacks, getEndpointById, getPackEndpoints } from "../c
 import {
   CONTACT_EMAIL,
   escapeHtml,
+  formatHumanNetwork,
   formatNetworkLabel,
   GLAMA_URL,
   highlightCode,
@@ -92,7 +93,7 @@ export function renderDocsHtml(baseUrl: string, network: string): string {
           </div>
           <h1 class="page-title">ExactJSON API &amp; MCP Documentation</h1>
           <p class="lead">
-            ${CATALOG.length} live, deterministic JSON endpoints over <strong>x402 V2</strong> (Base USDC) and <strong>Model Context Protocol (MCP)</strong>. No accounts, no API keys, and you only pay on HTTP <code>200</code>.
+            ${CATALOG.length} live, deterministic JSON endpoints over <strong>x402 V2</strong> (Base USDC) and <strong>Model Context Protocol (MCP)</strong>. No accounts, no API keys, and you only pay on successful HTTP 200 responses.
           </p>
           <div class="btn-row" style="margin-top: 0.5rem;">
             <a class="swiss-btn primary" href="${safeBase}/setup">5-Minute Setup Guide →</a>
@@ -145,7 +146,7 @@ export function renderDocsHtml(baseUrl: string, network: string): string {
           <div class="catalog-toolbar">
             <h2 class="section-title">All ${CATALOG.length} Endpoints</h2>
             <div class="search-cluster">
-              <span id="endpoint-count-live" class="coord ok" role="status" aria-live="polite">${CATALOG.length} LIVE ENDPOINTS</span>
+              <span id="endpoint-count-live" class="coord ok" role="status" aria-live="polite">${CATALOG.length} live endpoints</span>
               <label for="endpoint-search" class="visually-hidden">Filter documentation endpoints</label>
               <input type="search" id="endpoint-search" class="search-input" placeholder="Search endpoints..." autocomplete="off">
             </div>
@@ -175,7 +176,6 @@ export function renderDocsHtml(baseUrl: string, network: string): string {
       "Complete API and MCP documentation for ExactJSON: x402 V2 Base USDC payment flow, Remote Streamable HTTP /mcp, stdio CLI, endpoint schemas, error model, and v1 versioning policy.",
     canonicalPath: "/docs",
     activeNav: "/docs",
-    headerMetaHtml: `<span class="sig-badge ok"><span class="sig-dot ok" aria-hidden="true"></span>Docs · x402 V2</span>`,
     jsonLd: renderBrandJsonLd(baseUrl, false),
     mainHtml,
   });
@@ -183,7 +183,7 @@ export function renderDocsHtml(baseUrl: string, network: string): string {
 
 export function renderPricingHtml(baseUrl: string, network: string): string {
   const safeBase = escapeHtml(baseUrl);
-  const networkLabel = formatNetworkLabel(network);
+  const humanNet = formatHumanNetwork(network);
   const activePacks = getActivePacks();
   const p = (id: Parameters<typeof getEndpointById>[0]) => getEndpointById(id).priceFormatted;
   const sumUsd = (...ids: Array<Parameters<typeof getEndpointById>[0]>) =>
@@ -248,12 +248,12 @@ export function renderPricingHtml(baseUrl: string, network: string): string {
   const mainHtml = `
     <section class="spec-cell swiss-section" style="padding: 2.5rem 2rem;">
       <div class="eyebrow-row">
-        <span class="sig-badge ok"><span class="sig-dot ok" aria-hidden="true"></span>Pay only on HTTP 200</span>
-        <span class="sig-badge">${escapeHtml(networkLabel)} · $0 ETH gas</span>
+        <span class="sig-badge ok"><span class="sig-dot ok" aria-hidden="true"></span>Pay only on success</span>
+        <span class="sig-badge">${escapeHtml(humanNet)} USDC · $0 ETH gas</span>
       </div>
       <h1 class="page-title">Half a cent to two cents — only when you get a real answer.</h1>
       <p class="lead">
-        No monthly fees, no API keys, and $0 ETH gas — pay per successful HTTP <code>200</code> answer in USDC on <strong>${escapeHtml(networkLabel)}</strong>.
+        No monthly fees, no API keys, and $0 ETH gas — pay per successful answer in USDC on <strong>${escapeHtml(humanNet)}</strong>.
       </p>
       <div class="btn-row" style="margin-top: 0.5rem;">
         <a class="swiss-btn primary" href="${safeBase}/setup">5-Minute Setup Guide →</a>
@@ -356,7 +356,6 @@ export function renderPricingHtml(baseUrl: string, network: string): string {
     description: `Transparent pay-per-call x402 V2 pricing for all ${CATALOG.length} ExactJSON endpoints on Base Mainnet USDC (between $0.005–$0.02/call). Pay only on HTTP 200 success.`,
     canonicalPath: "/pricing",
     activeNav: "/pricing",
-    headerMetaHtml: `<span class="sig-badge ok"><span class="sig-dot ok" aria-hidden="true"></span>Base USDC · $0.005–$0.02</span>`,
     jsonLd: offerCatalogJsonLd,
     mainHtml,
   });
@@ -383,7 +382,7 @@ export function renderAboutHtml(baseUrl: string, network: string): string {
       <div class="spec-cell surface">
         <span class="coord warn">Safety first</span>
         <h2>Fail-closed safety boundary</h2>
-        <p>ExactJSON runs on Cloudflare Workers and D1 with x402 V2 settlement on ${escapeHtml(formatNetworkLabel(network))}. Security and compliance checks combine authoritative engines (like GoPlus + Honeypot.is on EVM, RugCheck on Solana, and EU Commission VIES) and fail closed with HTTP <code>502</code> ($0.00 charged) whenever a primary source is down — never reporting missing data as safe.</p>
+        <p>ExactJSON runs on Cloudflare Workers and D1 with automatic USDC settlement on ${escapeHtml(formatHumanNetwork(network))}. Security and compliance checks combine authoritative engines (like GoPlus + Honeypot.is on EVM, RugCheck on Solana, and EU Commission VIES) and fail closed with HTTP 502 ($0.00 charged) whenever a primary source is down — never reporting missing data as safe.</p>
       </div>
     </section>
 
@@ -460,7 +459,6 @@ export function renderAboutHtml(baseUrl: string, network: string): string {
       "Learn how ExactJSON delivers compact, deterministic, fail-closed JSON endpoints and MCP tools for AI agents on Cloudflare Workers and Base Mainnet USDC.",
     canonicalPath: "/about",
     activeNav: "/about",
-    headerMetaHtml: `<span class="sig-badge">Open Source · MIT</span>`,
     jsonLd: renderBrandJsonLd(baseUrl, false),
     mainHtml,
   });
@@ -509,7 +507,6 @@ export function renderContactHtml(baseUrl: string): string {
       "Contact the ExactJSON team at hello@exactjson.com or via GitHub Issues for x402 V2 API integration, MCP server support, and security inquiries.",
     canonicalPath: "/contact",
     activeNav: "/contact",
-    headerMetaHtml: `<span class="sig-badge">Support</span>`,
     jsonLd: renderBrandJsonLd(baseUrl, false),
     mainHtml,
   });
@@ -560,7 +557,6 @@ export function renderPrivacyHtml(baseUrl: string): string {
       "ExactJSON privacy policy: zero user accounts, zero tracking cookies, minimal operational telemetry in Cloudflare D1, and automatic pruning of unpaid challenge logs.",
     canonicalPath: "/privacy",
     activeNav: "/privacy",
-    headerMetaHtml: `<span class="sig-badge">Privacy</span>`,
     jsonLd: renderBrandJsonLd(baseUrl, false),
     mainHtml,
   });
