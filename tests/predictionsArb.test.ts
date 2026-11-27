@@ -530,7 +530,7 @@ describe("prediction markets arbitrage engine & route", () => {
     expect((await app.request("http://localhost/v1/predictions/arb?min_spread_bps=-10")).status).toBe(400);
     expect((await app.request("http://localhost/v1/predictions/arb?min_liquidity_usd=abc")).status).toBe(400);
     expect((await app.request("http://localhost/v1/predictions/arb?limit=99")).status).toBe(400);
-    expect((await app.request("http://localhost/v1/predictions/arb?query=" + "a".repeat(65))).status).toBe(400);
+    expect((await app.request(`http://localhost/v1/predictions/arb?query=${"a".repeat(65)}`)).status).toBe(400);
 
     // Fail closed 502 when ONLY Kalshi fails (Polymarket still up)
     const partialOutageFetch: typeof fetch = async (input) => {

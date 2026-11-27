@@ -4,8 +4,11 @@ on:
   workflow_dispatch:
   push:
     tags:
-      - "mcp-v*"
-      - "mcp-registry-v*"
+      - "v*"
+
+concurrency:
+  group: publish-mcp
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -25,6 +28,27 @@ jobs:
           cache-dependency-path: |
             package-lock.json
             mcp/package-lock.json
+      - name: Verify release tag and manifest version alignment
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          ROOT_VER="$(node -p "require('./package.json').version")"
+          PKG_VER="$(node -p "require('./mcp/package.json').version")"
+          SERVER_VER="$(node -p "require('./mcp/server.json').version")"
+          SERVER_PKG_VER="$(node -p "require('./mcp/server.json').packages[0].version")"
+          if ! [[ "$PKG_VER" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid semver version in mcp/package.json: $PKG_VER" >&2
+            exit 1
+          fi
+          if [ "$ROOT_VER" != "$PKG_VER" ] || [ "$SERVER_VER" != "$PKG_VER" ] || [ "$SERVER_PKG_VER" != "$PKG_VER" ]; then
+            echo "Version mismatch: root=$ROOT_VER mcp=$PKG_VER server=$SERVER_VER serverPkg=$SERVER_PKG_VER" >&2
+            exit 1
+          fi
+          if [ "$REF_TYPE" = "tag" ] && [ "$REF_NAME" != "v${PKG_VER}" ]; then
+            echo "Tag '$REF_NAME' does not match manifest version 'v${PKG_VER}'. Aborting to prevent duplicate or mismatched release." >&2
+            exit 1
+          fi
       - run: npm ci
       - working-directory: mcp
         run: npm ci
@@ -45,9 +69,21 @@ jobs:
           else
             npm publish --provenance --access public
           fi
-      - name: Publish server.json to Official MCP Registry via GitHub OIDC
+      - name: Publish server.json to Official MCP Registry via GitHub OIDC (idempotent)
         working-directory: mcp
         run: |
+          SERVER_NAME="$(node -p "require('./server.json').name")"
+          SERVER_VER="$(node -p "require('./server.json').version")"
+          SERVER_NAME_ENC="$(node -p "encodeURIComponent(require('./server.json').name)")"
+          REGISTRY_STATUS="$(curl -sS -o /dev/null -w "%{http_code}" \
+            "https://registry.modelcontextprotocol.io/v0.1/servers/${SERVER_NAME_ENC}/versions/${SERVER_VER}")"
+          if [ "$REGISTRY_STATUS" = "200" ]; then
+            echo "${SERVER_NAME}@${SERVER_VER} is already published on the Official MCP Registry; skipping publish."
+            exit 0
+          elif [ "$REGISTRY_STATUS" != "404" ]; then
+            echo "Unexpected Official MCP Registry lookup status (${REGISTRY_STATUS}) for ${SERVER_NAME}@${SERVER_VER}; aborting." >&2
+            exit 1
+          fi
           mkdir -p /tmp/mcp-pub
           curl -fsSL -o /tmp/mcp-pub/mcp-publisher.tar.gz \
             "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.20/mcp-publisher_linux_amd64.tar.gz"

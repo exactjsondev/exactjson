@@ -21,11 +21,30 @@ const INTERNAL_LEAK_PATTERNS: readonly RegExp[] = [
   new RegExp(["\\bwave", "s?\\s*[-_]?[1-9]\\b"].join(""), "i"),
   new RegExp(["\\bnew", "20\\b"].join(""), "i"),
   new RegExp(["\\b31", "\\/31\\b"].join("")),
+  new RegExp(["\\bspr", "int\\b"].join(""), "i"),
   new RegExp(["260%", "-rule"].join(""), "i"),
   new RegExp(["\\btd", "qs\\b"].join(""), "i"),
   new RegExp(["required\\s+by\\s+", "roadmap"].join(""), "i"),
   new RegExp(["\\bfresh", "-eyes\\s+audit\\b"].join(""), "i"),
+  new RegExp(["(?:[A-Z]:\\\\Us", "ers\\\\|/Us", "ers/)[^\\s\"'`]+"].join(""), "i"),
+  new RegExp(["\\.", "gemini[/\\\\]"].join(""), "i"),
+  new RegExp(["obsidian", "-vault"].join(""), "i"),
+  new RegExp(["-----BEGIN (?:RSA |EC |OPENSSH |PGP )?PRIVATE ", "KEY-----"].join("")),
+  new RegExp(["\\b(?:ghp_|github_pat_", "|gho_)\\w{20,}"].join("")),
 ];
+
+const INTERNAL_DOC_REF_PATTERN = new RegExp(
+  [
+    "\\b(?:",
+    "GROUND_RULES\\.md|",
+    "HANDOFF\\.md|",
+    "AGENTS\\.md|",
+    "CLAUDE\\.md",
+    ")\\b|\\.agents\\/|\\.claude\\/",
+  ].join("")
+);
+
+const SKIP_INTERNAL_DOC_REF_FILES = new Set([".gitignore", "tests/brandHygiene.test.ts"]);
 
 const FORBIDDEN_TRACKED_PATHS: readonly string[] = [
   "GROUND_RULES.md",
@@ -109,7 +128,7 @@ describe("ExactJSON clean-slate brand hygiene and MCP contract parity", () => {
     expect(violations).toEqual([]);
   });
 
-  it("prevents internal operator docs and internal roadmap/sprint jargon from leaking into git-tracked files", () => {
+  it("prevents internal operator docs, secrets, local paths, and planning jargon from leaking into git-tracked files", () => {
     const gitLs = spawnSync("git", ["ls-files"], {
       cwd: ROOT,
       encoding: "utf8",
@@ -147,9 +166,33 @@ describe("ExactJSON clean-slate brand hygiene and MCP contract parity", () => {
           trackedViolations.push(`${relPath} matched internal jargon pattern ${pattern.source}`);
         }
       }
+      if (!SKIP_INTERNAL_DOC_REF_FILES.has(relPath) && INTERNAL_DOC_REF_PATTERN.test(content)) {
+        trackedViolations.push(`${relPath} referenced an internal operator doc or directory`);
+      }
     }
 
     expect(trackedViolations).toEqual([]);
+  });
+
+  it("enforces single-tag idempotent MCP release workflow and unique CATALOG entries", () => {
+    const publishWorkflow = readFileSync(
+      resolve(ROOT, ".github/workflows/publish-mcp.yml"),
+      "utf8"
+    );
+    expect(publishWorkflow).toContain('- "v*"');
+    expect(publishWorkflow).not.toContain('"mcp-registry-v*"');
+    expect(publishWorkflow).not.toContain('"mcp-v*"');
+    expect(publishWorkflow).toContain("concurrency:");
+    expect(publishWorkflow).toContain("Verify release tag and manifest version alignment");
+    expect(publishWorkflow).toContain("is already published on npm");
+    expect(publishWorkflow).toContain("is already published on the Official MCP Registry");
+
+    const uniqueIds = new Set(CATALOG.map((entry) => entry.id));
+    const uniquePaths = new Set(CATALOG.map((entry) => entry.path));
+    const uniqueRouteKeys = new Set(CATALOG.map((entry) => entry.routeKey));
+    expect(uniqueIds.size).toBe(CATALOG.length);
+    expect(uniquePaths.size).toBe(CATALOG.length);
+    expect(uniqueRouteKeys.size).toBe(CATALOG.length);
   });
 
   it("keeps mcp/catalog.generated.mjs, mcp/index.mjs, mcp/package.json, mcp/server.json, and scripts/test-payment.ts synced with CATALOG", async () => {

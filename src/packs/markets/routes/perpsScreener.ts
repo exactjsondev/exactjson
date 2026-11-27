@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { BoundedTtlCache, referenceCache } from "../../../lib/cache";
+import { type BoundedTtlCache, referenceCache } from "../../../lib/cache";
 import { UpstreamError } from "../../../lib/http";
 import { fetchHyperliquidMetaMap } from "../providers/hyperliquid";
 import { createWaitUntil } from "../../../middleware/telemetry";

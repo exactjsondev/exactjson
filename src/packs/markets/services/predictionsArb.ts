@@ -180,7 +180,7 @@ const NEGATIVE_CONTRACTION_RE =
   /\b(?:won|don|doesn|didn|isn|aren|wasn|weren|can|couldn|wouldn|shouldn|haven|hasn|hadn)['’]t\b/g;
 
 export function resolveTokenAlias(token: string): string {
-  return Object.prototype.hasOwnProperty.call(TOKEN_ALIASES, token)
+  return Object.hasOwn(TOKEN_ALIASES, token)
     ? TOKEN_ALIASES[token]!
     : token;
 }

@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { BoundedTtlCache, TTL_MS, isolateCache, referenceCache } from "../../../lib/cache";
+import { type BoundedTtlCache, TTL_MS, isolateCache, referenceCache } from "../../../lib/cache";
 import { UpstreamError } from "../../../lib/http";
 import { parsePerpCoin } from "../../../lib/validation";
 import {

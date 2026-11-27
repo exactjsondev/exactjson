@@ -241,8 +241,8 @@ export function usdToRawTokenUnits(
 
   const raw =
     totalExp >= 0
-      ? (u.digits * BigInt("1" + "0".repeat(totalExp))) / p.digits
-      : u.digits / (p.digits * BigInt("1" + "0".repeat(-totalExp)));
+      ? (u.digits * BigInt(`1${"0".repeat(totalExp)}`)) / p.digits
+      : u.digits / (p.digits * BigInt(`1${"0".repeat(-totalExp)}`));
 
   return raw > BigInt(0) ? raw.toString() : null;
 }

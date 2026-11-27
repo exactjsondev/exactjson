@@ -59,26 +59,24 @@ export function createMacroLiquidityHandler(deps: MacroLiquidityDeps = {}) {
     const sources: string[] = [];
     const missingSources: string[] = [];
 
-    const debt =
-      debtRes.status === "fulfilled"
-        ? (hits.push(debtRes.value.cacheHit), sources.push("treasury_debt"), debtRes.value.data)
-        : (missingSources.push("treasury_debt"), undefined);
-    const tga =
-      tgaRes.status === "fulfilled"
-        ? (hits.push(tgaRes.value.cacheHit), sources.push("treasury_tga"), tgaRes.value.data)
-        : (missingSources.push("treasury_tga"), undefined);
-    const rrp =
-      rrpRes.status === "fulfilled"
-        ? (hits.push(rrpRes.value.cacheHit), sources.push("nyfed_rrp"), rrpRes.value.data)
-        : (missingSources.push("nyfed_rrp"), undefined);
-    const sofr =
-      sofrRes.status === "fulfilled"
-        ? (hits.push(sofrRes.value.cacheHit), sources.push("nyfed_sofr"), sofrRes.value.data)
-        : (missingSources.push("nyfed_sofr"), undefined);
-    const effr =
-      effrRes.status === "fulfilled"
-        ? (hits.push(effrRes.value.cacheHit), sources.push("nyfed_effr"), effrRes.value.data)
-        : (missingSources.push("nyfed_effr"), undefined);
+    const unwrapFeed = <T>(
+      res: PromiseSettledResult<{ cacheHit: boolean; data: T }>,
+      sourceName: string
+    ): T | undefined => {
+      if (res.status === "fulfilled") {
+        hits.push(res.value.cacheHit);
+        sources.push(sourceName);
+        return res.value.data;
+      }
+      missingSources.push(sourceName);
+      return undefined;
+    };
+
+    const debt = unwrapFeed(debtRes, "treasury_debt");
+    const tga = unwrapFeed(tgaRes, "treasury_tga");
+    const rrp = unwrapFeed(rrpRes, "nyfed_rrp");
+    const sofr = unwrapFeed(sofrRes, "nyfed_sofr");
+    const effr = unwrapFeed(effrRes, "nyfed_effr");
 
     // Require at least 3 of 5 official primary feeds to settle
     if (sources.length < 3) {

@@ -8,7 +8,7 @@ export type NegotiatedFormat = "html" | "markdown" | "json";
  * x402 discovery crawlers always receive machine-readable JSON.
  */
 export function negotiateContentType(acceptHeader: string | undefined): NegotiatedFormat {
-  if (!acceptHeader || !acceptHeader.trim()) {
+  if (!acceptHeader?.trim()) {
     return "json";
   }
 

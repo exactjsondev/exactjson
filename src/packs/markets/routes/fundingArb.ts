@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { BoundedTtlCache, referenceCache } from "../../../lib/cache";
+import { type BoundedTtlCache, referenceCache } from "../../../lib/cache";
 import { UpstreamError } from "../../../lib/http";
 import { parsePerpCoin } from "../../../lib/validation";
 import { fetchDydxMarketsMap } from "../providers/dydx";
@@ -78,18 +78,20 @@ export function createFundingArbHandler(deps: FundingArbDeps = {}) {
     const hits: boolean[] = [];
     const activeSources: string[] = [];
 
-    const hlVenue =
-      hlRes.status === "fulfilled"
-        ? (hits.push(hlRes.value.cacheHit), activeSources.push("hyperliquid"), hyperliquidToVenueMap(hlRes.value.map))
-        : undefined;
-    const dydxVenue =
-      dydxRes.status === "fulfilled"
-        ? (hits.push(dydxRes.value.cacheHit), activeSources.push("dydx"), dydxRes.value.map)
-        : undefined;
-    const krakenVenue =
-      krakenRes.status === "fulfilled"
-        ? (hits.push(krakenRes.value.cacheHit), activeSources.push("kraken"), krakenRes.value.map)
-        : undefined;
+    const unwrapVenue = <T>(
+      res: PromiseSettledResult<{ cacheHit: boolean; map: T }>,
+      venueName: string
+    ): T | undefined => {
+      if (res.status !== "fulfilled") return undefined;
+      hits.push(res.value.cacheHit);
+      activeSources.push(venueName);
+      return res.value.map;
+    };
+
+    const rawHlMap = unwrapVenue(hlRes, "hyperliquid");
+    const hlVenue = rawHlMap ? hyperliquidToVenueMap(rawHlMap) : undefined;
+    const dydxVenue = unwrapVenue(dydxRes, "dydx");
+    const krakenVenue = unwrapVenue(krakenRes, "kraken");
 
     // Require at least 2 live venues to compute real cross-venue spreads
     if (activeSources.length < 2) {

@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { BoundedTtlCache, referenceCache } from "../../../lib/cache";
+import { type BoundedTtlCache, referenceCache } from "../../../lib/cache";
 import { UpstreamError } from "../../../lib/http";
 import { fetchDeribitOptions } from "../providers/deribit";
 import { createWaitUntil } from "../../../middleware/telemetry";

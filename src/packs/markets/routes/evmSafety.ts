@@ -1,5 +1,5 @@
 import type { Context } from "hono";
-import { BoundedTtlCache, isolateCache } from "../../../lib/cache";
+import { type BoundedTtlCache, isolateCache } from "../../../lib/cache";
 import { UpstreamError } from "../../../lib/http";
 import { parseEvmAddress, parseEvmChain } from "../../../lib/validation";
 import { fetchDexScreenerEvmPairs } from "../providers/dexscreener";
