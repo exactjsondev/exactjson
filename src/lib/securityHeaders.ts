@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import type { AppBindings } from "../types";
 
 export const HTML_CSP =
-  "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; base-uri 'self'; form-action 'none'; frame-ancestors 'none'";
+  "default-src 'none'; script-src 'self'; font-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
 export const PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=()";
 export const HSTS_HEADER = "max-age=31536000; includeSubDomains";
 
@@ -34,7 +34,7 @@ export type JsonBodyLimitResult =
 
 export async function readJsonBodyWithLimit(
   req: Request,
-  maxBytes: number
+  maxBytes: number,
 ): Promise<JsonBodyLimitResult> {
   const contentLengthHeader = req.headers.get("content-length");
   if (contentLengthHeader) {

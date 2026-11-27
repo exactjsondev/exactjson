@@ -1,13 +1,15 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
+import { DISCLAIMER, getEndpointById, getEndpointByPath } from "../src/config/catalog";
 import app, { pruneOldChallengedRequests } from "../src/index";
-import { DISCLAIMER, getEndpointByPath } from "../src/config/catalog";
 import { isolateCache } from "../src/lib/cache";
 import { clearServiceControlCache } from "../src/middleware/serviceControl";
 import { classifyOutcome, extractTelemetryError } from "../src/middleware/telemetry";
 import { classifyFacilitatorInitError } from "../src/middleware/x402";
+import { renderNotFoundHtml, renderPaywallHtml } from "../src/routes/landingHtml";
 import type { Env } from "../src/types";
+import { highlightJson } from "../src/ui/escape";
 
 function createMockDb(initialPaused = false) {
   let paused = initialPaused ? 1 : 0;
@@ -150,7 +152,10 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
         contact: { email?: string };
       };
       security: unknown[];
-      paths: Record<string, { get: { "x-payment-info": { protocols: unknown[]; price: { amount: string } } } }>;
+      paths: Record<
+        string,
+        { get: { "x-payment-info": { protocols: unknown[]; price: { amount: string } } } }
+      >;
     };
     expect(oa.openapi).toBe("3.1.0");
     expect(oa.info.title).toContain("ExactJSON");
@@ -171,7 +176,10 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
         {
           get: {
             parameters?: Array<{ name: string; schema: Record<string, unknown> }>;
-            responses: Record<string, { content?: { "application/json"?: { schema?: { $ref?: string } } } }>;
+            responses: Record<
+              string,
+              { content?: { "application/json"?: { schema?: { $ref?: string } } } }
+            >;
           };
         }
       >;
@@ -187,7 +195,8 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(oaFull.components?.schemas?.PaymentRequiredResponse).toBeDefined();
     for (const code of ["400", "404", "405", "502", "503"]) {
       expect(
-        oaFull.paths["/v1/solana/safety"]?.get.responses[code]?.content?.["application/json"]?.schema?.$ref
+        oaFull.paths["/v1/solana/safety"]?.get.responses[code]?.content?.["application/json"]
+          ?.schema?.$ref,
       ).toBe("#/components/schemas/ErrorResponse");
     }
     expect(oa.paths["/v1/solana/safety"]?.get["x-payment-info"].protocols).toEqual([{ x402: {} }]);
@@ -213,7 +222,9 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(llmsText).toContain("https://github.com/exactjsondev/exactjson");
     expect(llmsText).toContain("https://www.npmjs.com/package/exactjson-mcp");
     expect(llmsText).toContain("https://glama.ai/mcp/servers/exactjsondev/exactjson");
-    expect(llmsText).toContain("https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc");
+    expect(llmsText).toContain(
+      "https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc",
+    );
     expect(llmsText).toContain("## When to Use ExactJSON");
     expect(llmsText).toContain("## Recommended Agent Workflows");
     expect(llmsText).toContain("## Versioning & Deprecation Policy");
@@ -236,7 +247,11 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(card.authentication.schemes).toContain("x402");
 
     // Legacy A2A alias /.well-known/agent.json
-    const legacyCardRes = await app.request("http://localhost:8787/.well-known/agent.json", {}, env);
+    const legacyCardRes = await app.request(
+      "http://localhost:8787/.well-known/agent.json",
+      {},
+      env,
+    );
     expect(legacyCardRes.status).toBe(200);
     expect(((await legacyCardRes.json()) as { name: string }).name).toBe("ExactJSON");
 
@@ -252,14 +267,17 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     const mcpCardRes = await app.request(
       "http://localhost:8787/.well-known/mcp/server-card.json",
       {},
-      env
+      env,
     );
     expect(mcpCardRes.status).toBe(200);
     const mcpCard = (await mcpCardRes.json()) as {
       serverInfo: { name: string; version: string };
       transport: { type: string; endpoint?: string };
       remotes: Array<{ type: string; url: string }>;
-      tools: Array<{ name: string; inputSchema: { properties: Record<string, { type?: string }> } }>;
+      tools: Array<{
+        name: string;
+        inputSchema: { properties: Record<string, { type?: string }> };
+      }>;
     };
     expect(mcpCard.serverInfo.name).toBe("io.github.exactjsondev/exactjson");
     expect(mcpCard.serverInfo.version).toBe("1.5.0");
@@ -359,7 +377,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     const jsonStar = await app.request(
       "http://localhost:8787/",
       { headers: { Accept: "*/*" } },
-      env
+      env,
     );
     expect(jsonStar.headers.get("vary")).toContain("Accept");
     expect(jsonStar.headers.get("content-type")).toContain("application/json");
@@ -368,7 +386,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     const jsonPreferred = await app.request(
       "http://localhost:8787/",
       { headers: { Accept: "application/json, text/html;q=0.5" } },
-      env
+      env,
     );
     expect(jsonPreferred.headers.get("content-type")).toContain("application/json");
 
@@ -376,7 +394,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     const htmlZero = await app.request(
       "http://localhost:8787/",
       { headers: { Accept: "text/html;q=0, application/json;q=0.8" } },
-      env
+      env,
     );
     expect(htmlZero.headers.get("content-type")).toContain("application/json");
 
@@ -388,7 +406,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
           Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
         },
       },
-      env
+      env,
     );
     expect(htmlBrowser.status).toBe(200);
     expect(htmlBrowser.headers.get("vary")).toContain("Accept");
@@ -397,8 +415,12 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(htmlBrowser.headers.get("x-content-type-options")).toBe("nosniff");
     expect(htmlBrowser.headers.get("x-frame-options")).toBe("DENY");
     expect(htmlBrowser.headers.get("referrer-policy")).toBe("strict-origin-when-cross-origin");
-    expect(htmlBrowser.headers.get("permissions-policy")).toBe("camera=(), microphone=(), geolocation=()");
-    expect(htmlBrowser.headers.get("strict-transport-security")).toBe("max-age=31536000; includeSubDomains");
+    expect(htmlBrowser.headers.get("permissions-policy")).toBe(
+      "camera=(), microphone=(), geolocation=()",
+    );
+    expect(htmlBrowser.headers.get("strict-transport-security")).toBe(
+      "max-age=31536000; includeSubDomains",
+    );
     expect(htmlBrowser.headers.get("content-security-policy")).toContain("default-src 'none'");
     expect(htmlBrowser.headers.get("link")).toContain('rel="api-catalog"');
     const html = await htmlBrowser.text();
@@ -410,12 +432,12 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(html).toContain("npx -y exactjson-mcp");
     expect(html).toContain("hello@exactjson.com");
     expect(html).toContain(DISCLAIMER);
-    expect(html).toContain("<main id=\"main-content\">");
-    expect(html).toContain("class=\"skip-link visually-hidden\"");
-    expect(html).toContain("id=\"quickstart\"");
-    expect(html).toContain("id=\"discovery\"");
+    expect(html).toContain('<main id="main-content">');
+    expect(html).toContain('class="skip-link visually-hidden"');
+    expect(html).toContain('id="quickstart"');
+    expect(html).toContain('id="discovery"');
     expect(html).toContain("@x402/fetch");
-    expect(html).toContain("<details class=\"sample-details\">");
+    expect(html).toContain('<details class="sample-details">');
     expect(html).toContain("og-image.jpg");
     expect(html).toContain("apple-touch-icon.png");
     expect(html).toContain('"@type":"Organization"');
@@ -429,7 +451,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     const mdRoot = await app.request(
       "http://localhost:8787/",
       { headers: { Accept: "text/markdown" } },
-      env
+      env,
     );
     expect(mdRoot.status).toBe(200);
     expect(mdRoot.headers.get("content-type")).toContain("text/markdown");
@@ -441,21 +463,21 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     const mdOverHtml = await app.request(
       "http://localhost:8787/",
       { headers: { Accept: "text/markdown, text/html;q=0.9" } },
-      env
+      env,
     );
     expect(mdOverHtml.headers.get("content-type")).toContain("text/markdown");
 
     const htmlOverMd = await app.request(
       "http://localhost:8787/",
       { headers: { Accept: "text/html, text/markdown;q=0.5" } },
-      env
+      env,
     );
     expect(htmlOverMd.headers.get("content-type")).toContain("text/html");
 
     const jsonOverMd = await app.request(
       "http://localhost:8787/",
       { headers: { Accept: "application/json, text/markdown;q=0.5" } },
-      env
+      env,
     );
     expect(jsonOverMd.headers.get("content-type")).toContain("application/json");
 
@@ -464,7 +486,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
       const htmlPage = await app.request(
         `http://localhost:8787${pagePath}`,
         { headers: { Accept: "text/html" } },
-        env
+        env,
       );
       expect(htmlPage.status, pagePath).toBe(200);
       expect(htmlPage.headers.get("content-type")).toContain("text/html");
@@ -477,13 +499,15 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
       expect(body).toContain('property="og:image"');
       expect(body).toContain('name="twitter:card"');
       if (pagePath === "/docs") {
-        expect(body).toContain("https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc");
+        expect(body).toContain(
+          "https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc",
+        );
       }
 
       const mdPage = await app.request(
         `http://localhost:8787${pagePath}`,
         { headers: { Accept: "text/markdown" } },
-        env
+        env,
       );
       expect(mdPage.status, `${pagePath} md`).toBe(200);
       expect(mdPage.headers.get("content-type")).toContain("text/markdown");
@@ -507,7 +531,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     const postRes = await app.request(
       "http://localhost:8787/v1/perps/snapshot?coin=BTC",
       { method: "POST" },
-      env
+      env,
     );
     expect(postRes.status).toBe(405);
     expect(postRes.headers.get("allow")).toBe("GET, HEAD, OPTIONS");
@@ -519,7 +543,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     const html404 = await app.request(
       "http://localhost:8787/this-route-does-not-exist",
       { headers: { Accept: "text/html,application/xhtml+xml,*/*;q=0.8" } },
-      env
+      env,
     );
     expect(html404.status).toBe(404);
     expect(html404.headers.get("content-type")).toContain("text/html");
@@ -532,7 +556,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     const md404 = await app.request(
       "http://localhost:8787/this-route-does-not-exist",
       { headers: { Accept: "text/markdown" } },
-      env
+      env,
     );
     expect(md404.status).toBe(404);
     expect(md404.headers.get("content-type")).toContain("text/markdown");
@@ -570,33 +594,117 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     const burnRes = await app.request(
       "http://localhost:8787/v1/perps/snapshot?coin=BTC",
       {},
-      burnEnv
+      burnEnv,
     );
     expect(burnRes.status).toBe(500);
     expect(((await burnRes.json()) as { error: string }).error).toBe("SERVER_MISCONFIGURED");
 
     // Unmatched /v1/* path must return 404 cleanly without invoking x402 paywall or facilitator
-    const notFoundRes = await app.request(
-      "http://localhost:8787/v1/does-not-exist",
-      {},
-      burnEnv
-    );
+    const notFoundRes = await app.request("http://localhost:8787/v1/does-not-exist", {}, burnEnv);
     expect(notFoundRes.status).toBe(404);
   });
 
   it("never imports @x402/* or @coinbase/x402 in free discovery modules", () => {
+    const uiDir = resolve(process.cwd(), "src/ui");
+    const uiFiles = readdirSync(uiDir)
+      .filter((name) => name.endsWith(".ts"))
+      .map((name) => resolve(uiDir, name));
+
     const files = [
       resolve(process.cwd(), "src/routes/discovery.ts"),
       resolve(process.cwd(), "src/routes/landingHtml.ts"),
       resolve(process.cwd(), "src/routes/mcp.ts"),
       resolve(process.cwd(), "src/lib/mcpTools.ts"),
       resolve(process.cwd(), "src/lib/contentNegotiation.ts"),
+      ...uiFiles,
     ];
+    expect(uiFiles.length).toBeGreaterThanOrEqual(6);
     for (const file of files) {
       const content = readFileSync(file, "utf8");
       expect(content).not.toMatch(/from\s+["']@x402\//);
       expect(content).not.toMatch(/from\s+["']@coinbase\/x402/);
     }
+  });
+
+  it("renders Swiss Grid dual-polarity controls, 3-mode inspector, XSS-safe JSON art, and 402 schema sheets", async () => {
+    const { db } = createMockDb(false);
+    const env = makeEnv(db);
+
+    const htmlRes = await app.request(
+      "http://localhost:8787/",
+      { headers: { Accept: "text/html" } },
+      env,
+    );
+    const csp = htmlRes.headers.get("content-security-policy") ?? "";
+    expect(csp).toContain("default-src 'none'");
+    expect(csp).toContain("script-src 'self'");
+    expect(csp).toContain("font-src 'self'");
+    expect(csp).toContain("base-uri 'none'");
+    expect(csp).toContain("form-action 'none'");
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).not.toContain("script-src 'self' 'unsafe-inline'");
+
+    const html = await htmlRes.text();
+    expect(html).toContain('id="polarity-toggle"');
+    expect(html).toContain('id="hero-mode-payload"');
+    expect(html).toContain('id="hero-mode-mcp"');
+    expect(html).toContain('id="hero-mode-accept"');
+    expect(html).toContain('id="pack-tab-all"');
+    expect(html).toContain('id="pack-tab-markets"');
+    expect(html).toContain('id="pack-tab-security"');
+    expect(html).toContain('id="pack-tab-world"');
+    expect(html).toContain('id="pack-tab-commerce"');
+    expect(html).toContain('id="pack-tab-research"');
+    expect(html).toContain('command="--copy"');
+    expect(html).toContain("/fonts/inter-latin.woff2");
+    expect(html).toContain("/fonts/jetbrains-mono-latin.woff2");
+    expect(html).toContain('<script src="/ui.js" defer></script>');
+
+    // XSS-safe JSON syntax highlighting keeps raw text intact when stripped of span tags
+    const hostilePayload = JSON.stringify(
+      { tag: "</script><img src=x onerror=alert(1)>", ok: true, count: 42 },
+      null,
+      2,
+    );
+    const highlighted = highlightJson(hostilePayload);
+    expect(highlighted).not.toContain("</script>");
+    expect(highlighted).not.toContain("<img");
+    expect(highlighted).toContain("&lt;/script&gt;&lt;img src=x onerror=alert(1)&gt;");
+    expect(highlighted).toContain('class="tok-key"');
+    expect(highlighted).toContain('class="tok-str"');
+    expect(highlighted).toContain('class="tok-num"');
+
+    // 404 escapes reflected path characters cleanly
+    const xss404 = renderNotFoundHtml("https://exactjson.com", "/<script>alert(1)</script>");
+    expect(xss404).not.toContain("<script>alert(1)</script>");
+    expect(xss404).toContain("&lt;script&gt;alert(1)&lt;/script&gt;");
+
+    // 402 Paywall sheet renders inputSchema parameter table and pack-specific MCP args
+    const cveEntry = getEndpointById("sec_cve_triage");
+    const paywallHtml = renderPaywallHtml(
+      cveEntry,
+      "https://exactjson.com",
+      "eip155:8453",
+      "https://exactjson.com/v1/sec/cve-triage?cve=CVE-2024-3094",
+    );
+    expect(paywallHtml).toContain("HTTP 402 · Payment Required");
+    expect(paywallHtml).toContain("QUERY PARAMETER SCHEMA");
+    expect(paywallHtml).toContain("<code>cve</code>");
+    expect(paywallHtml).toContain("REQUIRED");
+    expect(paywallHtml).toContain("exactjson_sec_cve_triage");
+    expect(paywallHtml).toContain("&quot;--pack&quot;");
+    expect(paywallHtml).toContain("&quot;security&quot;");
+
+    // Shell-active characters in reflected 402 URLs are percent-encoded against pastejacking
+    const hostilePaywallHtml = renderPaywallHtml(
+      cveEntry,
+      "https://exactjson.com",
+      "eip155:8453",
+      "https://exactjson.com/v1/sec/cve-triage?cve=$(whoami)&x=`id`",
+    );
+    expect(hostilePaywallHtml).not.toContain("$(whoami)");
+    expect(hostilePaywallHtml).not.toContain("`id`");
+    expect(hostilePaywallHtml).toContain("%24%28whoami%29");
   });
 
   it("keeps /dashboard/api/* strictly same-origin and toggles 503 pause gate before x402", async () => {
@@ -619,7 +727,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
         },
         body: JSON.stringify({ paused: true }),
       },
-      env
+      env,
     );
     expect(pauseRes.status).toBe(200);
     expect(((await pauseRes.json()) as { paused: boolean }).paused).toBe(true);
@@ -635,7 +743,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
         },
         body: "null",
       },
-      env
+      env,
     );
     expect(nullBodyRes.status).toBe(400);
     expect(((await nullBodyRes.json()) as { error: string }).error).toBe("INVALID_PAYLOAD");
@@ -652,7 +760,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
         },
         body: hugeControlBody,
       },
-      env
+      env,
     );
     expect(hugeControlRes.status).toBe(413);
     expect(((await hugeControlRes.json()) as { error: string }).error).toBe("PAYLOAD_TOO_LARGE");
@@ -670,7 +778,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     const blockedHead = await app.request(
       "http://localhost:8787/v1/perps/snapshot?coin=BTC",
       { method: "HEAD" },
-      env
+      env,
     );
     expect(blockedHead.status).toBe(503);
     await new Promise((r) => setTimeout(r, 10));
@@ -683,16 +791,20 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     // Trailing slash matches Hono route cleanly (strict: false parity with x402 & getEndpointByPath)
     const healthSlash = await app.request("http://localhost:8787/health/", {}, env);
     expect(healthSlash.status).toBe(200);
-    const pausedSlash = await app.request("http://localhost:8787/v1/perps/snapshot/?coin=BTC", {}, env);
+    const pausedSlash = await app.request(
+      "http://localhost:8787/v1/perps/snapshot/?coin=BTC",
+      {},
+      env,
+    );
     expect(pausedSlash.status).toBe(503);
   });
 
   it("classifies telemetry outcomes deterministically", () => {
     expect(classifyOutcome(402, false, null)).toBe("CHALLENGED_402");
     expect(classifyOutcome(402, true, null)).toBe("VERIFY_FAILED");
-    expect(
-      classifyOutcome(402, true, { success: false, errorReason: "insufficient_funds" })
-    ).toBe("UNSETTLED_ERROR");
+    expect(classifyOutcome(402, true, { success: false, errorReason: "insufficient_funds" })).toBe(
+      "UNSETTLED_ERROR",
+    );
     expect(classifyOutcome(200, true, { success: true, transaction: "0xabc" })).toBe("SETTLED");
     expect(classifyOutcome(200, true, { success: false })).toBe("UNSETTLED_ERROR");
     expect(classifyOutcome(400, true, null)).toBe("UNSETTLED_ERROR");
@@ -701,65 +813,65 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
   });
 
   it("extracts telemetry error reasons and classifies facilitator init failures", () => {
-    expect(
-      extractTelemetryError("FACILITATOR_INIT_429", "UNSETTLED_ERROR", null, null)
-    ).toBe("FACILITATOR_INIT_429");
+    expect(extractTelemetryError("FACILITATOR_INIT_429", "UNSETTLED_ERROR", null, null)).toBe(
+      "FACILITATOR_INIT_429",
+    );
     expect(
       extractTelemetryError(
         null,
         "UNSETTLED_ERROR",
         { success: false, errorReason: "insufficient_balance" },
-        null
-      )
+        null,
+      ),
     ).toBe("insufficient_balance");
+    expect(extractTelemetryError(null, "VERIFY_FAILED", null, { error: "Payment required" })).toBe(
+      "MALFORMED_PAYMENT_HEADER",
+    );
+    expect(extractTelemetryError(null, "VERIFY_FAILED", null, { error: "invalid_signature" })).toBe(
+      "invalid_signature",
+    );
     expect(
-      extractTelemetryError(null, "VERIFY_FAILED", null, { error: "Payment required" })
-    ).toBe("MALFORMED_PAYMENT_HEADER");
-    expect(
-      extractTelemetryError(null, "VERIFY_FAILED", null, { error: "invalid_signature" })
-    ).toBe("invalid_signature");
-    expect(
-      extractTelemetryError(null, "CHALLENGED_402", null, { error: "Payment required" })
+      extractTelemetryError(null, "CHALLENGED_402", null, { error: "Payment required" }),
     ).toBeNull();
 
     expect(classifyFacilitatorInitError(new Error("Request timed out after 5000ms"))).toBe(
-      "FACILITATOR_INIT_TIMEOUT"
+      "FACILITATOR_INIT_TIMEOUT",
     );
-    expect(classifyFacilitatorInitError(Object.assign(new Error("Auth failed"), { status: 401 }))).toBe(
-      "FACILITATOR_INIT_401"
-    );
+    expect(
+      classifyFacilitatorInitError(Object.assign(new Error("Auth failed"), { status: 401 })),
+    ).toBe("FACILITATOR_INIT_401");
     expect(classifyFacilitatorInitError(new Error("HTTP 403 Forbidden"))).toBe(
-      "FACILITATOR_INIT_403"
+      "FACILITATOR_INIT_403",
     );
     expect(classifyFacilitatorInitError(new Error("429 Too Many Requests"))).toBe(
-      "FACILITATOR_INIT_429"
+      "FACILITATOR_INIT_429",
     );
     expect(classifyFacilitatorInitError(new Error("Facilitator returned 503"))).toBe(
-      "FACILITATOR_INIT_5XX"
+      "FACILITATOR_INIT_5XX",
     );
     expect(classifyFacilitatorInitError(new Error("unexpected socket reset"))).toBe(
-      "FACILITATOR_INIT_ERROR"
+      "FACILITATOR_INIT_ERROR",
     );
     expect(
       classifyFacilitatorInitError(
         new Error("Failed to initialize: no supported payment kinds loaded from any facilitator.", {
           cause: new Error("HTTP 401 Unauthorized"),
-        })
-      )
+        }),
+      ),
     ).toBe("FACILITATOR_INIT_401");
     expect(
       classifyFacilitatorInitError(
         new Error("Failed to initialize: no supported payment kinds loaded from any facilitator.", {
           cause: Object.assign(new Error("boom"), { status: 429 }),
-        })
-      )
+        }),
+      ),
     ).toBe("FACILITATOR_INIT_429");
     expect(
       classifyFacilitatorInitError(
         new Error("Failed to initialize: no supported payment kinds loaded from any facilitator.", {
           cause: new Error("fetch timed out"),
-        })
-      )
+        }),
+      ),
     ).toBe("FACILITATOR_INIT_TIMEOUT");
   });
 
@@ -813,7 +925,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     const firstOverview = await app.request(
       "http://localhost:8787/dashboard/api/overview",
       { headers: { Authorization: `Bearer ${env.DASHBOARD_TOKEN}` } },
-      env
+      env,
     );
     expect(firstOverview.status).toBe(200);
     const firstBody = (await firstOverview.json()) as {
@@ -829,7 +941,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     const controlRes = await app.request(
       "http://localhost:8787/dashboard/api/control",
       { headers: { Authorization: `Bearer ${env.DASHBOARD_TOKEN}` } },
-      env
+      env,
     );
     expect(controlRes.status).toBe(200);
     expect(((await controlRes.json()) as { paused: boolean }).paused).toBe(true);
@@ -839,12 +951,12 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     const refreshedOverview = await app.request(
       "http://localhost:8787/dashboard/api/overview?refresh=1",
       { headers: { Authorization: `Bearer ${env.DASHBOARD_TOKEN}` } },
-      env
+      env,
     );
     expect(refreshedOverview.status).toBe(200);
-    expect(((await refreshedOverview.json()) as { control: { paused: boolean } }).control.paused).toBe(
-      true
-    );
+    expect(
+      ((await refreshedOverview.json()) as { control: { paused: boolean } }).control.paused,
+    ).toBe(true);
   });
 
   it("prunes both CHALLENGED_402 and VERIFY_FAILED rows without touching SETTLED", async () => {
@@ -880,23 +992,22 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(headersFile).toContain("script-src 'self'; style-src");
     expect(headersFile).not.toContain("script-src 'self' 'unsafe-inline'");
     expect(headersFile).toContain("Strict-Transport-Security: max-age=31536000; includeSubDomains");
-    expect(headersFile).toMatch(/\/apple-touch-icon\.png\r?\n\s+Cache-Control:\s*public, max-age=86400/);
+    expect(headersFile).toMatch(
+      /\/apple-touch-icon\.png\r?\n\s+Cache-Control:\s*public, max-age=86400/,
+    );
 
     const appleIcon = readFileSync(resolve(process.cwd(), "public/apple-touch-icon.png"));
     expect(Array.from(appleIcon.subarray(0, 4))).toEqual([0x89, 0x50, 0x4e, 0x47]);
 
     const dashboardHtml = readFileSync(
       resolve(process.cwd(), "public/dashboard/index.html"),
-      "utf8"
+      "utf8",
     );
     expect(dashboardHtml).toContain("<th>Verify Failed</th>");
     expect(dashboardHtml).toContain('<script src="/dashboard/app.js" defer></script>');
     expect(dashboardHtml).not.toContain("<script>");
 
-    const dashboardAppJs = readFileSync(
-      resolve(process.cwd(), "public/dashboard/app.js"),
-      "utf8"
-    );
+    const dashboardAppJs = readFileSync(resolve(process.cwd(), "public/dashboard/app.js"), "utf8");
     expect(dashboardAppJs).toContain("verify_failed_count");
     expect(dashboardAppJs).toContain("loadRequestsOnly");
   });

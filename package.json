@@ -8,7 +8,7 @@
     "dev": "wrangler dev",
     "deploy": "wrangler deploy",
     "typecheck": "tsc --noEmit",
-    "lint": "biome lint src tests scripts mcp/index.mjs mcp/catalog.generated.mjs public/dashboard/app.js",
+    "lint": "biome lint src tests scripts mcp/index.mjs mcp/catalog.generated.mjs public/dashboard/app.js public/ui.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "sync:mcp": "tsx scripts/sync-mcp-manifest.ts",

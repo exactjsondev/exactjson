@@ -1,5 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#090c12"/>
-  <rect x="4" y="4" width="56" height="56" rx="11" fill="none" stroke="#38bdf8" stroke-width="3"/>
-  <text x="32" y="40" text-anchor="middle" font-family="ui-monospace, monospace" font-size="23" font-weight="700" fill="#edf2fa">{}</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <rect width="64" height="64" fill="#070708"/>
+  <rect x="2" y="2" width="60" height="60" stroke="#323742" stroke-width="1.5"/>
+  <line x1="2" y1="14" x2="62" y2="14" stroke="#1F2229" stroke-width="1"/>
+  <line x1="2" y1="50" x2="62" y2="50" stroke="#1F2229" stroke-width="1"/>
+  <rect x="7" y="6.5" width="4" height="4" fill="#10B981"/>
+  <path d="M25 21H20V29.5L16.5 32L20 34.5V43H25" stroke="#F4F3EE" stroke-width="3.4" stroke-linecap="square" stroke-linejoin="miter"/>
+  <path d="M39 21H44V29.5L47.5 32L44 34.5V43H39" stroke="#F4F3EE" stroke-width="3.4" stroke-linecap="square" stroke-linejoin="miter"/>
+  <rect x="30" y="27" width="4" height="4" fill="#10B981"/>
+  <rect x="30" y="34" width="4" height="4" fill="#F4F3EE"/>
 </svg>
