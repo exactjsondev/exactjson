@@ -256,7 +256,7 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
         <h1 class="display-title">Live facts and exact math for your AI — no API keys, no subscriptions.</h1>
 
         <p class="lead">
-          <strong>${escapeHtml(SERVICE_NAME)}</strong> turns messy 200 KB API dumps into clean ~2 KB verified answers from official sources — making your AI more accurate and far cheaper on tokens. Paid per successful call ($0.005–$0.02 in Base USDC on <code>${escapeHtml(networkLabel)}</code>) with $0 ETH gas fees.
+          <strong>${escapeHtml(SERVICE_NAME)}</strong> turns messy 200 KB API dumps into clean ~2 KB verified answers from official sources — making your AI more accurate and far cheaper on tokens. Paid per successful call (between $0.005–$0.02 in Base USDC on <code>${escapeHtml(networkLabel)}</code>) with $0 ETH gas fees.
         </p>
 
         <div class="btn-row">
@@ -452,9 +452,9 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
     baseUrl,
     title: `${SERVICE_NAME} — Live, deterministic x402 APIs for AI agents`,
     description:
-      "ExactJSON gives your AI live verified facts and exact math in ~2 KB JSON ($0.005-$0.02/call in Base USDC). No API keys, no subscriptions, and $0.00 on errors.",
-    ogDescription: `${CATALOG.length} live x402 tools for AI agents on Base USDC ($0.005-$0.02/call) plus native MCP (npx -y exactjson-mcp). Pay only on success.`,
-    twitterDescription: `${CATALOG.length} live x402 tools for AI agents on Base USDC ($0.005-$0.02/call) + native MCP.`,
+      "ExactJSON gives your AI live verified facts and exact math in ~2 KB JSON (between $0.005–$0.02/call in Base USDC). No API keys, no subscriptions, and $0.00 on errors.",
+    ogDescription: `${CATALOG.length} live x402 tools for AI agents on Base USDC (between $0.005–$0.02/call) plus native MCP (npx -y exactjson-mcp). Pay only on success.`,
+    twitterDescription: `${CATALOG.length} live x402 tools for AI agents on Base USDC (between $0.005–$0.02/call) + native MCP.`,
     canonicalPath: "/",
     activeNav: "/",
     headerMetaHtml: `<span class="sig-badge ok"><span class="sig-dot ok" aria-hidden="true"></span>${escapeHtml(networkLabel)}</span>`,

@@ -7,7 +7,7 @@
 
 **ExactJSON — Live, deterministic x402 APIs for AI agents** (Model Context Protocol server).
 
-Exposes **31 Base USDC pay-per-call endpoints + free `exactjson_health`** organized into 5 focused vertical packs (`<= 15` tools per pack for zero-bloat LLM tool selection) with client-side spend caps (`MAX_PAYMENT_USD`) and Pay-Only-On-Success guarantees:
+Give your AI live verified facts and exact math in ~2 KB JSON — **31 Base USDC pay-per-call endpoints (between `$0.005–$0.02`/call, `$0` ETH gas needed) + free `exactjson_health`** organized into 5 focused vertical packs (`<= 15` tools per pack for sharp LLM tool selection) with hard client-side spend caps (`MAX_PAYMENT_USD="$0.05"`) and Pay-Only-On-Success guarantees:
 
 - **`markets` (default, 13 tools):** `https://exactjson.com/mcp` or `npx -y exactjson-mcp`
 - **`security` (8 tools):** `https://exactjson.com/mcp/security` or `npx -y exactjson-mcp --pack security`
@@ -16,7 +16,7 @@ Exposes **31 Base USDC pay-per-call endpoints + free `exactjson_health`** organi
 - **`research` (4 tools):** `https://exactjson.com/mcp/research` or `npx -y exactjson-mcp --pack research`
 - **`all` (32 tools):** `https://exactjson.com/mcp/all` or `npx -y exactjson-mcp --pack all`
 
-- **Website & Docs:** https://exactjson.com · https://exactjson.com/docs · https://exactjson.com/pricing
+- **5-Minute Setup & Website:** https://exactjson.com/setup · https://exactjson.com · https://exactjson.com/docs · https://exactjson.com/pricing
 - **Official MCP Registry:** `io.github.exactjsondev/exactjson`
 - **x402scan Listing:** https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc
 - **Repository:** https://github.com/exactjsondev/exactjson

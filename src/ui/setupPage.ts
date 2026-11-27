@@ -223,7 +223,7 @@ export function renderSetupHtml(baseUrl: string, network: string): string {
         </div>
         <div class="spec-cell">
           <h3>How to know it worked</h3>
-          <p>An HTTP <code>200</code> response with a <code>PAYMENT-RESPONSE</code> receipt header means your call succeeded and settled $0.005–$0.02.</p>
+          <p>An HTTP <code>200</code> response with a <code>PAYMENT-RESPONSE</code> receipt header means your call succeeded and settled between $0.005–$0.02.</p>
           <div class="callout-box ok">
             <strong>Pay-only-on-success:</strong> HTTP <code>400</code>, <code>404</code>, <code>502</code>, and <code>503</code> responses are always <strong>$0.00 charged</strong>.
           </div>
@@ -245,7 +245,7 @@ export function renderSetupHtml(baseUrl: string, network: string): string {
         <details class="faq-item">
           <summary>Spend cap exceeded? Check MAX_PAYMENT_USD</summary>
           <div class="faq-answer">
-            Keep <code>MAX_PAYMENT_USD="$0.05"</code> in MCP (or <code>maxAmountPerPayment: "$0.05"</code> in the SDK). All ${CATALOG.length} ExactJSON endpoints are $0.005–$0.02.
+            Keep <code>MAX_PAYMENT_USD="$0.05"</code> in MCP (or <code>maxAmountPerPayment: "$0.05"</code> in the SDK). All ${CATALOG.length} ExactJSON endpoints are between $0.005–$0.02.
           </div>
         </details>
       </div>
@@ -328,7 +328,7 @@ export function buildSetupMarkdown(baseUrl: string, network: string): string {
     "## Step 4 — Stay Safe & Confirm Your First Call",
     '- Keep `MAX_PAYMENT_USD="$0.05"` (or `maxAmountPerPayment: "$0.05"`).',
     "- Add `.env` to `.gitignore` and never share private keys in chat or GitHub.",
-    "- **Pay-only-on-success:** HTTP `200` with `PAYMENT-RESPONSE` settles ($0.005–$0.02); `400`, `404`, `502`, and `503` are always **$0.00 charged**.",
+    "- **Pay-only-on-success:** HTTP `200` with `PAYMENT-RESPONSE` settles between $0.005–$0.02; `400`, `404`, `502`, and `503` are always **$0.00 charged**.",
     `- **Troubleshooting:** Verify native Base USDC (\`${WALLET_LINKS.baseUsdcContract}\`), verify \`BUYER_PRIVATE_KEY\` starts with \`0x\`, and confirm your spend cap is \`$0.05\`.`,
     "",
   ];

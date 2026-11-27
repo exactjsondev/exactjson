@@ -5,17 +5,20 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/exactjsondev/exactjson/blob/main/LICENSE)
 [![ExactJSON MCP server](https://glama.ai/mcp/servers/exactjsondev/exactjson/badge)](https://glama.ai/mcp/servers/exactjsondev/exactjson)
 
-**Website:** https://exactjson.com ([Docs](https://exactjson.com/docs) · [Pricing](https://exactjson.com/pricing)) · **Remote MCP:** `https://exactjson.com/mcp` · **Security MCP:** `https://exactjson.com/mcp/security` · **World MCP:** `https://exactjson.com/mcp/world` · **Commerce MCP:** `https://exactjson.com/mcp/commerce` · **Research MCP:** `https://exactjson.com/mcp/research` · **Stdio MCP:** `npx -y exactjson-mcp` · **x402scan:** [Listing](https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc) · **Security:** [SECURITY.md](SECURITY.md) · **Contact:** hello@exactjson.com
+**Website:** https://exactjson.com ([5-Minute Setup](https://exactjson.com/setup) · [Docs](https://exactjson.com/docs) · [Pricing](https://exactjson.com/pricing)) · **Remote MCP:** `https://exactjson.com/mcp` · **Security MCP:** `https://exactjson.com/mcp/security` · **World MCP:** `https://exactjson.com/mcp/world` · **Commerce MCP:** `https://exactjson.com/mcp/commerce` · **Research MCP:** `https://exactjson.com/mcp/research` · **Stdio MCP:** `npx -y exactjson-mcp` · **x402scan:** [Listing](https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc) · **Security:** [SECURITY.md](SECURITY.md) · **Contact:** hello@exactjson.com
 
-**ExactJSON** (`v1.5.0`) serves **31 pre-computed, strict-schema, token-optimized JSON endpoints** across 5 vertical MCP packs for AI agents via **x402 V2** micro-payments on **Base Mainnet (`eip155:8453`, USDC)** — `$0.005–$0.02/call`, zero API keys, zero subscriptions, strict **Pay-Only-On-Success** settlement (`HTTP 200` only).
+**ExactJSON** gives your AI live verified facts and exact math — turning bloated 200 KB API dumps into clean ~2 KB JSON answers across **31 pay-per-call tools** and **5 vertical MCP packs** on **Base Mainnet (`eip155:8453`, USDC)**. Every endpoint costs **between `$0.005–$0.02` per successful call** with **zero API keys**, **zero monthly subscriptions**, **`$0` ETH needed for gas**, and strict **Pay-Only-On-Success** settlement (`HTTP 200` only; errors cost `$0.00`).
+
+> **New to Base USDC or MCP?** Follow the **[5-Minute Setup Guide](https://exactjson.com/setup)** (includes step-by-step Rabby & MetaMask pocket-wallet instructions, 1-click Vibe-Coding prompts for Cursor/Claude/Lovable/Bolt, and spend caps).
 
 > **Disclaimer:** Informational market, security, weather/hazard, entity/compliance, and scientific/clinical metadata only; not financial, legal, tax, accounting, medical, or sole life-safety/flight-navigation advice.
 
 ## Why ExactJSON
 
-- **Cheaper than free raw APIs for LLM agents:** Pulling 600+ Deribit contracts, 180+ Hyperliquid assets, 430 KB registry packuments, 555 KB GDACS/95 KB FCDO feeds, 313 KB CPSC / 160 KB SEC dumps, or 112 KB PubChem GHS / SDMX-JSON trees raw into an LLM context costs `$0.02–$0.15` in input tokens and invites math hallucinations. ExactJSON returns one deterministic ~2 KB JSON payload.
-- **Pay-Only-On-Success:** Unpaid probes return `402` with `PAYMENT-REQUIRED` terms. Invalid inputs (`400`/`404`), upstream outages (`502`), and operator pause (`503`) never settle payment.
-- **Fail-Closed Safety:** Missing primary engines (GoPlus + Honeypot.is on EVM; RugCheck on Solana; OSV/deps.dev/CISA KEV/Cloudflare 1.1.1.2 on Security; NOAA AWC/SWPC/GDACS/USGS/FCDO on World; EU VIES `MS_UNAVAILABLE`/GLEIF/CPSC/openFDA on Commerce; Crossref/DataCite/PubChem/ClinicalTrials.gov/BIS on Research & Global Macro) return `502` instead of falsely marking a target safe or valid.
+- **More accurate than AI guessing:** Queries official live sources (EU VIES, FAA/NOAA, Crossref/Retraction Watch, OSV/CISA KEV, GoPlus+Honeypot.is, BIS/ECB/NY Fed, ClinicalTrials.gov) and computes exact math in code instead of relying on stale LLM training data.
+- **Cheaper to run your AI:** Pulling 600+ Deribit contracts, 180+ Hyperliquid assets, 430 KB package manifests, 555 KB GDACS feeds, 313 KB CPSC dumps, or 112 KB PubChem trees raw into an LLM costs `$0.02–$0.15` in input tokens and invites math hallucinations. ExactJSON compresses that noise into ~2 KB JSON for between `$0.005–$0.02`.
+- **Pay-Only-On-Success (`$0` ETH gas):** Unpaid probes return `402` with `PAYMENT-REQUIRED` terms. Invalid inputs (`400`/`404`), upstream outages (`502`), and operator pauses (`503`) always cost `$0.00`.
+- **Fail-Closed Safety:** Missing primary security or registry engines return `502` instead of falsely marking a target safe or valid.
 
 ## Live Endpoints (31 Paid Resources — Base Mainnet USDC)
 

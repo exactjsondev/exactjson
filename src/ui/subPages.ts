@@ -112,7 +112,7 @@ export function renderDocsHtml(baseUrl: string, network: string): string {
             <div class="spec-cell surface">
               <span class="coord">Step 1 · Unpaid 402 probe</span>
               <h3>Get the exact price first</h3>
-              <p>Send a regular <code>GET /v1/*</code> request to receive HTTP <code>402 Payment Required</code> with a base64-encoded <code>PAYMENT-REQUIRED</code> header listing exact Base USDC terms ($0.005–$0.02).</p>
+              <p>Send a regular <code>GET /v1/*</code> request to receive HTTP <code>402 Payment Required</code> with a base64-encoded <code>PAYMENT-REQUIRED</code> header listing exact Base USDC terms (between $0.005–$0.02).</p>
             </div>
             <div class="spec-cell surface">
               <span class="coord">Step 2 · Local EIP-3009 signing</span>
@@ -269,7 +269,7 @@ export function renderPricingHtml(baseUrl: string, network: string): string {
       <div class="status-matrix">
         <div class="spec-cell ok-tint">
           <span class="coord ok">HTTP 200 OK</span>
-          <h3>Paid ($0.005–$0.02)</h3>
+          <h3>Paid (between $0.005–$0.02)</h3>
           <p>Verified answer delivered with a receipt.</p>
         </div>
         <div class="spec-cell surface">
@@ -353,7 +353,7 @@ export function renderPricingHtml(baseUrl: string, network: string): string {
   return renderSwissShell({
     baseUrl,
     title: "ExactJSON Pricing — Pay-Per-Call Base USDC ($0.005–$0.02)",
-    description: `Transparent pay-per-call x402 V2 pricing for all ${CATALOG.length} ExactJSON endpoints on Base Mainnet USDC ($0.005 to $0.02/call). Pay only on HTTP 200 success.`,
+    description: `Transparent pay-per-call x402 V2 pricing for all ${CATALOG.length} ExactJSON endpoints on Base Mainnet USDC (between $0.005–$0.02/call). Pay only on HTTP 200 success.`,
     canonicalPath: "/pricing",
     activeNav: "/pricing",
     headerMetaHtml: `<span class="sig-badge ok"><span class="sig-dot ok" aria-hidden="true"></span>Base USDC · $0.005–$0.02</span>`,

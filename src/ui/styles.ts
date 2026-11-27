@@ -27,6 +27,7 @@ export const SWISS_CSS = `
       overflow-x: clip;
       interpolate-size: allow-keywords;
       scroll-behavior: smooth;
+      scroll-padding-top: 84px;
     }
     body {
       margin: 0;
@@ -169,6 +170,9 @@ export const SWISS_CSS = `
     }
 
     .header-band {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 40;
       border-bottom: 1px solid var(--grid-line);
       background: var(--bg-surface);
     }
@@ -256,6 +260,9 @@ export const SWISS_CSS = `
     }
 
     @media (max-width: 560px) {
+      html {
+        scroll-padding-top: 148px;
+      }
       .header-inner {
         padding: 0.65rem 1rem;
         gap: 0.55rem;
@@ -459,7 +466,7 @@ export const SWISS_CSS = `
     }
     .docs-rail-sticky {
       position: sticky;
-      inset-block-start: 1.25rem;
+      inset-block-start: 5.5rem;
       display: flex;
       flex-direction: column;
       gap: 0.45rem;

@@ -36,7 +36,7 @@ export function renderBrandJsonLd(baseUrl: string, includeOffers = false): strin
     keywords:
       "x402 API, AI agent API, MCP server, Base USDC micropayments, EVM token safety, Solana safety, Hyperliquid perpetuals, Polymarket Kalshi arbitrage, Deribit options surface, US macro liquidity, BIS central bank policy rates, OSS package audit, CVE triage, domain trust, airport delays METAR, space weather GNSS, GDACS hazard brief, travel advisories, NASA POWER solar, EU VIES VAT verify, IBAN checksum, GLEIF LEI KYB, CPSC openFDA recall, Crossref DataCite DOI citation verify, PubChem GHS chemical safety, ClinicalTrials.gov RxNorm",
     description:
-      "Pre-computed, deterministic, compact JSON endpoints for AI agents via x402 V2 Base Mainnet USDC micro-payments ($0.005-$0.02/call). Pay-only-on-success with zero API keys or subscriptions.",
+      "Pre-computed, deterministic, compact JSON endpoints for AI agents via x402 V2 Base Mainnet USDC micro-payments (between $0.005–$0.02/call). Pay-only-on-success with zero API keys or subscriptions.",
     provider: { "@id": `${baseUrl}/#organization` },
   };
 
