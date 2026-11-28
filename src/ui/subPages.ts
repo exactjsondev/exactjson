@@ -10,6 +10,9 @@ import {
   NPM_URL,
   REPO_URL,
   renderCodeWell,
+  SECURITY_EMAIL,
+  X_HANDLE,
+  X_URL,
   X402SCAN_URL,
 } from "./escape";
 import { renderEndpointRows } from "./homePage";
@@ -446,6 +449,7 @@ export function renderAboutHtml(baseUrl: string, network: string): string {
       <p>The API worker, test suite, and <code>exactjson-mcp</code> package are open source under MIT (Official MCP Registry: <code>${escapeHtml(MCP_REGISTRY_ID)}</code>), with machine discovery via OpenAPI 3.1, RFC 9727 API Catalog, A2A Agent Card, and MCP Server Card.</p>
       <div class="btn-row" style="margin-top: 0.35rem;">
         <a class="swiss-btn" href="${REPO_URL}" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+        <a class="swiss-btn" href="${X_URL}" target="_blank" rel="noopener noreferrer">X (${X_HANDLE}) ↗</a>
         <a class="swiss-btn" href="${NPM_URL}" target="_blank" rel="noopener noreferrer">npm (exactjson-mcp) ↗</a>
         <a class="swiss-btn" href="${GLAMA_URL}" target="_blank" rel="noopener noreferrer">Glama ↗</a>
         <a class="swiss-btn" href="${escapeHtml(X402SCAN_URL)}" target="_blank" rel="noopener noreferrer">x402scan ↗</a>
@@ -482,7 +486,9 @@ export function renderContactHtml(baseUrl: string): string {
         <span class="coord">Direct channels</span>
         <h2>Support &amp; live status</h2>
         <ul class="clean-list">
-          <li><strong>Email:</strong> <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a></li>
+          <li><strong>General support:</strong> <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a></li>
+          <li><strong>Security disclosures:</strong> <a href="mailto:${SECURITY_EMAIL}">${SECURITY_EMAIL}</a> (<a href="${safeBase}/.well-known/security.txt"><code>security.txt</code></a>)</li>
+          <li><strong>Updates on X:</strong> <a href="${X_URL}" target="_blank" rel="noopener noreferrer">${X_HANDLE}</a></li>
           <li><strong>Canonical origin:</strong> <a href="${safeBase}/">${safeBase}</a></li>
           <li><strong>Live health gate:</strong> <a href="${safeBase}/health"><code>GET /health</code></a></li>
         </ul>
@@ -504,7 +510,7 @@ export function renderContactHtml(baseUrl: string): string {
     baseUrl,
     title: "Contact ExactJSON — Support & Technical Inquiries",
     description:
-      "Contact the ExactJSON team at hello@exactjson.com or via GitHub Issues for x402 V2 API integration, MCP server support, and security inquiries.",
+      "Contact the ExactJSON team at hello@exactjson.com, report security issues to security@exactjson.com, or reach us on X (@exactjson) and GitHub Issues.",
     canonicalPath: "/contact",
     activeNav: "/contact",
     jsonLd: renderBrandJsonLd(baseUrl, false),

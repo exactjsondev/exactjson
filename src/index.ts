@@ -33,6 +33,7 @@ import {
   privacyPageHandler,
   resolveBaseUrl,
   robotsTxtHandler,
+  securityTxtHandler,
   setupPageHandler,
   sitemapXmlHandler,
   wellKnownX402Handler,
@@ -110,6 +111,7 @@ app.get("/.well-known/api-catalog", apiCatalogHandler);
 app.get("/.well-known/mcp/server-card.json", mcpServerCardHandler);
 app.get("/.well-known/agent-card.json", agentCardHandler);
 app.get("/.well-known/agent.json", agentCardHandler);
+app.get("/.well-known/security.txt", securityTxtHandler);
 app.get("/openapi.json", openApiHandler);
 app.get("/llms.txt", llmsTxtHandler);
 

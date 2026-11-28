@@ -1,5 +1,15 @@
 import { CATALOG, DISCLAIMER, SERVICE_NAME } from "../config/catalog";
-import { CONTACT_EMAIL, escapeHtml, GLAMA_URL, NPM_URL, REPO_URL, X402SCAN_URL } from "./escape";
+import {
+  CONTACT_EMAIL,
+  escapeHtml,
+  GLAMA_URL,
+  NPM_URL,
+  REPO_URL,
+  SECURITY_EMAIL,
+  X_HANDLE,
+  X_URL,
+  X402SCAN_URL,
+} from "./escape";
 import { renderDialog } from "./humanCopy";
 import { SWISS_CSS } from "./styles";
 
@@ -15,14 +25,23 @@ export function renderBrandJsonLd(baseUrl: string, includeOffers = false): strin
     description:
       "ExactJSON builds live, deterministic, token-optimized x402 V2 pay-per-call JSON APIs and MCP servers for AI agents on Base Mainnet USDC.",
     email: CONTACT_EMAIL,
-    sameAs: [REPO_URL, NPM_URL, GLAMA_URL, X402SCAN_URL],
-    contactPoint: {
-      "@type": "ContactPoint",
-      contactType: "technical support",
-      email: CONTACT_EMAIL,
-      url: `${baseUrl}/contact`,
-      availableLanguage: "English",
-    },
+    sameAs: [REPO_URL, X_URL, NPM_URL, GLAMA_URL, X402SCAN_URL],
+    contactPoint: [
+      {
+        "@type": "ContactPoint",
+        contactType: "technical support",
+        email: CONTACT_EMAIL,
+        url: `${baseUrl}/contact`,
+        availableLanguage: "English",
+      },
+      {
+        "@type": "ContactPoint",
+        contactType: "security",
+        email: SECURITY_EMAIL,
+        url: `${baseUrl}/.well-known/security.txt`,
+        availableLanguage: "English",
+      },
+    ],
   };
 
   const webApi: Record<string, unknown> = {
@@ -132,6 +151,8 @@ export function renderSwissShell(opts: SwissShellOptions): string {
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="${X_HANDLE}">
+  <meta name="twitter:creator" content="${X_HANDLE}">
   <meta name="twitter:title" content="${escapeHtml(ogTitle)}">
   <meta name="twitter:description" content="${escapeHtml(twDesc)}">
   <meta name="twitter:image" content="${safeBase}/og-image.jpg">${jsonLdScript}
@@ -192,6 +213,7 @@ export function renderSwissShell(opts: SwissShellOptions): string {
             <a href="${safeBase}/openapi.json" target="_blank" rel="noopener noreferrer">OpenAPI</a>
             <a href="${safeBase}/llms.txt" target="_blank" rel="noopener noreferrer">llms.txt</a>
             <a href="${REPO_URL}" target="_blank" rel="noopener noreferrer">GitHub</a>
+            <a href="${X_URL}" target="_blank" rel="noopener noreferrer">X (${X_HANDLE})</a>
             <a href="${NPM_URL}" target="_blank" rel="noopener noreferrer">npm</a>
             <a href="${GLAMA_URL}" target="_blank" rel="noopener noreferrer">Glama</a>
             <a href="${X402SCAN_URL}" target="_blank" rel="noopener noreferrer">x402scan</a>

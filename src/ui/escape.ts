@@ -3,10 +3,13 @@ import { type EndpointCatalogEntry, PACKS } from "../config/catalog";
 // IMPORTANT: Never import @x402/* or @coinbase/x402 in src/ui/* to keep GET / cold starts < 10ms.
 
 export const REPO_URL = "https://github.com/exactjsondev/exactjson";
+export const X_URL = "https://x.com/exactjson";
+export const X_HANDLE = "@exactjson";
 export const NPM_URL = "https://www.npmjs.com/package/exactjson-mcp";
 export const GLAMA_URL = "https://glama.ai/mcp/servers/exactjsondev/exactjson";
 export const X402SCAN_URL = "https://www.x402scan.com/server/fd682ffe-1911-48a2-9fee-1c7ac6eed7bc";
 export const CONTACT_EMAIL = "hello@exactjson.com";
+export const SECURITY_EMAIL = "security@exactjson.com";
 export const MCP_REGISTRY_ID = "io.github.exactjsondev/exactjson";
 
 export function escapeHtml(value: string): string {

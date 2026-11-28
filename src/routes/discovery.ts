@@ -27,7 +27,10 @@ import {
 // IMPORTANT: Never import @x402/hono or @coinbase/x402 in this file to keep discovery cold starts < 10ms.
 
 const REPO_URL = "https://github.com/exactjsondev/exactjson";
+const X_URL = "https://x.com/exactjson";
 const CONTACT_EMAIL = "hello@exactjson.com";
+const SECURITY_EMAIL = "security@exactjson.com";
+const SECURITY_TXT_EXPIRES = "2027-11-28T00:00:00Z";
 const MCP_PACKAGE = "exactjson-mcp";
 const MCP_REGISTRY_NAME = "io.github.exactjsondev/exactjson";
 const GLAMA_URL = "https://glama.ai/mcp/servers/exactjsondev/exactjson";
@@ -74,6 +77,11 @@ export async function indexHandler(c: Context<AppBindings>) {
     description: `${BRAND_HEADLINE} (${CATALOG.length} live endpoints across markets, security, world, commerce & research packs): EVM & Solana token safety, multi-tier execution slippage checks, perpetuals (Hyperliquid/dYdX/Kraken), prediction-market scanner & cross-venue arbitrage (Polymarket/Kalshi), Deribit options surface, US macro liquidity (Treasury/NY Fed), 38-country BIS/ECB/BoC/NY Fed policy rates & FX carry, OSS package supply-chain audits, domain DNSSEC/DMARC/RDAP trust, CISA KEV+EPSS CVE triage, cloud status gates, runtime EOL checks, Hugging Face model audits, OONI censorship checks, global airport METAR/FAA delays, NOAA/CelesTrak space weather GNSS, physical hazard briefs, GOV.UK FCDO travel advisories, NASA POWER/MET Norway solar & wind site windows, cross-border T+0/T+1/T+2 banking settlement windows, EU VIES VAT + IBAN/BIC invoice-fraud checks, GLEIF/SEC corporate KYB, US CPSC + openFDA recall screening, Crossref + DataCite + Retraction Watch citation verification, NIH PubChem GHS chemical hazard profiles, and ClinicalTrials.gov + RxNorm catalyst briefs.`,
     disclaimer: DISCLAIMER,
     contact: CONTACT_EMAIL,
+    security_contact: SECURITY_EMAIL,
+    social: {
+      x: X_URL,
+      github: REPO_URL,
+    },
     mcp: {
       package: MCP_PACKAGE,
       registry_name: MCP_REGISTRY_NAME,
@@ -106,6 +114,7 @@ export async function indexHandler(c: Context<AppBindings>) {
       openapi: `${baseUrl}/openapi.json`,
       llms: `${baseUrl}/llms.txt`,
       sitemap: `${baseUrl}/sitemap.xml`,
+      security_txt: `${baseUrl}/.well-known/security.txt`,
       health: `${baseUrl}/health`,
     },
     endpoints: CATALOG.map((entry) => ({
@@ -377,13 +386,16 @@ export function buildLlmsTxt(baseUrl: string, network: string): string {
     `- A2A Agent Card: ${baseUrl}/.well-known/agent-card.json`,
     `- OpenAPI 3.1 Spec: ${baseUrl}/openapi.json`,
     `- Sitemap: ${baseUrl}/sitemap.xml`,
+    `- Security Policy (RFC 9116): ${baseUrl}/.well-known/security.txt`,
     `- Health Check: ${baseUrl}/health`,
     `- GitHub & Docs: ${REPO_URL}`,
+    `- X (Twitter): ${X_URL}`,
     `- npm MCP Package: https://www.npmjs.com/package/${MCP_PACKAGE}`,
     `- Official MCP Registry: ${MCP_REGISTRY_NAME}`,
     `- Glama MCP Listing: ${GLAMA_URL}`,
     `- x402scan Listing: ${X402SCAN_URL}`,
     `- Contact: ${CONTACT_EMAIL}`,
+    `- Security Disclosures: ${SECURITY_EMAIL}`,
     "",
     "## Disclaimer",
     DISCLAIMER,
@@ -646,10 +658,12 @@ export function aboutPageHandler(c: Context<AppBindings>) {
     "",
     `- Fail-closed token safety: GoPlus + Honeypot.is (EVM) and RugCheck (Solana) return HTTP 502 if primary engines fail.`,
     `- Open source (MIT): ${REPO_URL}`,
+    `- X: ${X_URL}`,
     `- npm MCP Package: https://www.npmjs.com/package/${MCP_PACKAGE} (${MCP_REGISTRY_NAME})`,
     `- Glama MCP Listing: ${GLAMA_URL}`,
     `- x402scan Listing: ${X402SCAN_URL}`,
     `- Contact: ${CONTACT_EMAIL}`,
+    `- Security Disclosures: ${SECURITY_EMAIL} (${baseUrl}/.well-known/security.txt)`,
     "",
     DISCLAIMER,
     "",
@@ -663,6 +677,8 @@ export function contactPageHandler(c: Context<AppBindings>) {
     "# Contact ExactJSON",
     "",
     `- Support Email: ${CONTACT_EMAIL}`,
+    `- Security Disclosures: ${SECURITY_EMAIL} (${baseUrl}/.well-known/security.txt)`,
+    `- X: ${X_URL}`,
     `- GitHub Issues: ${REPO_URL}/issues`,
     `- npm MCP Package: https://www.npmjs.com/package/${MCP_PACKAGE} (${MCP_REGISTRY_NAME})`,
     `- Glama MCP Listing: ${GLAMA_URL}`,
@@ -735,5 +751,24 @@ export function robotsTxtHandler(c: Context<AppBindings>) {
   return c.text(body, 200, {
     "Content-Type": "text/plain; charset=utf-8",
     "Cache-Control": "public, max-age=300",
+  });
+}
+
+export function securityTxtHandler(c: Context<AppBindings>) {
+  const baseUrl = resolveBaseUrl(c);
+  const body = [
+    `Contact: mailto:${SECURITY_EMAIL}`,
+    `Contact: ${baseUrl}/contact`,
+    `Expires: ${SECURITY_TXT_EXPIRES}`,
+    "Preferred-Languages: en",
+    `Canonical: ${baseUrl}/.well-known/security.txt`,
+    `Policy: ${REPO_URL}/blob/main/SECURITY.md`,
+    "",
+  ].join("\n");
+
+  return c.text(body, 200, {
+    "Content-Type": "text/plain; charset=utf-8",
+    "Cache-Control": "public, max-age=3600",
+    "X-Content-Type-Options": "nosniff",
   });
 }

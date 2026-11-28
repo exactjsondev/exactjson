@@ -97,6 +97,7 @@ async function main() {
     "/.well-known/api-catalog",
     "/.well-known/mcp/server-card.json",
     "/.well-known/agent-card.json",
+    "/.well-known/security.txt",
     "/openapi.json",
     "/llms.txt",
     "/sitemap.xml",

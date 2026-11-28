@@ -345,6 +345,23 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(robotsTxt).toContain("Disallow: /dashboard");
     expect(robotsTxt).toContain("Disallow: /dashboard/");
 
+    // RFC 9116 /.well-known/security.txt
+    const securityTxtRes = await app.request(
+      "http://localhost:8787/.well-known/security.txt",
+      {},
+      env,
+    );
+    expect(securityTxtRes.status).toBe(200);
+    expect(securityTxtRes.headers.get("content-type")).toContain("text/plain");
+    expect(securityTxtRes.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(securityTxtRes.headers.get("cache-control")).toBe("public, max-age=3600");
+    const securityTxt = await securityTxtRes.text();
+    expect(securityTxt).toContain("Contact: mailto:security@exactjson.com");
+    expect(securityTxt).toContain("Contact: http://localhost:8787/contact");
+    expect(securityTxt).toContain("Canonical: http://localhost:8787/.well-known/security.txt");
+    expect(securityTxt).toContain("Policy: https://github.com/exactjsondev/exactjson/blob/main/SECURITY.md");
+    expect(securityTxt).toMatch(/^Expires: \d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/m);
+
     // Path normalization matches URL-encoded and trailing-slash variants for telemetry and rejects Object.prototype keys
     expect(getEndpointByPath("/v1/solana/%73afety")?.path).toBe("/v1/solana/safety");
     expect(getEndpointByPath("/v1/perps/snapshot/")?.path).toBe("/v1/perps/snapshot");
@@ -455,6 +472,9 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(html).toContain('"@type":"Organization"');
     expect(html).toContain('"@type":"ContactPoint"');
     expect(html).toContain('"sameAs"');
+    expect(html).toContain("https://x.com/exactjson");
+    expect(html).toContain('name="twitter:site" content="@exactjson"');
+    expect(html).toContain("security@exactjson.com");
     expect(html).toContain('"@type":"Offer"');
     expect(html).toContain("minmax(0,");
     expect(html).toContain("Base Sepolia (eip155:84532)");
@@ -536,6 +556,13 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
         expect(body).toContain("https://nodejs.org/");
         expect(body).toContain("data-setup-generator");
         expect(body).toContain("MAX_PAYMENT_USD");
+      }
+
+      if (pagePath === "/contact") {
+        expect(body).toContain("hello@exactjson.com");
+        expect(body).toContain("security@exactjson.com");
+        expect(body).toContain("/.well-known/security.txt");
+        expect(body).toContain("https://x.com/exactjson");
       }
 
       const mdPage = await app.request(

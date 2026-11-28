@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in ExactJSON (`exactjson.com`, the Cloudflare Worker API, or the `exactjson-mcp` npm package), please report it privately to **[hello@exactjson.com](mailto:hello@exactjson.com)**.
+If you discover a security vulnerability in ExactJSON (`exactjson.com`, the Cloudflare Worker API, or the `exactjson-mcp` npm package), please report it privately to **[security@exactjson.com](mailto:security@exactjson.com)** (also published at `https://exactjson.com/.well-known/security.txt`). For general non-security support, use [hello@exactjson.com](mailto:hello@exactjson.com).
 
 - **Do not** open public GitHub issues for unpatched vulnerabilities.
 - **Never** send private keys, seed phrases, or signing secrets in emails or issue reports.
