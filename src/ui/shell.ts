@@ -55,7 +55,7 @@ export function renderBrandJsonLd(baseUrl: string, includeOffers = false): strin
     keywords:
       "x402 API, AI agent API, MCP server, Base USDC micropayments, EVM token safety, Solana safety, Hyperliquid perpetuals, Polymarket Kalshi arbitrage, Deribit options surface, US macro liquidity, BIS central bank policy rates, OSS package audit, CVE triage, domain trust, airport delays METAR, space weather GNSS, GDACS hazard brief, travel advisories, NASA POWER solar, EU VIES VAT verify, IBAN checksum, GLEIF LEI KYB, CPSC openFDA recall, Crossref DataCite DOI citation verify, PubChem GHS chemical safety, ClinicalTrials.gov RxNorm",
     description:
-      "Pre-computed, deterministic, compact JSON endpoints for AI agents via x402 V2 Base Mainnet USDC micro-payments (between $0.005–$0.02/call). Pay-only-on-success with zero API keys or subscriptions.",
+      "Pre-computed, deterministic ~2 KB JSON endpoints for AI agents via x402 V2 Base Mainnet USDC ($0.005–$0.02/call). Pay only on HTTP 200; no API keys or subscriptions.",
     provider: { "@id": `${baseUrl}/#organization` },
   };
 
@@ -171,7 +171,7 @@ export function renderSwissShell(opts: SwissShellOptions): string {
         ${opts.headerMetaHtml ?? ""}
       </div>
       <nav class="nav-cluster" aria-label="Primary">
-        <a href="${safeBase}/setup"${cur("/setup")}>Setup</a>
+        <a href="${safeBase}/setup"${cur("/setup")}>Quickstart</a>
         <a href="${toolsHref}">Tools</a>
         <a href="${safeBase}/pricing"${cur("/pricing")}>Pricing</a>
         <a href="${safeBase}/docs"${cur("/docs")}>Docs</a>
@@ -191,7 +191,7 @@ export function renderSwissShell(opts: SwissShellOptions): string {
         <div class="footer-col">
           <span class="footer-col-title">Product</span>
           <div class="footer-links">
-            <a href="${safeBase}/setup"${cur("/setup")}>Setup Guide</a>
+            <a href="${safeBase}/setup"${cur("/setup")}>Quickstart</a>
             <a href="${toolsHref}">Tools</a>
             <a href="${safeBase}/pricing"${cur("/pricing")}>Pricing</a>
             <a href="${safeBase}/docs"${cur("/docs")}>Docs</a>

@@ -236,13 +236,16 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
       name: string;
       version: string;
       description: string;
-      skills: unknown[];
+      skills: Array<{ id: string; description: string }>;
       authentication: { schemes: string[] };
     };
     expect(card.name).toBe("ExactJSON");
     expect(card.version).toBe("1.5.0");
-    expect(card.description).toContain("prediction scanner ($0.01)");
-    expect(card.description).not.toContain("prediction scanner ($0.015)");
+    expect(card.description).toContain("$0.005–$0.02");
+    expect(card.description.length).toBeLessThan(450);
+    const scannerSkill = card.skills.find((s) => s.id === "predictions_scanner");
+    expect(scannerSkill?.description).toContain("$0.01 USD");
+    expect(scannerSkill?.description).not.toContain("$0.015 USD");
     expect(card.skills.length).toBe(31);
     expect(card.authentication.schemes).toContain("x402");
 
@@ -457,12 +460,14 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
     expect(html).toContain("@x402/fetch");
     expect(html).toContain('<meta name="color-scheme" content="light">');
     expect(html).toContain('id="tool-preview-dialog"');
-    expect(html).toContain('id="wallet-quick-dialog"');
+    expect(html).not.toContain('id="wallet-quick-dialog"');
     expect(html).toContain('id="disclaimer-dialog"');
     expect(html).toContain("data-setup-generator");
     expect(html).toContain('class="faq-item"');
     expect(html).toContain('class="compare-visual"');
-    expect(html).toContain("between $0.005–$0.02");
+    expect(html).toContain("$0.005–$0.02");
+    expect(html).toContain("Live facts and exact math, distilled to ~2 KB.");
+    expect(html).toContain("AgentCash");
     expect(html).toContain("scroll-padding-top:");
     expect(html).toContain("position: sticky;");
     expect(html).not.toContain('<span class="meta-tag">v1.');
@@ -537,7 +542,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
         expect(body).toContain('<details class="sample-details">');
       }
       if (pagePath === "/setup") {
-        expect(body).toContain("3-Step Setup Pipeline");
+        expect(body).toContain("3-Step Quickstart Pipeline");
         expect(body).not.toContain("Try it free (no wallet needed)");
         expect(body).toContain("Settings → Developer → Edit Config");
         expect(body).toContain("Prefer raw file paths?");
@@ -549,6 +554,7 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
         expect(body).toContain("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
         expect(body).toContain("$0 ETH");
         expect(body).toContain("Passkey-only smart wallets");
+        expect(body).toContain("AgentCash");
         expect(body).toContain("https://rabby.io/");
         expect(body).toContain("https://metamask.io/");
         expect(body).toContain("https://docs.base.org/");
@@ -763,9 +769,9 @@ describe("discovery routes, HTML/JSON negotiation, CORS, telemetry, and service 
       "https://exactjson.com/v1/sec/cve-triage?cve=CVE-2024-3094",
     );
     expect(paywallHtml).toContain("HTTP 402 · Payment Required");
-    expect(paywallHtml).toContain("Nothing was charged ($0.00)");
+    expect(paywallHtml).toContain("$0.00 charged.");
     expect(paywallHtml).toContain("https://exactjson.com/setup");
-    expect(paywallHtml).toContain("wallet-quick-dialog");
+    expect(paywallHtml).not.toContain("wallet-quick-dialog");
     expect(paywallHtml).toContain("QUERY PARAMETER SCHEMA");
     expect(paywallHtml).toContain("<code>cve</code>");
     expect(paywallHtml).toContain("REQUIRED");

@@ -12,12 +12,7 @@ import {
   highlightJson,
   renderCodeWell,
 } from "./escape";
-import {
-  buildVibePrompt,
-  HUMAN_ENDPOINT_ONE_LINER,
-  HUMAN_PACK_META,
-  renderQuickWalletModal,
-} from "./humanCopy";
+import { buildVibePrompt, HUMAN_ENDPOINT_ONE_LINER, HUMAN_PACK_META } from "./humanCopy";
 import { renderSwissShell } from "./shell";
 
 // IMPORTANT: Never import @x402/* or @coinbase/x402 in src/ui/* to keep GET / cold starts < 10ms.
@@ -73,7 +68,7 @@ export function renderPaywallHtml(
           command: "npx",
           args: stdioArgs,
           env: {
-            BUYER_PRIVATE_KEY: "0xYOUR_POCKET_WALLET_PRIVATE_KEY",
+            BUYER_PRIVATE_KEY: "0xYOUR_BASE_WALLET_PRIVATE_KEY",
             MAX_PAYMENT_USD: "$0.05",
           },
         },
@@ -109,11 +104,10 @@ curl -s ${baseUrl}/openapi.json`;
       <h1 class="page-title"><code>GET ${escapeHtml(entry.path)}</code></h1>
       <p class="lead">${escapeHtml(HUMAN_ENDPOINT_ONE_LINER[entry.id])}</p>
       <div class="callout-box ok">
-        <strong>Nothing was charged ($0.00).</strong> You opened a live paid endpoint in a web browser, which doesn't send automatic x402 payments yet. Preview the sample output below, or connect this tool to your AI in 5 minutes.
+        <strong>$0.00 charged.</strong> This route settles <strong>${escapeHtml(entry.priceFormatted)} Base USDC</strong> when called with an x402 <code>PAYMENT-SIGNATURE</code> header. Inspect the parameters and sample output below, or connect via MCP or <code>@x402/fetch</code>.
       </div>
       <div class="btn-row" style="margin-top: 0.35rem;">
-        <a class="swiss-btn primary" href="${safeBase}/setup">5-Minute Setup Guide →</a>
-        <button type="button" class="swiss-btn" data-open-dialog="wallet-quick-dialog">Need a $5 wallet?</button>
+        <a class="swiss-btn primary" href="${safeBase}/setup">Quickstart →</a>
         <a class="swiss-btn" href="${safeBase}/">← All ${CATALOG.length} Tools</a>
       </div>
     </section>
@@ -155,9 +149,9 @@ curl -s ${baseUrl}/openapi.json`;
         })}
       </div>
       <div class="spec-cell surface">
-        <span class="coord">Vibe Coding &amp; terminal probe</span>
-        <h2>Paste into a Vibe-Coding Tool or inspect in terminal</h2>
-        <p>Inspect the live base64 <code>PAYMENT-REQUIRED</code> challenge with <code>curl</code>, or expand the 1-click prompt for Cursor, Claude Code, Lovable, Bolt, or Replit:</p>
+        <span class="coord">Agent prompt &amp; terminal probe</span>
+        <h2>Agent prompt or terminal probe</h2>
+        <p>Inspect the live base64 <code>PAYMENT-REQUIRED</code> quote with <code>curl</code>, or copy the prompt for Cursor, Claude Code, Lovable, Bolt, or Replit:</p>
         ${renderCodeWell({
           id: "pw-curl-code",
           label: "bash · inspect 402 challenge",
@@ -167,12 +161,12 @@ curl -s ${baseUrl}/openapi.json`;
           receiptRight: "400 / 404 / 502 = $0.00",
         })}
         <details class="sample-details">
-          <summary>1-click Vibe-Coding prompt (${escapeHtml(packMeta.plainTitle)})</summary>
+          <summary>Agent setup prompt (${escapeHtml(packMeta.plainTitle)})</summary>
           <div class="sample-json-wrap">
             <div class="code-well-bar">
-              <span class="code-well-label">Prompt · ${escapeHtml(packMeta.plainTitle)}</span>
+              <span class="code-well-label">Agent Prompt · ${escapeHtml(packMeta.plainTitle)}</span>
               <span class="copy-wrap">
-                <button type="button" class="copy-btn" command="--copy" commandfor="pw-vibe-prompt" aria-label="Copy Vibe-Coding prompt">
+                <button type="button" class="copy-btn" command="--copy" commandfor="pw-vibe-prompt" aria-label="Copy agent setup prompt">
                   <span class="copy-text-idle" aria-hidden="true">Copy</span>
                   <span class="copy-text-done" aria-hidden="true">✓ Copied</span>
                   <span class="copy-text-fail" aria-hidden="true">! Failed</span>
@@ -205,13 +199,12 @@ curl -s ${baseUrl}/openapi.json`;
         </div>
       </details>
       <div class="btn-row" style="margin-top: 0.75rem;">
-        <a class="swiss-btn primary" href="${safeBase}/setup">5-Minute Setup Guide →</a>
+        <a class="swiss-btn primary" href="${safeBase}/setup">Quickstart →</a>
         <a class="swiss-btn" href="${safeBase}/">← All ${CATALOG.length} Tools</a>
         <a class="swiss-btn" href="${safeBase}/docs">API Docs</a>
         <a class="swiss-btn" href="${safeBase}/pricing">Pricing</a>
       </div>
-    </section>
-    ${renderQuickWalletModal(baseUrl)}`;
+    </section>`;
 
   return renderSwissShell({
     baseUrl,
@@ -251,7 +244,7 @@ export function renderMcpGuideHtml(
           command: "npx",
           args: stdioArgs,
           env: {
-            BUYER_PRIVATE_KEY: "0xYOUR_POCKET_WALLET_PRIVATE_KEY",
+            BUYER_PRIVATE_KEY: "0xYOUR_BASE_WALLET_PRIVATE_KEY",
             MAX_PAYMENT_USD: "$0.05",
           },
         },
@@ -269,10 +262,10 @@ export function renderMcpGuideHtml(
       </div>
       <h1 class="page-title"><code>POST ${safeBase}${escapeHtml(mcpPath)}</code></h1>
       <p class="lead">
-        This URL is ExactJSON's stateless <strong>Streamable HTTP MCP endpoint</strong> (${toolCount} tools) built for AI clients using JSON-RPC 2.0 <code>POST</code> requests — not web browsers (which send <code>GET</code>).
+        Stateless <strong>Streamable HTTP MCP endpoint</strong> (${toolCount} tools). Send JSON-RPC 2.0 <code>POST</code> requests from any x402-compatible MCP client, or run <code>npx -y exactjson-mcp</code> locally.
       </p>
       <div class="callout-box ok">
-        <strong>Ready for your AI client.</strong> Paste <code>${safeBase}${escapeHtml(mcpPath)}</code> into an x402-compatible MCP client, or use the local Claude Desktop / Cursor config below.
+        <strong>Ready for MCP clients.</strong> Point an x402-native MCP client (such as AgentCash) at <code>${safeBase}${escapeHtml(mcpPath)}</code>, or use the local stdio config below.
       </div>
     </section>
 
@@ -303,7 +296,7 @@ export function renderMcpGuideHtml(
 
     <section class="spec-cell" style="border-bottom: none;">
       <div class="btn-row">
-        <a class="swiss-btn primary" href="${safeBase}/setup">5-Minute Setup Guide →</a>
+        <a class="swiss-btn primary" href="${safeBase}/setup">Quickstart →</a>
         <a class="swiss-btn" href="${safeBase}/docs">API Docs</a>
         <a class="swiss-btn" href="${safeBase}/">All ${CATALOG.length} Tools</a>
         <a class="swiss-btn" href="${safeBase}/.well-known/mcp/server-card.json" target="_blank" rel="noopener noreferrer">MCP Server Card ↗</a>
@@ -328,10 +321,10 @@ export function renderNotFoundHtml(baseUrl: string, requestedPath: string): stri
       </div>
       <h1 class="page-title">Page not found</h1>
       <p class="lead">
-        We couldn't find a ${escapeHtml(SERVICE_NAME)} page or endpoint at <code>${escapeHtml(requestedPath)}</code>. All paid endpoints live under <code>/v1/*</code> — jump to our setup guide or browse all tools below.
+        No ${escapeHtml(SERVICE_NAME)} page or endpoint exists at <code>${escapeHtml(requestedPath)}</code>. Paid routes live under <code>/v1/*</code>.
       </p>
       <div class="btn-row" style="margin-top: 0.75rem;">
-        <a class="swiss-btn primary" href="${safeBase}/setup">5-Minute Setup →</a>
+        <a class="swiss-btn primary" href="${safeBase}/setup">Quickstart →</a>
         <a class="swiss-btn" href="${safeBase}/#endpoints">Browse All ${CATALOG.length} Tools</a>
         <a class="swiss-btn" href="${safeBase}/docs">Go to ExactJSON Docs</a>
         <a class="swiss-btn" href="${safeBase}/pricing">Pricing</a>

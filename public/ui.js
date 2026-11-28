@@ -29,21 +29,21 @@ const PACK_SPECS = {
   },
   world: {
     label: "World",
-    plainTitle: "Flights, Weather, Travel & Hazards",
+    plainTitle: "Flights, Weather & Hazards",
     samplePathWithQuery: "/v1/aviation/airport-delays?airport=JFK",
     mcpRemotePath: "/mcp/world",
     stdioArgs: ["-y", "exactjson-mcp", "--pack", "world"],
   },
   commerce: {
     label: "Commerce",
-    plainTitle: "Invoices, Companies & Recalls",
+    plainTitle: "Invoices, Entities & Recalls",
     samplePathWithQuery: "/v1/commerce/vat-verify?vat=IE6388047V",
     mcpRemotePath: "/mcp/commerce",
     stdioArgs: ["-y", "exactjson-mcp", "--pack", "commerce"],
   },
   research: {
     label: "Research",
-    plainTitle: "Papers, Chemistry & Clinical Trials",
+    plainTitle: "Papers, Chemistry & Trials",
     samplePathWithQuery: "/v1/science/citation-verify?doi=10.1038/s41586-021-03819-2",
     mcpRemotePath: "/mcp/research",
     stdioArgs: ["-y", "exactjson-mcp", "--pack", "research"],
@@ -433,7 +433,7 @@ function buildMcpConfig(packId) {
           command: "npx",
           args: [...spec.stdioArgs],
           env: {
-            BUYER_PRIVATE_KEY: "0xYOUR_POCKET_WALLET_PRIVATE_KEY",
+            BUYER_PRIVATE_KEY: "0xYOUR_BASE_WALLET_PRIVATE_KEY",
             MAX_PAYMENT_USD: "$0.05",
           },
         },
@@ -491,11 +491,11 @@ function initSetupGenerator() {
       if (statusEl) {
         statusEl.textContent =
           packId === "all"
-            ? `Selected: ${spec.plainTitle} · Tip: single packs (<=15 tools) give sharpest MCP accuracy`
+            ? `Selected: ${spec.plainTitle} · Single packs (<=15 tools) give sharpest MCP tool selection`
             : `Selected: ${spec.label} (${spec.plainTitle}) · Remote MCP: ${spec.mcpRemotePath}`;
       }
       if (promptLabelEl) {
-        promptLabelEl.textContent = `Prompt · ${spec.plainTitle}`;
+        promptLabelEl.textContent = `Agent Prompt · ${spec.plainTitle}`;
       }
       if (mcpLabelEl) {
         mcpLabelEl.textContent = `Local MCP · npx ${spec.stdioArgs.join(" ")}`;

@@ -25,7 +25,6 @@ import {
   POPULAR_ENDPOINT_SET,
   renderDialog,
   renderPackSetupWidget,
-  renderQuickWalletModal,
 } from "./humanCopy";
 import { renderBrandJsonLd, renderSwissShell } from "./shell";
 
@@ -141,23 +140,23 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
     receiptRight: "400 / 404 / 502 = $0.00",
   });
 
-  // Hero Tab 2: Vibe-Code Prompt
+  // Hero Tab 2: Agent Prompt
   const promptWell = renderCodeWell({
     id: "hero-prompt-code",
-    label: `Prompt · ${HUMAN_PACK_META.all.plainTitle}`,
-    copyLabel: "Copy vibe-coding prompt",
+    label: `Agent Prompt · ${HUMAN_PACK_META.all.plainTitle}`,
+    copyLabel: "Copy agent setup prompt",
     codeHtml: escapeHtml(buildVibePrompt(baseUrl, "all")),
-    receiptLeft: "Reads /llms.txt automatically · $0.05 spend cap",
+    receiptLeft: "Reads /llms.txt · $0.05 spend cap",
     receiptRight: "400 / 404 / 502 = $0.00",
   });
 
-  // Hero Tab 3: Connect MCP
+  // Hero Tab 3: MCP Config
   const mcpWell = renderCodeWell({
     id: "hero-mcp-json",
     label: "Local MCP · npx -y exactjson-mcp",
     copyLabel: "Copy MCP client configuration JSON",
     codeHtml: highlightJson(buildMcpConfigSnippet(baseUrl, "markets")),
-    receiptLeft: "MAX_PAYMENT_USD=$0.05 · Local signing",
+    receiptLeft: "Local EIP-3009 signing · MAX_PAYMENT_USD=$0.05",
     receiptRight: "$0 ETH gas",
   });
 
@@ -254,29 +253,29 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
       <div class="hero-narrative">
         <div class="eyebrow-row">
           <span class="coord">Live, deterministic x402 APIs for AI agents</span>
-          <span class="sig-badge ok"><span class="sig-dot ok" aria-hidden="true"></span>Pay only on success · $0 on errors</span>
+          <span class="sig-badge ok"><span class="sig-dot ok" aria-hidden="true"></span>Pay only on success</span>
         </div>
 
-        <h1 class="display-title">Live facts and exact math for your AI — no API keys, no subscriptions.</h1>
+        <h1 class="display-title">Live facts and exact math, distilled to ~2 KB.</h1>
 
         <p class="lead">
-          <strong>${escapeHtml(SERVICE_NAME)}</strong> turns messy 200 KB API dumps into clean ~2 KB verified answers from official sources — making your AI more accurate and far cheaper on tokens. Paid per successful call (between $0.005–$0.02 in ${escapeHtml(humanNet)} USDC) with $0 ETH gas fees.
+          Raw financial, security, and government APIs dump hundreds of kilobytes of noise into your context window. <strong>${escapeHtml(SERVICE_NAME)}</strong> queries the primary source, runs the math in code, and returns a clean ~2 KB answer — for $0.005–$0.02 per successful call on ${escapeHtml(humanNet)} USDC. No accounts, no API keys, and $0 on errors.
         </p>
 
         <div class="btn-row">
-          <a class="swiss-btn primary" href="${safeBase}/setup">5-Minute Setup →</a>
-          <a class="swiss-btn" href="#quickstart">Copy Vibe-Code Prompt</a>
-          <button type="button" class="swiss-btn" data-open-dialog="wallet-quick-dialog">Need a $5 wallet?</button>
+          <a class="swiss-btn primary" href="${safeBase}/setup">Quickstart →</a>
+          <a class="swiss-btn" href="#endpoints">Explore ${CATALOG.length} Tools</a>
+          <a class="swiss-btn" href="${safeBase}/docs">Docs</a>
         </div>
 
         <div class="kpi-strip" role="group" aria-label="Key service highlights">
           <div class="kpi-cell">
             <div class="kpi-val">${CATALOG.length}</div>
-            <div class="kpi-lbl">Live tools</div>
+            <div class="kpi-lbl">Live endpoints</div>
           </div>
           <div class="kpi-cell">
             <div class="kpi-val">~99%</div>
-            <div class="kpi-lbl">Fewer AI tokens</div>
+            <div class="kpi-lbl">Smaller payloads</div>
           </div>
           <div class="kpi-cell">
             <div class="kpi-val">$0.005–.02</div>
@@ -284,19 +283,19 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
           </div>
           <div class="kpi-cell">
             <div class="kpi-val">$0.00</div>
-            <div class="kpi-lbl">On any error</div>
+            <div class="kpi-lbl">On errors &amp; gas</div>
           </div>
         </div>
       </div>
 
-      <div class="hero-inspector" role="region" aria-label="Live answer, prompt, and MCP inspector">
+      <div class="hero-inspector" role="region" aria-label="Live output, agent prompt, and MCP inspector">
         <div class="inspector-tabs" role="radiogroup" aria-label="Inspector view">
           <input type="radio" name="hero-mode" id="hero-mode-payload" class="sr-control" checked>
-          <label class="tab-trigger" for="hero-mode-payload">1. Live Answer</label>
+          <label class="tab-trigger" for="hero-mode-payload">1. Live Output</label>
           <input type="radio" name="hero-mode" id="hero-mode-prompt" class="sr-control">
-          <label class="tab-trigger" for="hero-mode-prompt">2. Vibe-Code Prompt</label>
+          <label class="tab-trigger" for="hero-mode-prompt">2. Agent Prompt</label>
           <input type="radio" name="hero-mode" id="hero-mode-mcp" class="sr-control">
-          <label class="tab-trigger" for="hero-mode-mcp">3. Connect MCP</label>
+          <label class="tab-trigger" for="hero-mode-mcp">3. MCP Config</label>
         </div>
 
         <div class="inspector-pane" data-pane="payload">
@@ -333,25 +332,25 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
       </div>
     </section>
 
-    <section class="swiss-section grid-3" aria-label="Why people use ExactJSON">
+    <section class="swiss-section grid-3" aria-label="Why ExactJSON">
       <div class="spec-cell">
-        <h2>More accurate than AI guessing</h2>
-        <p>Pulls live official sources and computes exact math in code. If a source is down, it fails closed and charges $0.00 instead of hallucinating.</p>
+        <h2>Direct from the source</h2>
+        <p>Every answer comes straight from live registries and exchanges — EU VIES, FAA, NOAA, OSV, Crossref, BIS, Hyperliquid — with exact math computed in code. If a primary source goes offline, we fail closed and charge $0.00.</p>
       </div>
       <div class="spec-cell">
-        <h2>Cheaper to run your AI</h2>
-        <p>~99% smaller payloads cut $0.02–$0.15 of wasted LLM tokens per call, with zero monthly SaaS plans or API-key juggling.</p>
+        <h2>Cheaper than raw tokens</h2>
+        <p>Feeding 200 KB of raw upstream JSON into an LLM costs $0.02–$0.15 in input tokens and invites math errors. Compressing it to ~2 KB usually pays for the API call itself.</p>
       </div>
       <div class="spec-cell">
-        <h2>Pay only when it works</h2>
-        <p>Invalid inputs, missing targets, or source outages always cost $0.00. Set a hard $0.05 cap per call so your AI can never overspend.</p>
+        <h2>Pay as your agent runs</h2>
+        <p>Payment is authentication. Calls settle in Base USDC with zero ETH gas and client-side spend caps ($0.05 default). Invalid queries, missing targets, and outages never charge.</p>
       </div>
     </section>
 
     <section class="swiss-section" aria-labelledby="packs-heading">
       <div class="section-bar">
-        <h2 id="packs-heading" class="section-title">5 tool packs across every domain</h2>
-        <span class="coord ok">Each pack &lt;= 15 tools for sharp AI accuracy</span>
+        <h2 id="packs-heading" class="section-title">Five focused packs</h2>
+        <span class="coord ok">&lt;= 15 tools per pack for sharp tool selection</span>
       </div>
       <div class="pack-matrix">
         ${packMatrixHtml}
@@ -360,7 +359,7 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
 
     <section id="endpoints" class="swiss-section" aria-labelledby="endpoints-heading">
       <div class="section-bar">
-        <h2 id="endpoints-heading" class="section-title">Explore live tools</h2>
+        <h2 id="endpoints-heading" class="section-title">Explore live endpoints</h2>
         <span id="endpoint-count-live" class="coord ok" role="status" aria-live="polite">${POPULAR_ENDPOINT_IDS.length} popular tools (${CATALOG.length} total)</span>
       </div>
 
@@ -395,10 +394,9 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
 
     <section id="quickstart" class="swiss-section" aria-labelledby="quickstart-heading">
       <div class="section-bar">
-        <h2 id="quickstart-heading" class="section-title">Connect in 60 seconds</h2>
+        <h2 id="quickstart-heading" class="section-title">Connect in under a minute</h2>
         <div class="btn-row">
-          <button type="button" class="swiss-btn" data-open-dialog="wallet-quick-dialog">Need a $5 wallet?</button>
-          <a class="swiss-btn primary" href="${safeBase}/setup">Full Setup Guide →</a>
+          <a class="swiss-btn primary" href="${safeBase}/setup">Full Quickstart →</a>
         </div>
       </div>
       ${renderPackSetupWidget({ baseUrl, idPrefix: "home-gen", defaultPack: "all", networkLabel })}
@@ -406,8 +404,8 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
 
     <section class="swiss-section" aria-labelledby="faq-heading">
       <div class="section-bar">
-        <h2 id="faq-heading" class="section-title">Common questions</h2>
-        <span class="coord">Plain English · Zero jargon</span>
+        <h2 id="faq-heading" class="section-title">Questions</h2>
+        <span class="coord">Pricing, safety &amp; signing</span>
       </div>
       <div class="faq-list">
         ${faqHtml}
@@ -416,24 +414,24 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
 
     <section id="discovery" class="swiss-section" style="border-bottom: none;" aria-labelledby="discovery-heading">
       <div class="section-bar">
-        <h2 id="discovery-heading" class="section-title">For developers &amp; AI agents (free discovery)</h2>
-        <span class="coord ok">Vary: Accept · CORS enabled</span>
+        <h2 id="discovery-heading" class="section-title">Machine discovery</h2>
+        <span class="coord ok">Free · Vary: Accept · CORS enabled</span>
       </div>
       <div class="grid-3">
         <div class="spec-cell">
           <span class="coord ok">Accept: text/html</span>
-          <h3>Human website (you are here)</h3>
-          <p>Clean interactive guide, sample previews, and copy-paste setup for builders.</p>
+          <h3>Human docs (you are here)</h3>
+          <p>Interactive endpoint explorer, sample payloads, and copy-paste configs.</p>
         </div>
         <div class="spec-cell">
           <span class="coord">Accept: text/markdown</span>
-          <h3>Compact Markdown guide</h3>
-          <p>Returns lean <code>/llms.txt</code> Markdown straight from <code>GET /</code>, <code>/setup</code>, <code>/docs</code>, and <code>/pricing</code>.</p>
+          <h3>Clean Markdown</h3>
+          <p>Serves compact <code>/llms.txt</code> Markdown directly from <code>/</code>, <code>/setup</code>, <code>/docs</code>, and <code>/pricing</code>.</p>
         </div>
         <div class="spec-cell">
           <span class="coord">Accept: application/json</span>
-          <h3>Machine catalog in &lt;10ms</h3>
-          <p>Default for <code>*/*</code> and agents: JSON catalog, pack map, and RFC 9727 <code>Link</code> headers.</p>
+          <h3>JSON catalog in &lt;10ms</h3>
+          <p>Default for <code>*/*</code> and agents: endpoint index, pack map, and RFC 9727 <code>Link</code> headers.</p>
         </div>
       </div>
       <div class="discovery-matrix">
@@ -449,16 +447,15 @@ export function renderLandingHtml(baseUrl: string, network: string): string {
       </div>
     </section>
 
-    ${toolPreviewModal}
-    ${renderQuickWalletModal(baseUrl)}`;
+    ${toolPreviewModal}`;
 
   return renderSwissShell({
     baseUrl,
     title: `${SERVICE_NAME} — Live, deterministic x402 APIs for AI agents`,
     description:
-      "ExactJSON gives your AI live verified facts and exact math in ~2 KB JSON (between $0.005–$0.02/call in Base USDC). No API keys, no subscriptions, and $0.00 on errors.",
-    ogDescription: `${CATALOG.length} live x402 tools for AI agents on Base USDC (between $0.005–$0.02/call) plus native MCP (npx -y exactjson-mcp). Pay only on success.`,
-    twitterDescription: `${CATALOG.length} live x402 tools for AI agents on Base USDC (between $0.005–$0.02/call) + native MCP.`,
+      "Live facts and exact math, distilled to ~2 KB JSON. 31 primary-source x402 APIs and MCP packs on Base USDC ($0.005–$0.02/call, $0 on errors).",
+    ogDescription: `${CATALOG.length} primary-source x402 APIs distilled to ~2 KB JSON on Base USDC ($0.005–$0.02/call) + native MCP. Pay only on success.`,
+    twitterDescription: `${CATALOG.length} primary-source x402 APIs distilled to ~2 KB JSON ($0.005–$0.02 Base USDC, $0 on errors) + native MCP.`,
     canonicalPath: "/",
     activeNav: "/",
     jsonLd: renderBrandJsonLd(baseUrl, true),

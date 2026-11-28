@@ -16,7 +16,7 @@ import {
   X402SCAN_URL,
 } from "./escape";
 import { renderEndpointRows } from "./homePage";
-import { HUMAN_ENDPOINT_ONE_LINER, HUMAN_PACK_META, renderQuickWalletModal } from "./humanCopy";
+import { HUMAN_ENDPOINT_ONE_LINER, HUMAN_PACK_META } from "./humanCopy";
 import { renderBrandJsonLd, renderSwissShell } from "./shell";
 
 // IMPORTANT: Never import @x402/* or @coinbase/x402 in src/ui/* to keep GET / cold starts < 10ms.
@@ -96,46 +96,46 @@ export function renderDocsHtml(baseUrl: string, network: string): string {
           </div>
           <h1 class="page-title">ExactJSON API &amp; MCP Documentation</h1>
           <p class="lead">
-            ${CATALOG.length} live, deterministic JSON endpoints over <strong>x402 V2</strong> (Base USDC) and <strong>Model Context Protocol (MCP)</strong>. No accounts, no API keys, and you only pay on successful HTTP 200 responses.
+            ${CATALOG.length} live, deterministic JSON endpoints over <strong>x402 V2</strong> (Base USDC) and <strong>Model Context Protocol (MCP)</strong>. Payment is authentication — no accounts, no API keys, and $0.00 on errors.
           </p>
           <div class="btn-row" style="margin-top: 0.5rem;">
-            <a class="swiss-btn primary" href="${safeBase}/setup">5-Minute Setup Guide →</a>
+            <a class="swiss-btn primary" href="${safeBase}/setup">Quickstart →</a>
             <a class="swiss-btn" href="${safeBase}/openapi.json" target="_blank" rel="noopener noreferrer">OpenAPI 3.1 ↗</a>
             <a class="swiss-btn" href="${safeBase}/llms.txt" target="_blank" rel="noopener noreferrer">llms.txt ↗</a>
             <a class="swiss-btn" href="${safeBase}/pricing">Pricing</a>
-            <a class="swiss-btn" href="${escapeHtml(X402SCAN_URL)}" target="_blank" rel="noopener noreferrer">x402scan Verified ↗</a>
+            <a class="swiss-btn" href="${escapeHtml(X402SCAN_URL)}" target="_blank" rel="noopener noreferrer">x402scan ↗</a>
           </div>
         </section>
 
         <section id="auth-flow" class="swiss-section">
           <div class="section-bar">
-            <h2 class="section-title">How payment works (zero API keys)</h2>
+            <h2 class="section-title">How x402 payment works</h2>
             <span class="coord ok">HTTP 200 or $0.00</span>
           </div>
           <div class="grid-2">
             <div class="spec-cell surface">
-              <span class="coord">Step 1 · Unpaid 402 probe</span>
-              <h3>Get the exact price first</h3>
-              <p>Send a regular <code>GET /v1/*</code> request to receive HTTP <code>402 Payment Required</code> with a base64-encoded <code>PAYMENT-REQUIRED</code> header listing exact Base USDC terms (between $0.005–$0.02).</p>
+              <span class="coord">Step 1 · Free 402 quote</span>
+              <h3>Inspect exact terms first</h3>
+              <p>Send a standard <code>GET /v1/*</code> request to receive HTTP <code>402 Payment Required</code> with a base64-encoded <code>PAYMENT-REQUIRED</code> header quoting exact Base USDC terms ($0.005–$0.02).</p>
             </div>
             <div class="spec-cell surface">
               <span class="coord">Step 2 · Local EIP-3009 signing</span>
-              <h3>Pay only on success</h3>
-              <p>Retry with <code>PAYMENT-SIGNATURE</code> signed locally by <code>@x402/fetch</code> or <code>exactjson-mcp</code>. Only HTTP <code>200</code> settles; <code>400</code>, <code>404</code>, <code>405</code>, <code>502</code>, and <code>503</code> never charge your wallet.</p>
+              <h3>Pay only on HTTP 200</h3>
+              <p>Retry with <code>PAYMENT-SIGNATURE</code> signed locally via <code>@x402/fetch</code> or <code>exactjson-mcp</code>. Only HTTP <code>200</code> settles; <code>400</code>, <code>404</code>, <code>405</code>, <code>502</code>, and <code>503</code> never charge.</p>
             </div>
           </div>
         </section>
 
         <section id="mcp-packs" class="swiss-section">
           <div class="section-bar">
-            <h2 class="section-title">Connect via MCP or Vibe Coding</h2>
+            <h2 class="section-title">Connect via MCP or Agent Prompt</h2>
             <span class="coord">${escapeHtml(MCP_REGISTRY_ID)}</span>
           </div>
           <div class="spec-cell surface">
             <div class="callout-box ok">
-              <strong>Need a pocket wallet or copy-paste Vibe-Coding prompt?</strong> Use our <a href="${safeBase}/setup">5-Minute Setup Guide</a> to fund a $5 Base USDC wallet ($0 ETH gas) and wire Cursor, Claude Code, Lovable, Bolt, or Replit in minutes.
+              <strong>Fastest way to wire a client:</strong> Use the <a href="${safeBase}/setup">Quickstart</a> for copy-paste MCP configs, TypeScript SDK snippets, AgentCash direct URLs, and Base USDC signing setup ($0 ETH gas).
             </div>
-            <p>Connect x402-native MCP clients directly to our stateless Remote Streamable HTTP routes (each pack stays <code>&lt;= 15</code> tools for sharper tool accuracy), or run <code>npx -y exactjson-mcp</code> locally with <code>BUYER_PRIVATE_KEY</code> and <code>MAX_PAYMENT_USD="$0.05"</code>. Listed on <a href="${NPM_URL}" target="_blank" rel="noopener noreferrer">npm</a>, <a href="${GLAMA_URL}" target="_blank" rel="noopener noreferrer">Glama</a>, and <a href="${escapeHtml(X402SCAN_URL)}" target="_blank" rel="noopener noreferrer">x402scan</a>.</p>
+            <p>Connect x402-native MCP clients directly to our stateless Remote Streamable HTTP routes (each pack stays <code>&lt;= 15</code> tools for sharp tool selection), or run <code>npx -y exactjson-mcp</code> locally with <code>BUYER_PRIVATE_KEY</code> and <code>MAX_PAYMENT_USD="$0.05"</code>. Listed on <a href="${NPM_URL}" target="_blank" rel="noopener noreferrer">npm</a>, <a href="${GLAMA_URL}" target="_blank" rel="noopener noreferrer">Glama</a>, and <a href="${escapeHtml(X402SCAN_URL)}" target="_blank" rel="noopener noreferrer">x402scan</a>.</p>
             ${renderCodeWell({
               id: "docs-mcp-routes",
               label: "Remote Streamable HTTP MCP Endpoints",
@@ -254,53 +254,53 @@ export function renderPricingHtml(baseUrl: string, network: string): string {
         <span class="sig-badge ok"><span class="sig-dot ok" aria-hidden="true"></span>Pay only on success</span>
         <span class="sig-badge">${escapeHtml(humanNet)} USDC · $0 ETH gas</span>
       </div>
-      <h1 class="page-title">Half a cent to two cents — only when you get a real answer.</h1>
+      <h1 class="page-title">Half a cent to two cents — only when it works.</h1>
       <p class="lead">
-        No monthly fees, no API keys, and $0 ETH gas — pay per successful answer in USDC on <strong>${escapeHtml(humanNet)}</strong>.
+        Flat per-call pricing ($5–$20 per 1,000 successful answers) settled in <strong>${escapeHtml(humanNet)}</strong> USDC. No subscriptions, no minimums, no ETH gas, and $0.00 on every error.
       </p>
       <div class="btn-row" style="margin-top: 0.5rem;">
-        <a class="swiss-btn primary" href="${safeBase}/setup">5-Minute Setup Guide →</a>
-        <button type="button" class="swiss-btn" data-open-dialog="wallet-quick-dialog">Need a $5 wallet?</button>
+        <a class="swiss-btn primary" href="${safeBase}/setup">Quickstart →</a>
+        <a class="swiss-btn" href="${safeBase}/openapi.json" target="_blank" rel="noopener noreferrer">OpenAPI 3.1 ↗</a>
       </div>
     </section>
 
     <section class="swiss-section" aria-label="HTTP Status Settlement Matrix">
       <div class="section-bar">
-        <h2 class="section-title">When you pay vs. when it's free</h2>
+        <h2 class="section-title">What settles — and what doesn't</h2>
         <span class="coord ok">Non-200 never settles</span>
       </div>
       <div class="status-matrix">
         <div class="spec-cell ok-tint">
           <span class="coord ok">HTTP 200 OK</span>
-          <h3>Paid (between $0.005–$0.02)</h3>
+          <h3>$0.005–$0.02</h3>
           <p>Verified answer delivered with a receipt.</p>
         </div>
         <div class="spec-cell surface">
           <span class="coord">HTTP 400 / 404</span>
           <h3>$0.00</h3>
-          <p>Typo, invalid input, or target not found.</p>
+          <p>Invalid parameters or target not found.</p>
         </div>
         <div class="spec-cell surface">
           <span class="coord warn">HTTP 402</span>
           <h3>$0.00</h3>
-          <p>Free price preview before your client signs.</p>
+          <p>Free price quote before your client signs.</p>
         </div>
         <div class="spec-cell surface">
           <span class="coord warn">HTTP 502</span>
           <h3>$0.00</h3>
-          <p>Source offline; fails closed instead of guessing.</p>
+          <p>Primary source offline; fails closed.</p>
         </div>
         <div class="spec-cell surface">
           <span class="coord">HTTP 503</span>
           <h3>$0.00</h3>
-          <p>Temporarily paused for maintenance.</p>
+          <p>Service temporarily paused.</p>
         </div>
       </div>
     </section>
 
-    <section class="swiss-section" aria-label="Common AI Task Costs">
+    <section class="swiss-section" aria-label="Typical Multi-Step Workflow Costs">
       <div class="section-bar">
-        <h2 class="section-title">What common AI tasks cost</h2>
+        <h2 class="section-title">Typical multi-step workflow costs</h2>
         <span class="coord">Client cap: MAX_PAYMENT_USD="$0.05"</span>
       </div>
       <div class="grid-3">
@@ -350,13 +350,12 @@ export function renderPricingHtml(baseUrl: string, network: string): string {
         <h2>Hard per-call spend caps</h2>
         <p>Set a hard limit on every call with <code>MAX_PAYMENT_USD="$0.05"</code> in <code>exactjson-mcp</code> or <code>.setSpendControls({ maxAmountPerPayment: "$0.05" })</code> in <code>@x402/fetch</code>.</p>
       </div>
-    </section>
-    ${renderQuickWalletModal(baseUrl)}`;
+    </section>`;
 
   return renderSwissShell({
     baseUrl,
     title: "ExactJSON Pricing — Pay-Per-Call Base USDC ($0.005–$0.02)",
-    description: `Transparent pay-per-call x402 V2 pricing for all ${CATALOG.length} ExactJSON endpoints on Base Mainnet USDC (between $0.005–$0.02/call). Pay only on HTTP 200 success.`,
+    description: `Flat pay-per-call x402 V2 pricing for all ${CATALOG.length} ExactJSON endpoints on Base Mainnet USDC ($0.005–$0.02/call, $5–$20 per 1,000 calls). Pay only on HTTP 200.`,
     canonicalPath: "/pricing",
     activeNav: "/pricing",
     jsonLd: offerCatalogJsonLd,
@@ -372,20 +371,20 @@ export function renderAboutHtml(baseUrl: string, network: string): string {
       </div>
       <h1 class="page-title">About ExactJSON</h1>
       <p class="lead">
-        ExactJSON gives AI agents live, verified facts and pre-computed math in ~2 KB of clean JSON — without juggling 15 API keys or monthly subscriptions.
+        ExactJSON queries primary official sources at the edge, runs deterministic math in code, and delivers ~2 KB JSON answers for AI agents — with zero accounts or API keys.
       </p>
     </section>
 
     <section class="swiss-section grid-2">
       <div class="spec-cell surface">
         <span class="coord">Why we built it</span>
-        <h2>More accurate AI, up to 99% fewer tokens</h2>
-        <p>Raw financial, security, and government APIs often dump 200 KB of noisy JSON — burning context tokens and inviting LLM math mistakes. ExactJSON queries primary sources at the edge, runs deterministic checks in code, and returns compact ~2 KB answers for half a cent to two cents per call.</p>
+        <h2>Sharp answers, ~99% smaller payloads</h2>
+        <p>Raw financial, security, and government APIs often return 200 KB of noise — burning context tokens and inviting LLM math errors. ExactJSON queries primary sources directly, computes the answer in code, and delivers ~2 KB JSON for $0.005–$0.02 per call.</p>
       </div>
       <div class="spec-cell surface">
         <span class="coord warn">Safety first</span>
         <h2>Fail-closed safety boundary</h2>
-        <p>ExactJSON runs on Cloudflare Workers and D1 with automatic USDC settlement on ${escapeHtml(formatHumanNetwork(network))}. Security and compliance checks combine authoritative engines (like GoPlus + Honeypot.is on EVM, RugCheck on Solana, and EU Commission VIES) and fail closed with HTTP 502 ($0.00 charged) whenever a primary source is down — never reporting missing data as safe.</p>
+        <p>ExactJSON runs on Cloudflare Workers and D1 with gasless USDC settlement on ${escapeHtml(formatHumanNetwork(network))}. Security and compliance checks combine authoritative engines (GoPlus + Honeypot.is on EVM, RugCheck on Solana, EU Commission VIES) and fail closed with HTTP 502 ($0.00 charged) whenever a primary source is offline.</p>
       </div>
     </section>
 
@@ -502,7 +501,7 @@ export function renderContactHtml(baseUrl: string): string {
 
     <section class="spec-cell" style="border-bottom: none;">
       <div class="callout-box warn">
-        <strong>Wallet &amp; key safety reminder:</strong> Never share private keys, seed phrases, or signing secrets in support emails or GitHub issues. ExactJSON signs Base USDC payments strictly on your own device via your wallet or local <code>exactjson-mcp</code> process — we never custody funds or ask for private keys.
+        <strong>Key safety:</strong> Never include private keys or seed phrases in emails or GitHub issues. ExactJSON signs Base USDC authorizations strictly on your device and never custodies funds.
       </div>
     </section>`;
 

@@ -61,8 +61,8 @@ export const HUMAN_PACK_META: Readonly<Record<SetupPackChoice, HumanPackMeta>> =
     label: "Markets",
     plainTitle: "Crypto, Trading & Macro",
     plainSummary:
-      "Spot scam tokens, check real swap slippage, track live futures, prediction odds, and central bank rates.",
-    exampleQuestion: "Is this crypto token a honeypot scam?",
+      "Audit EVM and Solana tokens, measure real swap slippage, and track perpetuals, prediction odds, and central bank rates.",
+    exampleQuestion: "Is this token a honeypot or high-tax trap?",
     exampleAnswer: "Dual-engine safety score, hidden buy/sell taxes, and live liquidity.",
     examplePrice: "$0.01",
     samplePathWithQuery: "/v1/evm/safety?address=0x4200000000000000000000000000000000000006&chain=base",
@@ -74,9 +74,9 @@ export const HUMAN_PACK_META: Readonly<Record<SetupPackChoice, HumanPackMeta>> =
     label: "Security",
     plainTitle: "Code, Domain & Cloud Safety",
     plainSummary:
-      "Check packages before installing, verify sketchy domains, triage active CVEs, and check cloud outages.",
+      "Vet npm, PyPI, and Rust packages before install, verify domains and active CVEs, and check live cloud status.",
     exampleQuestion: "Is this npm or Python package safe to install?",
-    exampleAnswer: "Known vulnerabilities, package age, fake-package flags, and OpenSSF score.",
+    exampleAnswer: "Known vulnerabilities, package age, typosquat flags, and OpenSSF score.",
     examplePrice: "$0.01",
     samplePathWithQuery: "/v1/oss/package-audit?package=lodash&ecosystem=npm",
     mcpRemotePath: "/mcp/security",
@@ -85,9 +85,9 @@ export const HUMAN_PACK_META: Readonly<Record<SetupPackChoice, HumanPackMeta>> =
   world: {
     id: "world",
     label: "World",
-    plainTitle: "Flights, Weather, Travel & Hazards",
+    plainTitle: "Flights, Weather & Hazards",
     plainSummary:
-      "Live airport delays, travel advisories, earthquake/disaster briefs, drone GPS storms, and solar windows.",
+      "Live airport delays, travel advisories, seismic and disaster briefs, drone GNSS space weather, and solar windows.",
     exampleQuestion: "Are flights delayed at JFK right now?",
     exampleAnswer: "Decoded airport weather, flight category, and active FAA ground stops.",
     examplePrice: "$0.01",
@@ -98,11 +98,11 @@ export const HUMAN_PACK_META: Readonly<Record<SetupPackChoice, HumanPackMeta>> =
   commerce: {
     id: "commerce",
     label: "Commerce",
-    plainTitle: "Invoices, Companies & Recalls",
+    plainTitle: "Invoices, Entities & Recalls",
     plainSummary:
-      "Verify EU VAT numbers and IBANs, check real company registries, banking settlement dates, and product recalls.",
-    exampleQuestion: "Is this EU company's VAT number real before I pay?",
-    exampleAnswer: "Official EU VIES registration check plus IBAN and country-mismatch flags.",
+      "Verify EU VAT IDs and IBANs, inspect corporate registries, calculate banking settlement dates, and screen product recalls.",
+    exampleQuestion: "Is this EU VAT number valid before we pay?",
+    exampleAnswer: "Live EU VIES registration check plus IBAN and country-mismatch flags.",
     examplePrice: "$0.01",
     samplePathWithQuery: "/v1/commerce/vat-verify?vat=IE6388047V",
     mcpRemotePath: "/mcp/commerce",
@@ -111,11 +111,11 @@ export const HUMAN_PACK_META: Readonly<Record<SetupPackChoice, HumanPackMeta>> =
   research: {
     id: "research",
     label: "Research",
-    plainTitle: "Papers, Chemistry & Clinical Trials",
+    plainTitle: "Papers, Chemistry & Trials",
     plainSummary:
-      "Catch fake or retracted citations, check chemical safety ratings, and track live clinical trial milestones.",
-    exampleQuestion: "Was this research paper made up or retracted?",
-    exampleAnswer: "Official Crossref/DataCite verification plus Retraction Watch flags.",
+      "Verify DOIs and catch retractions, pull GHS chemical hazard profiles, and track Phase 2/3 clinical trial catalysts.",
+    exampleQuestion: "Was this paper retracted or mis-cited?",
+    exampleAnswer: "Live Crossref/DataCite verification plus Retraction Watch flags.",
     examplePrice: "$0.005",
     samplePathWithQuery: "/v1/science/citation-verify?doi=10.1038/s41586-021-03819-2",
     mcpRemotePath: "/mcp/research",
@@ -124,11 +124,11 @@ export const HUMAN_PACK_META: Readonly<Record<SetupPackChoice, HumanPackMeta>> =
 };
 
 export const HUMAN_ENDPOINT_ONE_LINER: Readonly<Record<EndpointId, string>> = {
-  evm_safety: "Check if an Ethereum or Base token is a honeypot, scam, or high-tax trap.",
-  execution_quote_check: "See real swap or perp price impact across trade sizes before executing.",
-  solana_safety: "Audit a Solana token for rug flags, mint permissions, and real liquidity.",
-  solana_trending: "Browse trending Solana pools already screened for common safety risks.",
-  perps_snapshot: "Fast live snapshot of Hyperliquid funding, spread, and orderbook depth.",
+  evm_safety: "Audit an Ethereum or Base token for honeypots, hidden taxes, and thin liquidity.",
+  execution_quote_check: "Measure real swap or perp price impact across trade sizes before executing.",
+  solana_safety: "Audit a Solana token for rug flags, mint authorities, and live liquidity.",
+  solana_trending: "Browse trending Solana pools pre-screened for common safety risks.",
+  perps_snapshot: "Live snapshot of Hyperliquid funding, spread, and orderbook depth.",
   perps_screener: "Scan 180+ Hyperliquid perpetual markets for extreme funding or volume.",
   perps_funding_arb: "Compare annualized perp funding spreads across Hyperliquid, dYdX, and Kraken.",
   predictions_arb: "Find fee-adjusted arbitrage spreads between Polymarket and Kalshi.",
@@ -136,14 +136,14 @@ export const HUMAN_ENDPOINT_ONE_LINER: Readonly<Record<EndpointId, string>> = {
   options_surface: "Read Deribit BTC or ETH implied volatility, skew, and max pain levels.",
   macro_liquidity: "Track live US Treasury cash, Fed reverse repo, and net USD liquidity.",
   macro_global_rates: "Compare official central bank interest rates across 38 countries.",
-  oss_package_audit: "Check an npm, PyPI, or Rust package for vulnerabilities or fake clones.",
-  net_domain_trust: "Spot malware, phishing risk, missing email protection, and new domains.",
+  oss_package_audit: "Check an npm, PyPI, or Rust package for vulnerabilities or typosquats.",
+  net_domain_trust: "Check malware sinkholes, DNSSEC, SPF/DMARC posture, and domain age.",
   sec_cve_triage: "See if a CVE is actively exploited in the wild and which version fixes it.",
   ops_cloud_status: "Check live outage status for GitHub, Cloudflare, OpenAI, Anthropic, Vercel, and npm.",
   oss_runtime_eol: "Check if a Node, Python, Postgres, or OS version is past end-of-life.",
-  ai_model_audit: "Verify Hugging Face model licenses, safe file formats, and GPU VRAM needs.",
+  ai_model_audit: "Verify Hugging Face model licenses, safetensors format, and GPU VRAM needs.",
   net_censorship_check: "Check if a website is blocked or throttled in a specific country.",
-  aviation_airport_delays: "Check live airport weather, flight conditions, and FAA ground stops.",
+  aviation_airport_delays: "Check live airport weather, flight category, and FAA ground stops.",
   space_weather_gnss: "Check solar storms affecting drone GPS accuracy, compasses, and satellites.",
   geo_hazard_brief: "Get active earthquakes, disasters, and site hazard alerts for any coordinates.",
   travel_destination_brief: "Get official travel advisories, regional alerts, and upcoming public holidays.",
@@ -153,7 +153,7 @@ export const HUMAN_ENDPOINT_ONE_LINER: Readonly<Record<EndpointId, string>> = {
   entity_company_verify: "Verify a company's legal entity ID, ownership tree, and public filings.",
   consumer_safety_recall: "Search official US consumer product, food, drug, and device recalls.",
   science_citation_verify: "Verify a paper DOI or arXiv link and catch hallucinations or retractions.",
-  chem_hazard_profile: "Look up official chemical toxicity, flammability, and safety ratings.",
+  chem_hazard_profile: "Look up official PubChem GHS toxicity, flammability, and safety ratings.",
   bio_drug_trial_brief: "Track active Phase 2/3 clinical trials and official drug classifications.",
 };
 
@@ -165,34 +165,28 @@ export interface HumanFaqItem {
 
 export const HUMAN_FAQ: readonly HumanFaqItem[] = [
   {
-    id: "faq-not-llm",
-    question: "Is ExactJSON a replacement for ChatGPT or Claude?",
-    answer:
-      "No — it works alongside your AI. ExactJSON feeds your AI verified live facts and pre-computed math in ~2 KB so it stops guessing and uses up to 99% fewer context tokens.",
-  },
-  {
     id: "faq-web-search",
-    question: "Why not just let my AI search the web?",
+    question: "Why not just use web search or call upstream APIs directly?",
     answer:
-      "Web search scrapes bulky web pages, burns tokens, and often misses live official registries like EU VAT checks, FAA ground stops, or Retraction Watch. ExactJSON queries primary sources directly and computes exact numbers in code.",
+      "Web search scrapes bulky pages and misses live registries like EU VIES, FAA ground stops, Retraction Watch, and L2 orderbooks. Calling upstream APIs directly means managing dozens of keys and burning context tokens on 200 KB responses. ExactJSON gives your agent the computed answer in one ~2 KB call.",
   },
   {
-    id: "faq-eth-gas",
-    question: "Do I need crypto experience or ETH for gas fees?",
+    id: "faq-pricing-roi",
+    question: "How does pricing compare to LLM tokens and other x402 APIs?",
     answer:
-      "No ETH is needed. You pay with USDC on Base (1 USDC = $1.00), and the x402 payment relay covers Base network gas fees automatically. Putting $2–$5 of USDC in a separate pocket wallet covers hundreds of calls.",
-  },
-  {
-    id: "faq-wallet-safety",
-    question: "Can my AI accidentally drain my wallet?",
-    answer:
-      "Keep your AI safe with two layers: put only $2–$5 in a dedicated pocket wallet (never your main wallet) and keep MAX_PAYMENT_USD set to $0.05 so no single call can ever exceed a few cents.",
+      "Every endpoint is $0.005–$0.02 ($5–$20 per 1,000 calls) — below the x402 ecosystem median (~$0.028) and typically cheaper than the input tokens an LLM spends parsing raw upstream JSON.",
   },
   {
     id: "faq-errors-free",
-    question: "What happens if a lookup fails or an API is down?",
+    question: "What happens if a lookup fails or a primary source is down?",
     answer:
-      "You pay $0.00. Invalid parameters (400), not-found items (404), and upstream outages (502) never settle payment, and security checks fail closed instead of guessing.",
+      "You pay $0.00. Payment settles only on HTTP 200. Invalid parameters (400), missing targets (404), upstream outages (502), and pauses (503) never charge — and security checks fail closed instead of guessing.",
+  },
+  {
+    id: "faq-keys-limits",
+    question: "How do signing keys, gas fees, and spend limits work?",
+    answer:
+      "Payments sign locally on your machine via gasless Base USDC (EIP-3009), so no ETH is required for gas and ExactJSON never sees your key. Use a dedicated low-balance address and keep MAX_PAYMENT_USD set to $0.05 in your client.",
   },
 ];
 
@@ -226,7 +220,7 @@ export function buildMcpConfigSnippet(_baseUrl: string, pack: SetupPackChoice): 
           command: "npx",
           args: [...meta.stdioArgs],
           env: {
-            BUYER_PRIVATE_KEY: "0xYOUR_POCKET_WALLET_PRIVATE_KEY",
+            BUYER_PRIVATE_KEY: "0xYOUR_BASE_WALLET_PRIVATE_KEY",
             MAX_PAYMENT_USD: "$0.05",
           },
         },
@@ -287,32 +281,6 @@ export function renderDialog(opts: DialogOptions): string {
   </dialog>`;
 }
 
-export function renderQuickWalletModal(baseUrl: string): string {
-  const safeBase = escapeHtml(baseUrl);
-  const bodyHtml = `
-    <p class="modal-lead">Think of this like a <strong>$5 prepaid gift card for your AI</strong>. No account signup, no monthly bill, and no ETH needed for gas.</p>
-    <div class="callout-box warn">
-      <strong>Safety rule:</strong> Never use your main crypto wallet. Create a brand-new "AI pocket wallet" and fund it with only <strong>$2–$5 of USDC on Base</strong> (good for 100–1,000 calls).
-    </div>
-    <ol class="step-list">
-      <li><strong>Create a fresh pocket address:</strong> Install <a href="${WALLET_LINKS.rabby}" target="_blank" rel="noopener noreferrer">Rabby Wallet</a> or <a href="${WALLET_LINKS.metamask}" target="_blank" rel="noopener noreferrer">MetaMask</a> and add a new address just for your AI. <em>(Avoid passkey-only smart wallets — they don't export a <code>0x...</code> private key.)</em></li>
-      <li><strong>Add $2–$5 of native USDC on Base:</strong> Send USDC directly to the <strong>Base</strong> network from Coinbase (no bridge needed) or follow the <a href="${WALLET_LINKS.baseDocs}" target="_blank" rel="noopener noreferrer">Base official docs</a>. You need <strong>$0 ETH</strong> for gas — x402 covers it.</li>
-      <li><strong>Verify native Base USDC &amp; export key:</strong> Native Base USDC contract is <code>${WALLET_LINKS.baseUsdcContract}</code>. Export only that pocket address's private key into your local <code>.env</code> or MCP config with <code>MAX_PAYMENT_USD="$0.05"</code>.</li>
-    </ol>`;
-
-  const footerHtml = `
-    <a class="swiss-btn primary" href="${safeBase}/setup">Open Full 3-Step Setup Guide →</a>
-    <button type="button" class="swiss-btn" data-close-dialog>Done</button>`;
-
-  return renderDialog({
-    id: "wallet-quick-dialog",
-    eyebrow: "Quick Wallet Guide · $0 ETH Gas Needed",
-    title: "How to make a $5 AI pocket wallet",
-    bodyHtml,
-    footerHtml,
-  });
-}
-
 export interface PackSetupWidgetOptions {
   baseUrl: string;
   idPrefix: string;
@@ -343,29 +311,29 @@ export function renderPackSetupWidget(opts: PackSetupWidgetOptions): string {
   return `<div class="setup-generator" data-setup-generator data-base-url="${escapeHtml(opts.baseUrl)}" data-network-label="${escapeHtml(opts.networkLabel)}">
     <div class="gen-pack-bar">
       <div class="gen-pack-group" role="group" aria-label="Choose a tool pack">
-        <span class="gen-pack-label">Pick a pack:</span>
+        <span class="gen-pack-label">Pack:</span>
         ${packButtons}
       </div>
-      <span class="gen-status" data-gen-status role="status" aria-live="polite">Selected: ${escapeHtml(packMeta.plainTitle)} · Tip: single packs (&lt;=15 tools) give sharpest MCP accuracy</span>
+      <span class="gen-status" data-gen-status role="status" aria-live="polite">Selected: ${escapeHtml(packMeta.plainTitle)} · Single packs (&lt;=15 tools) give sharpest MCP tool selection</span>
     </div>
 
     <div class="gen-tabs" role="radiogroup" aria-label="Choose integration method">
       <input type="radio" name="${safeId}-mode" id="${safeId}-mode-prompt" data-gen-radio="prompt" class="sr-control" checked>
-      <label class="tab-trigger" for="${safeId}-mode-prompt">1. Vibe-Code Prompt</label>
+      <label class="tab-trigger" for="${safeId}-mode-prompt">1. Agent Prompt</label>
       <input type="radio" name="${safeId}-mode" id="${safeId}-mode-mcp" data-gen-radio="mcp" class="sr-control">
-      <label class="tab-trigger" for="${safeId}-mode-mcp">2. Claude &amp; Cursor (MCP)</label>
+      <label class="tab-trigger" for="${safeId}-mode-mcp">2. MCP Config</label>
       <input type="radio" name="${safeId}-mode" id="${safeId}-mode-sdk" data-gen-radio="sdk" class="sr-control">
       <label class="tab-trigger" for="${safeId}-mode-sdk">3. TypeScript SDK</label>
     </div>
 
     <div class="gen-pane" data-gen-pane="prompt">
-      <p class="gen-note">Paste this into <strong>Cursor, Claude Code, Antigravity, Lovable, Bolt, or Replit</strong> — your coding AI will read our spec and wire everything safely.</p>
+      <p class="gen-note">Paste into <strong>Cursor, Claude Code, Antigravity, Lovable, Bolt, or Replit</strong> — your coding agent reads <code>/llms.txt</code> and wires the client safely.</p>
       ${renderCodeWell({
         id: `${opts.idPrefix}-code-prompt`,
-        label: `Prompt · ${packMeta.plainTitle}`,
-        copyLabel: "Copy vibe-coding prompt",
+        label: `Agent Prompt · ${packMeta.plainTitle}`,
+        copyLabel: "Copy agent setup prompt",
         codeHtml: escapeHtml(promptRaw),
-        receiptLeft: "Reads /llms.txt automatically · Enforces $0.05 spend cap",
+        receiptLeft: "Reads /llms.txt · Enforces $0.05 spend cap",
         receiptRight: "400 / 404 / 502 = $0.00",
         codeDataAttr: 'data-gen-code="prompt"',
         labelDataAttr: 'data-gen-label="prompt"',
@@ -373,18 +341,18 @@ export function renderPackSetupWidget(opts: PackSetupWidgetOptions): string {
     </div>
 
     <div class="gen-pane" data-gen-pane="mcp">
-      <p class="gen-note">Paste into Claude Desktop, Cursor, or Windsurf. Your key stays on your device, and <strong>only successful answers charge</strong>.</p>
+      <p class="gen-note">Paste into Claude Desktop, Cursor, or Windsurf. Signing stays local on your machine, and <strong>only HTTP 200 answers charge</strong>.</p>
       ${renderCodeWell({
         id: `${opts.idPrefix}-code-mcp`,
         label: `Local MCP · npx ${packMeta.stdioArgs.join(" ")}`,
         copyLabel: "Copy MCP configuration JSON",
         codeHtml: highlightJson(mcpRaw),
-        receiptLeft: "Local signing · MAX_PAYMENT_USD=$0.05",
+        receiptLeft: "Local EIP-3009 signing · MAX_PAYMENT_USD=$0.05",
         receiptRight: "$0 ETH gas",
         codeDataAttr: 'data-gen-code="mcp"',
         labelDataAttr: 'data-gen-label="mcp"',
       })}
-      <p class="gen-remote-note">Using an x402-native remote MCP client instead? Connect directly to <code data-gen-remote-url>${escapeHtml(opts.baseUrl)}${escapeHtml(packMeta.mcpRemotePath)}</code>.</p>
+      <p class="gen-remote-note">Already using <strong>AgentCash</strong> or an x402-native MCP client? Point directly to <code data-gen-remote-url>${escapeHtml(opts.baseUrl)}${escapeHtml(packMeta.mcpRemotePath)}</code> — no local bridge needed.</p>
     </div>
 
     <div class="gen-pane" data-gen-pane="sdk">
@@ -395,7 +363,7 @@ export function renderPackSetupWidget(opts: PackSetupWidgetOptions): string {
         copyLabel: "Copy TypeScript SDK quickstart",
         codeHtml: highlightCode(sdkRaw, "ts"),
         receiptLeft: "Client cap: maxAmountPerPayment = $0.05",
-        receiptRight: "Zero API keys needed",
+        receiptRight: "Payment is authentication",
         codeDataAttr: 'data-gen-code="sdk"',
         labelDataAttr: 'data-gen-label="sdk"',
       })}
