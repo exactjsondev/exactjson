@@ -100,6 +100,14 @@
 
 Official MCP Registry ID: `io.github.exactjsondev/exactjson`.
 
+## Runnable Examples
+
+Self-contained scripts with `$0` unpaid `402` dry-run mode (no wallet needed) and a built-in `$0.05` spend cap when live:
+
+- [`examples/pre-trade-guard.mjs`](examples/pre-trade-guard.mjs) — EVM token safety + slippage ladder (`GO` / `CAUTION` / `BLOCK`)
+- [`examples/prediction-arb-watch.mjs`](examples/prediction-arb-watch.mjs) — Polymarket vs. Kalshi fee-adjusted net edge & resolution warnings
+- [`examples/ci-security-gate.mjs`](examples/ci-security-gate.mjs) — OSS supply-chain audit + CISA KEV/EPSS triage gate (see [`examples/README.md`](examples/README.md))
+
 ## Machine Discovery (Free, 0ms x402 Overhead)
 
 - `GET https://exactjson.com/` (`Accept: text/html` for docs; `Accept: application/json` for JSON index, `Vary: Accept`)
